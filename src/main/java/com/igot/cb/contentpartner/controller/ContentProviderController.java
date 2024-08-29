@@ -1,8 +1,8 @@
-package com.igot.cb.contentprovider.controller;
+package com.igot.cb.contentpartner.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.igot.cb.contentprovider.service.ContentPartnerService;
-import com.igot.cb.pores.dto.CustomResponse;
+import com.igot.cb.contentpartner.entity.ContentPartnerEntity;
+import com.igot.cb.contentpartner.service.ContentPartnerService;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.util.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +42,12 @@ public class ContentProviderController {
     @DeleteMapping("/v1/delete/{id}")
     public ResponseEntity<?> delete(@PathVariable String id) {
         ApiResponse response = partnerService.delete(id);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/v1/readbyname/{name}")
+    public ResponseEntity<?> fetchContentDetailsByName(@PathVariable String name) {
+        ApiResponse response = partnerService.getContentDetailsByPartnerName(name);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
