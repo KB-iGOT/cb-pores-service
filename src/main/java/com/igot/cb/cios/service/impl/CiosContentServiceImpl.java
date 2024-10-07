@@ -152,13 +152,14 @@ public class CiosContentServiceImpl implements CiosContentService {
     }
 
     @Override
-    public Object fetchDataByExternalIdAndPartnerId(String externalid) {
-        log.info("getting content by id: " + externalid);
+    public Object fetchDataByExternalIdAndPartnerId(String externalid,String partnerid) {
+        log.info("getting content by extid: {} and parterid: {} " + externalid,partnerid);
         if (StringUtils.isEmpty(externalid)) {
             log.error("CiosContentServiceImpl::read:Id not found");
             throw new CustomException(Constants.ERROR, "externalid is mandatory", HttpStatus.BAD_REQUEST);
         }
-        String cachedJson = cacheService.getCache(externalid);
+        String id=externalid+"_"+partnerid;
+        String cachedJson = cacheService.getCache(id);
         Object response = null;
         if (StringUtils.isNotEmpty(cachedJson)) {
             log.info("CiosContentServiceImpl::read:Record coming from redis cache");
@@ -169,10 +170,10 @@ public class CiosContentServiceImpl implements CiosContentService {
                 throw new RuntimeException(e);
             }
         } else {
-            Optional<CiosContentEntity> optionalJsonNodeEntity = ciosRepository.findByExternalId(externalid);
+            Optional<CiosContentEntity> optionalJsonNodeEntity = ciosRepository.findByExternalIdAndPartnerId(externalid,partnerid);
             if (optionalJsonNodeEntity.isPresent()) {
                 CiosContentEntity ciosContentEntity = optionalJsonNodeEntity.get();
-                cacheService.putCache(externalid, ciosContentEntity.getCiosData());
+                cacheService.putCache(id, ciosContentEntity.getCiosData());
                 log.info("CiosContentServiceImpl::read:Record coming from postgres db");
                 response = objectMapper.convertValue(ciosContentEntity.getCiosData(), new TypeReference<Object>() {
                 });
