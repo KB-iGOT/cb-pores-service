@@ -69,7 +69,7 @@ public class DiscussionServiceImpl implements DiscussionService {
         log.info("DiscussionService::createDiscussion:creating discussion");
         CustomResponse response = new CustomResponse();
         payloadValidation.validatePayload(Constants.DISCUSSION_VALIDATION_FILE, discussionDetails);
-        String userId = "19191";//accessTokenValidator.verifyUserToken(token);
+        String userId = accessTokenValidator.verifyUserToken(token);
         if (StringUtils.isBlank(userId)) {
             response.getParams().setErrmsg(Constants.USER_ID_DOESNT_EXIST);
             response.setResponseCode(HttpStatus.BAD_REQUEST);
