@@ -161,4 +161,7 @@ public class CbServerProperties {
 
     @Value("${cios.content.service.search.api}")
     private String ciosContentServiceSearchApiUrl;
+
+  @Value("${elastic.required.field.discussion.json.path}")
+  private String elasticDiscussionJsonPath;
 }

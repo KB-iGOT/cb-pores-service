@@ -343,6 +343,31 @@ public class Constants {
     public static final String PUBLISHED_ON = "publishedOn";
     public static final String UPDATED_DATE = "updatedDate";
     public static final String API_CIOS_CURATION_CREATE = "api.cios.curation.create";
+    public static final String DISCUSSION_VALIDATION_FILE = "/payloadValidation/discussionValidation.json";
+    public static final String DISCUSSION_INDEX = "discussion_entity";
+    public static final String FAILED_TO_CREATE_DISCUSSION = "Failed to create the discussion";
+    public static final String SEARCH_RESULTS = "search_results";
+    public static final String DISCUSSION_ID = "discussionId";
+    public static final  String DISCUSSION_IS_NOT_ACTIVE = "Discussion is not active";
+    public static final String DISCUSSION_UPDATE_VALIDATION_FILE ="/payloadValidation/discussionUpdateValidation.json";
+    public static final String USER_DISCUSSION_VOTES = "user_discussion_votes";
+    public static final String DISCUSSION_ID_KEY = "discussionid";
+    public static final String EXCEPTION_MSG_DELETE = "Exception occurred while deleting record from ";
+    public static final String VOTE_COUNT = "voteCount";
+    public static final String VOTE_TYPE = "votetype";
+    public static final String TAG = "tag";
+    public static final String TARGET_TOPIC = "targetTopic";
+    public static final String UP = "up";
+    public static final String DOWN = "down";
+    public static final String DISCUSSION_CACHE_PREFIX = "discussion_";
+    public static final String ANSWER_POSTS = "answerPosts";
+    public static final String VOTETYPE= "voteType";
+    public static final String USERID= "userid";
+    public static final String DISCUSSION_IS_INACTIVE = "Discussion is inactive.";
+    public static final String FAILED_TO_VOTE = "failed to update user vote";
+    public static final String USER_ALREADY_VOTED = "User already voted %s";
+    public static final String MINIMUM_CHARACTERS_NEEDED= "Minimum 3 characters are required to search";
+    public static final String FAILED_TO_DELETE_DISCUSSION = "failed to delete discussion";
 
     private Constants() {
     }
