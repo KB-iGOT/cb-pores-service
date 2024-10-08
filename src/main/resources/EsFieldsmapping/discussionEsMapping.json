@@ -1,0 +1,26 @@
+{
+  "discussion_id": {
+    "type": "keyword"
+  },
+  "title": {
+    "type": "keyword"
+  },
+  "createdBy": {
+    "type": "keyword"
+  },
+  "tags": {
+    "type": "keyword"
+  },
+  "targetTopic": {
+    "type": "keyword"
+  },
+  "isActive": {
+    "type": "boolean"
+  },
+  "voteCount": {
+    "type": "integer"
+  },
+  "viewCount": {
+    "type": "integer"
+  }
+}

@@ -1,13 +1,12 @@
 package com.igot.cb.transactional.cassandrautils;
 
-import com.datastax.driver.core.BoundStatement;
-import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.*;
 import com.datastax.driver.core.querybuilder.Clause;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.driver.core.querybuilder.Select;
 import com.datastax.driver.core.querybuilder.Select.Builder;
 import com.datastax.driver.core.querybuilder.Select.Where;
+import com.datastax.driver.core.querybuilder.Update;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.ApiResponse;
 
@@ -224,5 +223,34 @@ public class CassandraOperationImpl implements CassandraOperation {
                 "Cassandra operation {0} started at {1} and completed at {2}. Total time elapsed is {3}.";
         MessageFormat mf = new MessageFormat(message);
         logger.debug(mf.format(new Object[] {operation, startTime, stopTime, elapsedTime}));
+    }
+
+    @Override
+    public Map<String, Object> updateRecordByCompositeKey(String keyspaceName, String tableName, Map<String, Object> updateAttributes,
+                                                          Map<String, Object> compositeKey) {
+        Map<String, Object> response = new HashMap<>();
+        Statement updateQuery = null;
+        try {
+            Session session = connectionManager.getSession(keyspaceName);
+            Update update = QueryBuilder.update(keyspaceName, tableName);
+            Update.Assignments assignments = update.with();
+            Update.Where where = update.where();
+            updateAttributes.entrySet().stream().forEach(x -> {
+                assignments.and(QueryBuilder.set(x.getKey(), x.getValue()));
+            });
+            compositeKey.entrySet().stream().forEach(x -> {
+                where.and(QueryBuilder.eq(x.getKey(), x.getValue()));
+            });
+            updateQuery = where;
+            session.execute(updateQuery);
+            response.put(Constants.RESPONSE, Constants.SUCCESS);
+        } catch (Exception e) {
+            String errMsg = String.format("Exception occurred while updating record to %s %s", tableName, e.getMessage());
+            logger.error(errMsg);
+            response.put(Constants.RESPONSE, Constants.FAILED);
+            response.put(Constants.ERROR_MESSAGE, errMsg);
+            throw e;
+        }
+        return response;
     }
 }
