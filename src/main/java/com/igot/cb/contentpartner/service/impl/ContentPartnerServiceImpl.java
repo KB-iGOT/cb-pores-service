@@ -98,6 +98,7 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                 objectNode.remove("trasformContentJson");
                 objectNode.remove("transformProgressJson");
                 objectNode.remove("trasformCertificateJson");
+                objectNode.remove("serviceRegistryDetails");
                 addSearchTags(objectNode);
                 contentPartnerEntity.setData(objectNode);
                 ContentPartnerEntity saveJsonEntity = entityRepository.save(contentPartnerEntity);
