@@ -193,9 +193,10 @@ public class CiosContentServiceImpl implements CiosContentService {
         try {
             Timestamp timestamp=new Timestamp(System.currentTimeMillis());
             for (ObjectDto eachData : data) {
-                if (eachData.getStatus().equalsIgnoreCase("draft")) {
+                if (eachData.getStatus().equals("draft")) {
                     log.info("Status of the data {}",eachData.getStatus());
                     JsonNode jsonNode = eachData.getContentData();
+                    payloadValidation.validatePayload(Constants.CIOS_CONTENT_VALIDATION_FILE_JSON,jsonNode);
                     ObjectNode contentNode = (ObjectNode) jsonNode.path("content");
                     contentNode.put(Constants.STATUS, eachData.getStatus());
                     if (eachData.getCompetencies_v5() != null) {
@@ -246,18 +247,21 @@ public class CiosContentServiceImpl implements CiosContentService {
                     } else {
                         log.error("No data found in the response.");
                     }
-                } else {
+                } else if(eachData.getStatus().equals("live")) {
                     log.info("Status of the data {}",eachData.getStatus());
                     JsonNode jsonNode = eachData.getContentData();
+                    payloadValidation.validatePayload(Constants.CIOS_CONTENT_VALIDATION_FILE_JSON,jsonNode);
                     ObjectNode contentNode = (ObjectNode) jsonNode.path("content");
                     contentNode.put(Constants.STATUS, eachData.getStatus());
                     contentNode.put(Constants.IS_ACTIVE, Constants.ACTIVE_STATUS);
                     contentNode.put(Constants.PUBLISHED_ON, timestamp.toString());
                     contentNode.put(Constants.UPDATED_DATE, timestamp.toString());
                     if (eachData.getCompetencies_v5() != null) {
+                        payloadValidation.validatePayload(Constants.COMPETENCIESVALIDATION_FILE_JSON, eachData.getCompetencies_v5());
                         contentNode.set(Constants.COMPETENCIES_V5, eachData.getCompetencies_v5());
                     }
                     if (eachData.getContentPartner() != null) {
+                        payloadValidation.validatePayload(Constants.CONTENT_PARTNER_FILE_JSON, eachData.getCompetencies_v5());
                         contentNode.set(Constants.CONTENT_PARTNER, eachData.getContentPartner());
                     }
                     if (eachData.getTags() != null) {
@@ -310,6 +314,12 @@ public class CiosContentServiceImpl implements CiosContentService {
                     cacheService.putCache(ciosContentEntity.getContentId(), ciosContentEntity.getCiosData());
                     esUtilService.addDocument(Constants.CIOS_INDEX_NAME, Constants.INDEX_TYPE, ciosContentEntity.getContentId(), map, cbServerProperties.getElasticCiosJsonPath());
                 }
+                else{
+                    apiResponse.getParams().setErrMsg(Constants.STATUS_NOT_VALID);
+                    apiResponse.getParams().setStatus(Constants.FAILED);
+                    apiResponse.setResponseCode(HttpStatus.BAD_REQUEST);
+                    return apiResponse;
+                }
             }
             Map<String, Object> result = new HashMap<>();
             result.put("ApiResponse", "All data curated successfully");
@@ -346,10 +356,6 @@ public class CiosContentServiceImpl implements CiosContentService {
     private CiosContentEntity createNewContent(JsonNode ciosRequestInput) {
         log.info("SidJobServiceImpl::createOrUpdateContent:updating the content");
         try {
-//            JsonNode jsonNode = ciosRequestInput.get("contentData");
-//            payloadValidation.validatePayload(Constants.CIOS_CONTENT_VALIDATION_FILE_JSON, dto.getContentData());
-//            payloadValidation.validatePayload(Constants.COMPETENCIESVALIDATION_FILE_JSON, dto.getCompetencies_v5());
-//            payloadValidation.validatePayload(Constants.PAYLOAD_VALIDATION_FILE_CONTENT_PROVIDER, dto.getContentPartner());
             Timestamp currentTime = new Timestamp(System.currentTimeMillis());
             CiosContentEntity igotContent = new CiosContentEntity();
             String externalId = ciosRequestInput.path("content").path("externalId").asText();
