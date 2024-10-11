@@ -199,6 +199,10 @@ public class CiosContentServiceImpl implements CiosContentService {
                     payloadValidation.validatePayload(Constants.CIOS_CONTENT_VALIDATION_FILE_JSON,jsonNode);
                     ObjectNode contentNode = (ObjectNode) jsonNode.path("content");
                     contentNode.put(Constants.STATUS, eachData.getStatus());
+                    contentNode.put(Constants.IS_ACTIVE, Constants.ACTIVE_STATUS_FALSE);
+                    contentNode.put(Constants.PUBLISHED_ON, "0000-00-00 00:00:00.000");
+                    contentNode.put(Constants.UPDATED_DATE, timestamp.toString());
+                    contentNode.put(Constants.CREATED_DATE, timestamp.toString());
                     if (eachData.getCompetencies_v5() != null) {
                         contentNode.set(Constants.COMPETENCIES_V5, eachData.getCompetencies_v5());
                     }
@@ -261,7 +265,7 @@ public class CiosContentServiceImpl implements CiosContentService {
                         contentNode.set(Constants.COMPETENCIES_V5, eachData.getCompetencies_v5());
                     }
                     if (eachData.getContentPartner() != null) {
-                        payloadValidation.validatePayload(Constants.CONTENT_PARTNER_FILE_JSON, eachData.getCompetencies_v5());
+                        payloadValidation.validatePayload(Constants.CONTENT_PARTNER_FILE_JSON, eachData.getContentPartner());
                         contentNode.set(Constants.CONTENT_PARTNER, eachData.getContentPartner());
                     }
                     if (eachData.getTags() != null) {
