@@ -5,7 +5,9 @@ import com.igot.cb.cios.dto.ObjectDto;
 import com.igot.cb.pores.exceptions.CustomException;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
 
+@Component
 public class CiosRequestPayloadValidation {
 
     public void validateModel(ObjectDto objectDto) {
