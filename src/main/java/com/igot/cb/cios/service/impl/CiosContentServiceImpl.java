@@ -13,6 +13,7 @@ import com.igot.cb.cios.dto.ObjectDto;
 import com.igot.cb.cios.entity.CiosContentEntity;
 import com.igot.cb.cios.repository.CiosRepository;
 import com.igot.cb.cios.service.CiosContentService;
+import com.igot.cb.cios.util.CiosRequestPayloadValidation;
 import com.igot.cb.contentpartner.repository.ContentPartnerRepository;
 import com.igot.cb.contentpartner.service.ContentPartnerService;
 import com.igot.cb.playlist.util.ProjectUtil;
@@ -74,6 +75,8 @@ public class CiosContentServiceImpl implements CiosContentService {
     @Autowired
     private CacheService cacheService;
 
+    @Autowired
+    private CiosRequestPayloadValidation ciosRequestPayloadValidation;
 
     @Autowired
     private ContentPartnerRepository contentPartnerRepository;
@@ -253,6 +256,7 @@ public class CiosContentServiceImpl implements CiosContentService {
                     }
                 } else if(eachData.getStatus().equals("live")) {
                     log.info("Status of the data {}",eachData.getStatus());
+                    ciosRequestPayloadValidation.validateModel(eachData);
                     JsonNode jsonNode = eachData.getContentData();
                     payloadValidation.validatePayload(Constants.CIOS_CONTENT_VALIDATION_FILE_JSON,jsonNode);
                     ObjectNode contentNode = (ObjectNode) jsonNode.path("content");
