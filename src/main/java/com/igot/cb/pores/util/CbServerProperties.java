@@ -161,4 +161,7 @@ public class CbServerProperties {
 
     @Value("${cios.content.service.search.api}")
     private String ciosContentServiceSearchApiUrl;
+
+    @Value("${search.string.max.regex.length}")
+    private int searchStringMaxRegexLength;
 }
