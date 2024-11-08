@@ -273,25 +273,25 @@ public class CiosContentServiceImpl implements CiosContentService {
     private void fetchAndUpdateContentCountsInPartnerDb(String partnerCode) {
         ObjectNode payload = objectMapper.createObjectNode();
         ObjectNode filterCriteriaMap = objectMapper.createObjectNode();
-        filterCriteriaMap.put("partnerCode", partnerCode);
+        filterCriteriaMap.put(Constants.PARTNERCODE, partnerCode);
         ArrayNode requestedFields = objectMapper.createArrayNode();
-        requestedFields.add("externalId");
+        requestedFields.add(Constants.EXTERNAL_ID);
         ArrayNode facets = objectMapper.createArrayNode();
-        facets.add("status");
-        payload.set("filterCriteriaMap", filterCriteriaMap);
-        payload.set("requestedFields", requestedFields);
-        payload.set("facets", facets);
-        payload.put("pageNumber",0);
-        payload.put("pageSize",1);
+        facets.add(Constants.STATUS);
+        payload.set(Constants.FILTER_CRITERIA_MAP, filterCriteriaMap);
+        payload.set(Constants.REQUESTED_FIELDS, requestedFields);
+        payload.set(Constants.FACETS, facets);
+        payload.put(Constants.PAGE_NUMBER, 0);
+        payload.put(Constants.PAGE_SIZE, 1);
         JsonNode node = callCiosSearchApiToGetStatusCount(payload);
-        Long totalCount = node.get("totalCount").asLong();
+        Long totalCount = node.get(Constants.TOTAL_COUNT).asLong();
         Long draftCount = 0L;
         Long liveCount = 0L;
-        JsonNode facetsResult = node.get("facets").get("status");
+        JsonNode facetsResult = node.get(Constants.FACETS).get(Constants.STATUS);
         for (JsonNode facet : facetsResult) {
-            String value = facet.get("value").asText();
-            Long count=facet.get("count").asLong();
-            if ("draft".equalsIgnoreCase(value)) {
+            String value = facet.get(Constants.VALUE).asText();
+            Long count = facet.get(Constants.COUNT).asLong();
+            if (Constants.DRAFT.equalsIgnoreCase(value)) {
                 draftCount = count;
             } else if ("live".equalsIgnoreCase(value)) {
                 liveCount = count;
@@ -300,7 +300,7 @@ public class CiosContentServiceImpl implements CiosContentService {
         log.info("Total count: {}, Draft count: {}, Live count: {}", totalCount, draftCount, liveCount);
         ApiResponse response = contentPartnerService.getContentDetailsByPartnerCode(partnerCode);
         Map<String, Object> contentPartnerResponse = response.getResult();
-        if (contentPartnerResponse != null && contentPartnerResponse.containsKey("data")) {
+        if (contentPartnerResponse != null && contentPartnerResponse.containsKey(Constants.DATA)) {
             Map<String, Object> contentPartnerResponseData = (Map<String, Object>) contentPartnerResponse.get("data");
             contentPartnerResponseData.put(Constants.TOTAL_COURSES_COUNT, totalCount);
             contentPartnerResponseData.put(Constants.DRAFT_COURSES_COUNT, draftCount);
@@ -371,10 +371,14 @@ public class CiosContentServiceImpl implements CiosContentService {
         }
     }
 
-    private JsonNode addSearchTags(List<String> tags,JsonNode jsonNode) {
+    private JsonNode addSearchTags(List<String> tags, JsonNode jsonNode) {
         List<String> lowercaseTags = new ArrayList<>();
-        String contentName = jsonNode.path("content").get("name").textValue().toLowerCase();
-        if (!tags.contains(contentName)) {
+        String contentName = null;
+        if (jsonNode.path(Constants.CONTENT) != null
+                && jsonNode.path(Constants.CONTENT).get(Constants.NAME) != null) {
+            contentName = jsonNode.path(Constants.CONTENT).get(Constants.NAME).textValue();
+        }
+        if (contentName != null && !tags.contains(contentName)) {
             lowercaseTags.add(contentName);
         }
         lowercaseTags.addAll(tags.stream()
