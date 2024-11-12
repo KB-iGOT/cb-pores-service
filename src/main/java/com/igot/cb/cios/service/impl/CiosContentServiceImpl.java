@@ -209,9 +209,11 @@ public class CiosContentServiceImpl implements CiosContentService {
                     contentNode.put(Constants.UPDATED_DATE, timestamp.toString());
                     contentNode.put(Constants.CREATED_DATE, timestamp.toString());
                     if (eachData.getCompetencies_v5() != null) {
+                        payloadValidation.validatePayload(Constants.COMPETENCIESVALIDATION_FILE_JSON, eachData.getCompetencies_v5());
                         contentNode.set(Constants.COMPETENCIES_V5, eachData.getCompetencies_v5());
                     }
                     if (eachData.getCompetencies_v6() != null) {
+                        payloadValidation.validatePayload(Constants.COMPETENCIESVALIDATION_FILE_JSON, eachData.getCompetencies_v6());
                         contentNode.set(Constants.COMPETENCIES_V6, eachData.getCompetencies_v6());
                     }
                     if (eachData.getContentPartner() != null) {
