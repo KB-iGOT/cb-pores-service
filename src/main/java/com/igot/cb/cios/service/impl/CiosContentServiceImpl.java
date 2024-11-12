@@ -211,6 +211,9 @@ public class CiosContentServiceImpl implements CiosContentService {
                     if (eachData.getCompetencies_v5() != null) {
                         contentNode.set(Constants.COMPETENCIES_V5, eachData.getCompetencies_v5());
                     }
+                    if (eachData.getCompetencies_v6() != null) {
+                        contentNode.set(Constants.COMPETENCIES_V6, eachData.getCompetencies_v6());
+                    }
                     if (eachData.getContentPartner() != null) {
                         contentNode.set(Constants.CONTENT_PARTNER, eachData.getContentPartner());
                     }
@@ -230,8 +233,10 @@ public class CiosContentServiceImpl implements CiosContentService {
                     contentNode.put(Constants.PUBLISHED_ON, timestamp.toString());
                     contentNode.put(Constants.UPDATED_DATE, timestamp.toString());
                     if (eachData.getCompetencies_v5() != null) {
-                        payloadValidation.validatePayload(Constants.COMPETENCIESVALIDATION_FILE_JSON, eachData.getCompetencies_v5());
                         contentNode.set(Constants.COMPETENCIES_V5, eachData.getCompetencies_v5());
+                    }
+                    if (eachData.getCompetencies_v6() != null) {
+                        contentNode.set(Constants.COMPETENCIES_V6, eachData.getCompetencies_v6());
                     }
                     if (eachData.getContentPartner() != null) {
                         payloadValidation.validatePayload(Constants.CONTENT_PARTNER_FILE_JSON, eachData.getContentPartner());

@@ -7,7 +7,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Setter
 @Getter
@@ -16,7 +18,9 @@ import java.util.List;
 public class ObjectDto{
     private JsonNode contentData;
     private JsonNode competencies_v5;
+    private JsonNode competencies_v6;
     private JsonNode contentPartner;
     private List<String> tags;
     private String status;
+
 }
