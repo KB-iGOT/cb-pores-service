@@ -57,6 +57,7 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
         Timestamp currentTime = new Timestamp(System.currentTimeMillis());
         try {
             if (partnerDetails.get(Constants.ID) == null) {
+                payloadValidation.validatePayload(Constants.PAYLOAD_VALIDATION_FILE_CONTENT_PROVIDER, partnerDetails);
                 String partnerName = partnerDetails.path(Constants.CONTENT_PARTNER_NAME).asText();
                 String partnerCode = partnerDetails.path(Constants.PARTNERCODE).asText();
                 Optional<ContentPartnerEntity> optionalEntity = entityRepository.findByContentPartnerName(partnerName);
@@ -94,7 +95,6 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                 if (partnerDetails.path(Constants.PROVIDER_TIPS).isMissingNode()) {
                     ((ObjectNode) partnerDetails).put(Constants.PROVIDER_TIPS, ((ObjectNode) partnerDetails).arrayNode());
                 }
-                payloadValidation.validatePayload(Constants.PAYLOAD_VALIDATION_FILE_CONTENT_PROVIDER, partnerDetails);
                 ((ObjectNode) partnerDetails).put(Constants.CREATED_ON, String.valueOf(currentTime));
                 ((ObjectNode) partnerDetails).put(Constants.UPDATED_ON, String.valueOf(currentTime));
                 ((ObjectNode) partnerDetails).put(Constants.DOCUMENT_UPLOADED_DATE, partnerDetails.path(Constants.DOCUMENT_UPLOADED_DATE).asText(null));
@@ -133,6 +133,8 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                 response.setResult(result);
                 response.setResponseCode(HttpStatus.OK);
             } else {
+                JsonNode data = partnerDetails.get(Constants.DATA);
+                payloadValidation.validatePayload(Constants.PAYLOAD_VALIDATION_FILE_CONTENT_PROVIDER, data);
                 String partnerName = partnerDetails.path(Constants.DATA).get(Constants.CONTENT_PARTNER_NAME).asText();
                 log.info("Updating content partner entity");
                 response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_UPDATE);
@@ -145,8 +147,6 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                         response.setResponseCode(HttpStatus.BAD_REQUEST);
                         return response;
                     }
-                    JsonNode data = partnerDetails.get(Constants.DATA);
-                    payloadValidation.validatePayload(Constants.PAYLOAD_VALIDATION_FILE_CONTENT_PROVIDER, data);
                     ContentPartnerEntity jsonEntity = content.get();
                     jsonEntity.setUpdatedOn(currentTime);
                     jsonEntity.setIsActive(Constants.ACTIVE_STATUS);
