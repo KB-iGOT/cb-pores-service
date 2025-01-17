@@ -174,8 +174,8 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                     if (dataNode.path(Constants.IS_AUTHENTICATE).isMissingNode()) {
                         dataNode.put(Constants.IS_AUTHENTICATE, content.get().getData().get(Constants.IS_AUTHENTICATE));
                     }
-                    if (partnerDetails.path(Constants.PROVIDER_TIPS).isMissingNode()) {
-                        ((ObjectNode) partnerDetails).put(Constants.PROVIDER_TIPS, ((ObjectNode) partnerDetails).arrayNode());
+                    if (dataNode.path(Constants.PROVIDER_TIPS).isMissingNode()) {
+                        (dataNode).put(Constants.PROVIDER_TIPS, ((ObjectNode) partnerDetails).arrayNode());
                     }
                     if (dataNode.path(Constants.TOTAL_COURSES_COUNT).isMissingNode()) {
                         dataNode.put(Constants.TOTAL_COURSES_COUNT, content.get().getData().get(Constants.TOTAL_COURSES_COUNT));
