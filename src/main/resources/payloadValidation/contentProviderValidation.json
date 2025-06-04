@@ -15,7 +15,7 @@
       "minLength": 3,
       "maxLength": 500,
       "type": "string",
-      "pattern": "^[a-zA-Z][a-zA-Z0-9\\.\\-_\\$/:\\[\\]'!\\s]*$"
+      "pattern": "^[a-zA-Z][a-zA-Z0-9\\.\\-_\\$/:\\[\\]',!\\s]*$"
     },
     "isActive": {
       "type": "boolean"
@@ -92,10 +92,7 @@
     "websiteUrl",
     "link",
     "description",
-    "partnerCode",
-    "totalCoursesCount",
-    "draftCoursesCount",
-    "liveCoursesCount"
+    "partnerCode"
   ],
   "additionalProperties": false
 }

@@ -2,6 +2,7 @@ package com.igot.cb.transactional.cassandrautils;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.data.cassandra.config.AbstractCassandraConfiguration;
+
 @ConfigurationProperties(prefix = "spring.data.cassandra")
 public abstract class CassandraConfig extends AbstractCassandraConfiguration {
     protected String contactPoints;

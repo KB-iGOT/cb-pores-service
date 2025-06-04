@@ -57,6 +57,7 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
         Timestamp currentTime = new Timestamp(System.currentTimeMillis());
         try {
             if (partnerDetails.get(Constants.ID) == null) {
+                payloadValidation.validatePayload(Constants.PAYLOAD_VALIDATION_FILE_CONTENT_PROVIDER, partnerDetails);
                 String partnerName = partnerDetails.path(Constants.CONTENT_PARTNER_NAME).asText();
                 String partnerCode = partnerDetails.path(Constants.PARTNERCODE).asText();
                 Optional<ContentPartnerEntity> optionalEntity = entityRepository.findByContentPartnerName(partnerName);
@@ -94,10 +95,9 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                 if (partnerDetails.path(Constants.PROVIDER_TIPS).isMissingNode()) {
                     ((ObjectNode) partnerDetails).put(Constants.PROVIDER_TIPS, ((ObjectNode) partnerDetails).arrayNode());
                 }
-                payloadValidation.validatePayload(Constants.PAYLOAD_VALIDATION_FILE_CONTENT_PROVIDER, partnerDetails);
                 ((ObjectNode) partnerDetails).put(Constants.CREATED_ON, String.valueOf(currentTime));
                 ((ObjectNode) partnerDetails).put(Constants.UPDATED_ON, String.valueOf(currentTime));
-                ((ObjectNode) partnerDetails).put(Constants.DOCUMENT_UPLOADED_DATE, partnerDetails.path(Constants.DOCUMENT_UPLOADED_DATE).asText(null));
+                ((ObjectNode) partnerDetails).put(Constants.DOCUMENT_UPLOADED_DATE, partnerDetails.path(Constants.DOCUMENT_UPLOADED_DATE).asText(""));
                 ContentPartnerEntity contentPartnerEntity = new ContentPartnerEntity();
                 contentPartnerEntity.setId(id);
                 contentPartnerEntity.setCreatedOn(currentTime);
@@ -133,6 +133,8 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                 response.setResult(result);
                 response.setResponseCode(HttpStatus.OK);
             } else {
+                JsonNode data = partnerDetails.get(Constants.DATA);
+                payloadValidation.validatePayload(Constants.PAYLOAD_VALIDATION_FILE_CONTENT_PROVIDER, data);
                 String partnerName = partnerDetails.path(Constants.DATA).get(Constants.CONTENT_PARTNER_NAME).asText();
                 log.info("Updating content partner entity");
                 response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_UPDATE);
@@ -145,8 +147,6 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                         response.setResponseCode(HttpStatus.BAD_REQUEST);
                         return response;
                     }
-                    JsonNode data = partnerDetails.get(Constants.DATA);
-                    payloadValidation.validatePayload(Constants.PAYLOAD_VALIDATION_FILE_CONTENT_PROVIDER, data);
                     ContentPartnerEntity jsonEntity = content.get();
                     jsonEntity.setUpdatedOn(currentTime);
                     jsonEntity.setIsActive(Constants.ACTIVE_STATUS);
@@ -169,13 +169,13 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                     dataNode.put(Constants.CREATED_ON, String.valueOf(content.get().getCreatedOn()));
                     dataNode.put(Constants.UPDATED_ON, String.valueOf(currentTime));
                     dataNode.put(Constants.PARTNERCODE, jsonEntity.getData().get(Constants.PARTNERCODE));
-                    ((ObjectNode) partnerDetails).put(Constants.DOCUMENT_UPLOADED_DATE, partnerDetails.path(Constants.DOCUMENT_UPLOADED_DATE).asText(null));
+                    ((ObjectNode) partnerDetails).put(Constants.DOCUMENT_UPLOADED_DATE, partnerDetails.path(Constants.DOCUMENT_UPLOADED_DATE).asText(""));
                     dataNode.put(Constants.IS_ACTIVE, Constants.ACTIVE_STATUS);
                     if (dataNode.path(Constants.IS_AUTHENTICATE).isMissingNode()) {
                         dataNode.put(Constants.IS_AUTHENTICATE, content.get().getData().get(Constants.IS_AUTHENTICATE));
                     }
-                    if (partnerDetails.path(Constants.PROVIDER_TIPS).isMissingNode()) {
-                        ((ObjectNode) partnerDetails).put(Constants.PROVIDER_TIPS, ((ObjectNode) partnerDetails).arrayNode());
+                    if (dataNode.path(Constants.PROVIDER_TIPS).isMissingNode()) {
+                        (dataNode).put(Constants.PROVIDER_TIPS, ((ObjectNode) partnerDetails).arrayNode());
                     }
                     if (dataNode.path(Constants.TOTAL_COURSES_COUNT).isMissingNode()) {
                         dataNode.put(Constants.TOTAL_COURSES_COUNT, content.get().getData().get(Constants.TOTAL_COURSES_COUNT));
