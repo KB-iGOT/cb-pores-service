@@ -176,6 +176,7 @@ public class OrgServiceImpl implements OrgService {
     }
     public boolean isSpvRequest(String userId, List<String> requiredRoles) {
         Map<String, String> header = new HashMap<>();
+        log.info("isSpvRequest started for userId: {}", userId);
         Map<String, Object> readData = (Map<String, Object>) requestHandlerService
                 .fetchUsingGetWithHeadersProfile(propertiesConfig.getSbUrl() + propertiesConfig.getUserReadEndPoint() + userId,
                         header);
