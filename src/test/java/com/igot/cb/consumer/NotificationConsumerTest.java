@@ -56,87 +56,36 @@ class NotificationConsumerTest {
         record = new ConsumerRecord<>("topic", 0, 0L, null, "");
     }
 
-//    @Test
-//    void testDemandContentConsumer_validPayload_shouldCallProcessNotification() throws Exception {
-//        Map<String, Object> demandRequest = new HashMap<>();
-//        demandRequest.put(Constants.DATA, Map.of(Constants.STATUS, Constants.UNASSIGNED, Constants.ROOT_ORG_ID, "org123", Constants.PREFERRED_PROVIDER, List.of()));
-//        demandRequest.put(Constants.IS_SPV_REQUEST, false);
-//
-//        String json = objectMapper.writeValueAsString(demandRequest);
-//        ConsumerRecord<String, String> record = new ConsumerRecord<>("test", 0, 0L, "key", json);
-//
-//        lenient().when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
-//                        any(), any(), any(), isNull(), anyInt()))
-//                .thenReturn(List.of(Map.of(Constants.USER_ROOT_ORG_NAME, "OrgName")));
-//
-//        try (MockedStatic<CompletableFuture> mock = mockStatic(CompletableFuture.class)) {
-//            mock.when(() -> CompletableFuture.runAsync(any(Runnable.class)))
-//                    .thenAnswer(invocation -> {
-//                        Runnable runnable = invocation.getArgument(0);
-//                        runnable.run();
-//                        return CompletableFuture.completedFuture(null);
-//                    });
-//
-//            notificationConsumer.demandContentConsumer(record);
-//        }
-//    }
+    @Test
+    void testDemandContentConsumer_validPayload_shouldCallProcessNotification() throws Exception {
+        Map<String, Object> demandRequest = new HashMap<>();
+        demandRequest.put(Constants.DATA, Map.of(Constants.STATUS, Constants.UNASSIGNED, Constants.ROOT_ORG_ID, "org123", Constants.PREFERRED_PROVIDER, List.of()));
+        demandRequest.put(Constants.IS_SPV_REQUEST, false);
 
-//    @Test
-//    void testDemandContentConsumer_invalidPayload_shouldLogError() {
-//        ConsumerRecord<String, String> record = new ConsumerRecord<>("test", 0, 0L, "key", "{invalidJson");
-//        notificationConsumer.demandContentConsumer(record);
-//    }
+        String json = objectMapper.writeValueAsString(demandRequest);
+        ConsumerRecord<String, String> record = new ConsumerRecord<>("test", 0, 0L, "key", json);
 
-//    @Test
-//    void testProcessNotification_unassignedStatus() throws Exception {
-//        Map<String, Object> request = new HashMap<>();
-//        request.put(Constants.STATUS, Constants.UNASSIGNED);
-//        request.put(Constants.ROOT_ORG_ID, "org123");
-//        request.put(Constants.PREFERRED_PROVIDER, List.of(Map.of(Constants.PROVIDER_ID, "provider123")));
-//        request.put(Constants.DEMAND_ID, "demand001");
-//        request.put(Constants.COMPETENCIES, List.of(Map.of(Constants.AREA, "area1", Constants.THEME, "theme1", Constants.SUB_THEME, "subTheme1")));
-//        request.put(Constants.OBJECTIVE, "Sample objective");
-//
-//        Map<String, Object> demandRequest = Map.of(Constants.DATA, request, Constants.IS_SPV_REQUEST, false);
-//
-//        lenient().when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), isNull(), anyInt()))
-//                .thenReturn(List.of(Map.of(Constants.USER_ROOT_ORG_NAME, "MDOName")));
-//
-//        notificationConsumer.processNotification(demandRequest);
-//    }
+        lenient().when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                        any(), any(), any(), isNull(), anyInt()))
+                .thenReturn(List.of(Map.of(Constants.USER_ROOT_ORG_NAME, "OrgName")));
 
-//    @Test
-//    void testProcessNotification_assignedStatus_spvRequest() throws Exception {
-//        Map<String, Object> assignedProvider = Map.of(Constants.PROVIDER_ID, "provider123", Constants.PROVIDER_NAME, "Provider A");
-//        Map<String, Object> request = new HashMap<>();
-//        request.put(Constants.STATUS, Constants.ASSIGNED);
-//        request.put(Constants.ROOT_ORG_ID, "org123");
-//        request.put(Constants.ASSIGNED_PROVIDER, assignedProvider);
-//        request.put(Constants.DEMAND_ID, "demand001");
-//        request.put(Constants.OBJECTIVE, "Objective");
-//        request.put(Constants.OWNER, "userId123");
-//
-//        Map<String, Object> demandRequest = Map.of(Constants.DATA, request, Constants.IS_SPV_REQUEST, true);
-//
-//        lenient().when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), isNull(), anyInt()))
-//                .thenReturn(List.of(Map.of(Constants.USER_ROOT_ORG_NAME, "MDO")));
-//
-//        notificationConsumer.processNotification(demandRequest);
-//    }
+        try (MockedStatic<CompletableFuture> mock = mockStatic(CompletableFuture.class)) {
+            mock.when(() -> CompletableFuture.runAsync(any(Runnable.class)))
+                    .thenAnswer(invocation -> {
+                        Runnable runnable = invocation.getArgument(0);
+                        runnable.run();
+                        return CompletableFuture.completedFuture(null);
+                    });
 
-//    @Test
-//    void testGetCBPAdminDetails_shouldThrowExceptionWhenEmpty() {
-//        Set<String> orgIds = Set.of("org123");
-//
-//        lenient().when(requestHandlerService.fetchResultUsingPost(anyString(), any(), any())).thenReturn(null);
-//
-//        Exception exception = assertThrows(Exception.class, () -> {
-//            notificationConsumer.getCBPAdminDetails(orgIds);
-//        });
-//
-//        String actualMessage = Optional.ofNullable(exception.getMessage()).orElse("null");
-//        assertFalse(actualMessage.isEmpty(), "Exception message should not be empty");
-//    }
+            notificationConsumer.demandContentConsumer(record);
+        }
+    }
+
+    @Test
+    void testDemandContentConsumer_invalidPayload_shouldLogError() {
+        ConsumerRecord<String, String> record = new ConsumerRecord<>("test", 0, 0L, "key", "{invalidJson");
+        notificationConsumer.demandContentConsumer(record);
+    }
 
     @Test
     void testExtractAndFormatCompetencies() throws Exception {
@@ -150,35 +99,35 @@ class NotificationConsumerTest {
         assertEquals("Area1.", result);
     }
 
-//    @Test
-//    void testSendNotificationToProvidersAsync_success() throws Exception {
-//        Map<String, Object> input = new HashMap<>();
-//        input.put(Constants.EMAIL_ID_LIST, Arrays.asList("user@example.com"));
-//        input.put(Constants.MDO_NAME, "MDO Org");
-//        input.put(Constants.ORG, "Org");
-//        input.put(Constants.COMPETENCY_AREA, "Area");
-//        input.put(Constants.COMPETENCY_THEMES, "Theme");
-//        input.put(Constants.COMPETENCY_SUB_THEMES, "SubTheme");
-//        input.put(Constants.DESCRIPTION, "Description");
-//        input.put(Constants.ORG_NAME, "Org Name");
-//        input.put(Constants.BODY, "Body text");
-//        input.put(Constants.SUB, "Subject");
-//        input.put(Constants.CREATED_BY, "creator-id");
-//
-//        when(cbServerProperties.getSupportEmail()).thenReturn("noreply@example.com");
-//        when(cbServerProperties.getDemandRequestTemplate()).thenReturn("template-id");
-//        when(cbServerProperties.getNotificationAsyncPath()).thenReturn("/notify/email");
-//        when(cbServerProperties.getNotifyServiceHost()).thenReturn("http://notification-host");
-//
-//        Map<String, Object> responseMap = Map.of("status", "success");
-//        when(requestHandlerService.fetchResultUsingPost(anyString(), anyMap(), isNull())).thenReturn(responseMap);
-//
-//        Method method = NotificationConsumer.class.getDeclaredMethod("sendNotificationToProvidersAsync", Map.class);
-//        method.setAccessible(true);
-//        method.invoke(notificationConsumer, input);
-//
-//        verify(requestHandlerService, times(1)).fetchResultUsingPost(contains("http://notification-host"), anyMap(), isNull());
-//    }
+    @Test
+    void testSendNotificationToProvidersAsync_success() throws Exception {
+        Map<String, Object> input = new HashMap<>();
+        input.put(Constants.EMAIL_ID_LIST, Arrays.asList("user@example.com"));
+        input.put(Constants.MDO_NAME, "MDO Org");
+        input.put(Constants.ORG, "Org");
+        input.put(Constants.COMPETENCY_AREA, "Area");
+        input.put(Constants.COMPETENCY_THEMES, "Theme");
+        input.put(Constants.COMPETENCY_SUB_THEMES, "SubTheme");
+        input.put(Constants.DESCRIPTION, "Description");
+        input.put(Constants.ORG_NAME, "Org Name");
+        input.put(Constants.BODY, "Body text");
+        input.put(Constants.SUB, "Subject");
+        input.put(Constants.CREATED_BY, "creator-id");
+
+        when(cbServerProperties.getSupportEmail()).thenReturn("noreply@example.com");
+        when(cbServerProperties.getDemandRequestTemplate()).thenReturn("template-id");
+        when(cbServerProperties.getNotificationAsyncPath()).thenReturn("/notify/email");
+        when(cbServerProperties.getNotifyServiceHost()).thenReturn("http://notification-host");
+
+        Map<String, Object> responseMap = Map.of("status", "success");
+        when(requestHandlerService.fetchResultUsingPost(anyString(), anyMap(), isNull())).thenReturn(responseMap);
+
+        Method method = NotificationConsumer.class.getDeclaredMethod("sendNotificationToProvidersAsync", Map.class);
+        method.setAccessible(true);
+        method.invoke(notificationConsumer, input);
+
+        verify(requestHandlerService, times(1)).fetchResultUsingPost(contains("http://notification-host"), anyMap(), isNull());
+    }
 
     @Test
     void testSendNotification_exceptionCaught() throws Exception {
@@ -234,84 +183,44 @@ class NotificationConsumerTest {
         assertEquals(0, resultEmails.size());
     }
 
-//    @Test
-//    void testConstructEmailTemplate() throws Exception {
-//        // Prepare the NotificationConsumer instance and inject mocks if needed
-//        NotificationConsumer consumer = new NotificationConsumer();
-//
-//        // Mock cassandraOperation to return a template
-//        Map<String, Object> templateRecord = Map.of(Constants.TEMPLATE, "<html><body>Hello $name</body></html>");
-//        List<Map<String, Object>> templateList = List.of(templateRecord);
-//
-//        // Inject mock cassandraOperation using reflection
-//        var cassandraOperationField = NotificationConsumer.class.getDeclaredField("cassandraOperation");
-//        cassandraOperationField.setAccessible(true);
-//        cassandraOperationField.set(consumer, cassandraOperation);
-//
-//        when(cassandraOperation.getRecordsByPropertiesByKey(
-//                anyString(), anyString(), anyMap(), anyList(), isNull()))
-//                .thenReturn(templateList);
-//
-//        // Prepare params to be passed to the method
-//        Map<String, Object> params = new HashMap<>();
-//        params.put("name", "Ajay");
-//
-//        // Use reflection to invoke the private method
-//        Method method = NotificationConsumer.class.getDeclaredMethod("constructEmailTemplate", String.class, Map.class);
-//        method.setAccessible(true);
-//        String result = (String) method.invoke(consumer, "testTemplateName", params);
-//
-//        // Assert that the template was processed and includes the replaced name
-//        assertNotNull(result);
-//        assertTrue(result.contains("Hello Ajay"));
-//
-//        // Now test the exception path by making Cassandra return null or empty list
-//        when(cassandraOperation.getRecordsByPropertiesByKey(
-//                anyString(), anyString(), anyMap(), anyList(), isNull()))
-//                .thenReturn(Collections.emptyList());
-//
-//        String resultEmpty = (String) method.invoke(consumer, "nonExistentTemplate", params);
-//        assertEquals("", resultEmpty);
-//    }
+    @Test
+    void testGetCBPAdminDetails_success() throws Exception {
+        Set<String> rootOrgIds = Set.of("org1", "org2");
 
-//    @Test
-//    void testGetCBPAdminDetails_success() throws Exception {
-//        Set<String> rootOrgIds = Set.of("org1", "org2");
-//
-//        // Prepare mock response structure to simulate the happy path
-//        Map<String, Object> personalDetails = new HashMap<>();
-//        personalDetails.put(Constants.PRIMARY_EMAIL, "admin1@example.com");
-//
-//        Map<String, Object> profileDetails = new HashMap<>();
-//        profileDetails.put(Constants.PERSONAL_DETAILS, personalDetails);
-//
-//        Map<String, Object> content = new HashMap<>();
-//        content.put(Constants.ROOT_ORG_ID, "org1");
-//        content.put(Constants.PROFILE_DETAILS, profileDetails);
-//
-//        List<Map<String, Object>> contents = List.of(content);
-//
-//        Map<String, Object> response = new HashMap<>();
-//        response.put(Constants.CONTENT, contents);
-//
-//        Map<String, Object> result = new HashMap<>();
-//        result.put(Constants.RESPONSE, response);
-//
-//        Map<String, Object> searchProfileApiResp = new HashMap<>();
-//        searchProfileApiResp.put(Constants.RESPONSE_CODE, "OK");
-//        searchProfileApiResp.put(Constants.RESULT, result);
-//
-//        when(cbServerProperties.getSbUrl()).thenReturn("http://dummyurl.com/");
-//        when(cbServerProperties.getUserSearchEndPoint()).thenReturn("searchUser");
-//
-//        when(requestHandlerService.fetchResultUsingPost(anyString(), anyMap(), anyMap()))
-//                .thenReturn(searchProfileApiResp);
-//
-//        List<String> emails = notificationConsumer.getCBPAdminDetails(rootOrgIds);
-//        assertNotNull(emails);
-//        assertEquals(1, emails.size());
-//        assertEquals("admin1@example.com", emails.get(0));
-//    }
+        // Prepare mock response structure to simulate the happy path
+        Map<String, Object> personalDetails = new HashMap<>();
+        personalDetails.put(Constants.PRIMARY_EMAIL, "admin1@example.com");
+
+        Map<String, Object> profileDetails = new HashMap<>();
+        profileDetails.put(Constants.PERSONAL_DETAILS, personalDetails);
+
+        Map<String, Object> content = new HashMap<>();
+        content.put(Constants.ROOT_ORG_ID, "org1");
+        content.put(Constants.PROFILE_DETAILS, profileDetails);
+
+        List<Map<String, Object>> contents = List.of(content);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put(Constants.CONTENT, contents);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put(Constants.RESPONSE, response);
+
+        Map<String, Object> searchProfileApiResp = new HashMap<>();
+        searchProfileApiResp.put(Constants.RESPONSE_CODE, "OK");
+        searchProfileApiResp.put(Constants.RESULT, result);
+
+        when(cbServerProperties.getSbUrl()).thenReturn("http://dummyurl.com/");
+        when(cbServerProperties.getUserSearchEndPoint()).thenReturn("searchUser");
+
+        when(requestHandlerService.fetchResultUsingPost(anyString(), anyMap(), anyMap()))
+                .thenReturn(searchProfileApiResp);
+
+        List<String> emails = notificationConsumer.getCBPAdminDetails(rootOrgIds);
+        assertNotNull(emails);
+        assertEquals(1, emails.size());
+        assertEquals("admin1@example.com", emails.get(0));
+    }
 
     @Test
     void testGetCBPAdminDetails_emptyEmails_throwsException() {
@@ -351,46 +260,46 @@ class NotificationConsumerTest {
         assertTrue(ex.getMessage().contains("Failed to find CBP Admin"));
     }
 
-//    @Test
-//    void testHandleSpvRequest_assignedStatus() throws Exception {
-//        Map<String, Object> assignedProvider = Map.of(Constants.PROVIDER_NAME, "ProviderX");
-//        Map<String, Object> request = new HashMap<>();
-//        request.put(Constants.ASSIGNED_PROVIDER, assignedProvider);
-//        request.put(Constants.OWNER, "owner1");
-//        request.put(Constants.DEMAND_ID, "demand123");
-//
-//        // Mock fetchEmailFromUserId to return dummy email
-//        NotificationConsumer spyConsumer = Mockito.spy(notificationConsumer);
-//        doReturn(Collections.singletonList("owner1email@domain.com")).when(spyConsumer).fetchEmailFromUserId(anyList());
-//
-//        Map<String, Object> mailDetails = new HashMap<>();
-//        ReflectionTestUtils.invokeMethod(spyConsumer, "handleSpvRequest", Constants.ASSIGNED, request, "MDO", mailDetails);
-//
-//        assertTrue(mailDetails.containsKey(Constants.EMAIL_ID_LIST));
-//        assertTrue(mailDetails.containsKey(Constants.SUB));
-//        assertTrue(mailDetails.containsKey(Constants.BODY));
-//        assertEquals(Constants.SPV_ORG_NAME, mailDetails.get(Constants.ORG));
-//        assertEquals(Constants.SPV_ORG_NAME, mailDetails.get(Constants.ORG_NAME));
-//    }
+    @Test
+    void testHandleSpvRequest_assignedStatus() throws Exception {
+        Map<String, Object> assignedProvider = Map.of(Constants.PROVIDER_NAME, "ProviderX");
+        Map<String, Object> request = new HashMap<>();
+        request.put(Constants.ASSIGNED_PROVIDER, assignedProvider);
+        request.put(Constants.OWNER, "owner1");
+        request.put(Constants.DEMAND_ID, "demand123");
 
-//    @Test
-//    void testHandleSpvRequest_invalidStatus() throws Exception {
-//        Map<String, Object> request = new HashMap<>();
-//        request.put(Constants.OWNER, "owner1");
-//        request.put(Constants.DEMAND_ID, "demand123");
-//
-//        NotificationConsumer spyConsumer = Mockito.spy(notificationConsumer);
-//        doReturn(Collections.singletonList("owner1email@domain.com")).when(spyConsumer).fetchEmailFromUserId(anyList());
-//
-//        Map<String, Object> mailDetails = new HashMap<>();
-//        ReflectionTestUtils.invokeMethod(spyConsumer, "handleSpvRequest", Constants.INVALID, request, "MDO", mailDetails);
-//
-//        assertTrue(mailDetails.containsKey(Constants.EMAIL_ID_LIST));
-//        assertTrue(mailDetails.containsKey(Constants.SUB));
-//        assertTrue(mailDetails.containsKey(Constants.BODY));
-//        assertEquals(Constants.SPV_ORG_NAME, mailDetails.get(Constants.ORG));
-//        assertEquals(Constants.SPV_ORG_NAME, mailDetails.get(Constants.ORG_NAME));
-//    }
+        // Mock fetchEmailFromUserId to return dummy email
+        NotificationConsumer spyConsumer = Mockito.spy(notificationConsumer);
+        doReturn(Collections.singletonList("owner1email@domain.com")).when(spyConsumer).fetchEmailFromUserId(anyList());
+
+        Map<String, Object> mailDetails = new HashMap<>();
+        ReflectionTestUtils.invokeMethod(spyConsumer, "handleSpvRequest", Constants.ASSIGNED, request, "MDO", mailDetails);
+
+        assertTrue(mailDetails.containsKey(Constants.EMAIL_ID_LIST));
+        assertTrue(mailDetails.containsKey(Constants.SUB));
+        assertTrue(mailDetails.containsKey(Constants.BODY));
+        assertEquals(Constants.SPV_ORG_NAME, mailDetails.get(Constants.ORG));
+        assertEquals(Constants.SPV_ORG_NAME, mailDetails.get(Constants.ORG_NAME));
+    }
+
+    @Test
+    void testHandleSpvRequest_invalidStatus() throws Exception {
+        Map<String, Object> request = new HashMap<>();
+        request.put(Constants.OWNER, "owner1");
+        request.put(Constants.DEMAND_ID, "demand123");
+
+        NotificationConsumer spyConsumer = Mockito.spy(notificationConsumer);
+        doReturn(Collections.singletonList("owner1email@domain.com")).when(spyConsumer).fetchEmailFromUserId(anyList());
+
+        Map<String, Object> mailDetails = new HashMap<>();
+        ReflectionTestUtils.invokeMethod(spyConsumer, "handleSpvRequest", Constants.INVALID, request, "MDO", mailDetails);
+
+        assertTrue(mailDetails.containsKey(Constants.EMAIL_ID_LIST));
+        assertTrue(mailDetails.containsKey(Constants.SUB));
+        assertTrue(mailDetails.containsKey(Constants.BODY));
+        assertEquals(Constants.SPV_ORG_NAME, mailDetails.get(Constants.ORG));
+        assertEquals(Constants.SPV_ORG_NAME, mailDetails.get(Constants.ORG_NAME));
+    }
 
     @Test
     void testSendNotification_success() throws Exception {
@@ -417,7 +326,6 @@ class NotificationConsumerTest {
 
         // If no exceptions thrown, success
     }
-
 
     private void injectField(Object target, String fieldName, Object value) throws Exception {
         var field = target.getClass().getDeclaredField(fieldName);

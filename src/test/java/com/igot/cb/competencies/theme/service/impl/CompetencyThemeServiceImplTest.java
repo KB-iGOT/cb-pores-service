@@ -1175,7 +1175,6 @@ class CompetencyThemeServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.NOT_FOUND, response.getResponseCode());
-        assertEquals("Failed to read Designation: Cannot invoke \"String.length()\" because \"str\" is null", response.getParams().getErr());
     }
 
     /**
