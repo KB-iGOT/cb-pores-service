@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.igot.cb.demand.service.DemandServiceImpl;
 import com.igot.cb.pores.util.Constants;
+import org.apache.commons.collections.MapUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -103,4 +104,36 @@ public class RequestHandlerServiceImpl {
         }
         return response;
     }
+
+    public Map<String, Object> fetchResultUsingPatch(String uri, Object request, Map<String, String> headersValues) {
+        Map<String, Object> response = null;
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            if (!CollectionUtils.isEmpty(headersValues)) {
+                headersValues.forEach((k, v) -> headers.set(k, v));
+            }
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Object> entity = new HttpEntity<>(request, headers);
+            if (log.isDebugEnabled()) {
+                log.info(uri, request);
+            }
+            response = restTemplate.patchForObject(uri, entity, Map.class);
+            if (log.isDebugEnabled()) {
+                log.error(uri, response);
+            }
+        } catch (HttpClientErrorException e) {
+            try {
+                response = (new ObjectMapper()).readValue(e.getResponseBodyAsString(),
+                        new TypeReference<HashMap<String, Object>>() {
+                        });
+            } catch (Exception e1) {
+            }
+            log.error("Error received: " + e.getResponseBodyAsString(), e);
+        }
+        if (response == null) {
+            return MapUtils.EMPTY_MAP;
+        }
+        return response;
+    }
+
 }

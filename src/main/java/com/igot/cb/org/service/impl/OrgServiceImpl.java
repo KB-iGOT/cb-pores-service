@@ -99,7 +99,15 @@ public class OrgServiceImpl implements OrgService {
                         createOrgTerm(termName, name, frameworkName, orgId, userId);
                         publishFramework(name,orgId);
                         log.info("copy framework published and term creation also done.");
-                        updateOrganizationFramework(name,orgId, Constants.FRAMEWORKID, Constants.FRAMEWORK_STATUS);
+                        String orgUpdateUrl = cbServerProperties.getLearnerServiceUrl() + cbServerProperties.getOrgUpdateEndpoint();
+                        Map<String, Object> orgResponse = outboundRequestHandlerServiceImpl.fetchResultUsingPatch(orgUpdateUrl,createOrgHierarchyRequestMap(orgId, Constants.ORG_HIERARCHY_FRAMEWORK_ID_KEY, Constants.ORG_HIERARCHY_FRAMEWORK_STATUS_KEY, name, Constants.COMPLETED),ProjectUtil.getDefaultHeadrs(userAuthToken));
+                        if (MapUtils.isNotEmpty(orgResponse) && Constants.OK.equalsIgnoreCase(
+                                (String) orgResponse.get(Constants.RESPONSE_CODE))) {
+                            Map<String, Object> result = (Map<String, Object>) orgResponse.get(
+                                    Constants.RESULT);
+                            String orgResult = (String) result.getOrDefault(Constants.RESPONSE, "");
+                            log.info("Organization updated successfully. orgId: {}, result: {}", orgId, orgResult);
+                        }
                         response.getResult().put(Constants.FRAMEWORK, name);
                         response.setResponseCode(HttpStatus.OK);
                     } else {
@@ -414,17 +422,25 @@ public class OrgServiceImpl implements OrgService {
                 return response;
             }
 
-            if (StringUtils.isBlank((String) orgDetail.get(Constants.ORG_HIERARCHY_STATUS))
-                    || orgDetail.get(Constants.ORG_HIERARCHY_STATUS).toString()
+            if (StringUtils.isBlank((String) orgDetail.get(Constants.ORG_HIERARCHY_FRAMEWORK_STATUS))
+                    || orgDetail.get(Constants.ORG_HIERARCHY_FRAMEWORK_STATUS).toString()
                     .equalsIgnoreCase(Constants.FAILED)) {
-                String fwName = (String) orgDetail.get(Constants.ORG_HIERARCHY_ID);
+                String fwName = (String) orgDetail.get(Constants.ORG_HIERARCHY_FRAMEWORK_ID);
                 if (StringUtils.isBlank(fwName)) {
                     String name = processFrameworkCreate(masterFramework,orgId, false);
                     log.info("copy framework id : ",name);
                     if (StringUtils.isNotEmpty(name)) {
                         log.info("copy framework id : ",name);
                         publishFramework(name,orgId);
-                        updateOrganizationFramework(name,orgId, Constants.ORG_HIERARCHY_ID, Constants.ORG_HIERARCHY_STATUS);
+                        String orgUpdateUrl = cbServerProperties.getLearnerServiceUrl() + cbServerProperties.getOrgUpdateEndpoint();
+                        Map<String, Object> orgResponse = outboundRequestHandlerServiceImpl.fetchResultUsingPatch(orgUpdateUrl,createOrgHierarchyRequestMap(orgId, Constants.ORG_HIERARCHY_FRAMEWORK_ID_KEY, Constants.ORG_HIERARCHY_FRAMEWORK_STATUS_KEY, name, Constants.COMPLETED),ProjectUtil.getDefaultHeadrs(userAuthToken));
+                        if (MapUtils.isNotEmpty(orgResponse) && Constants.OK.equalsIgnoreCase(
+                                (String) orgResponse.get(Constants.RESPONSE_CODE))) {
+                            Map<String, Object> result = (Map<String, Object>) orgResponse.get(
+                                    Constants.RESULT);
+                            String orgResult = (String) result.getOrDefault(Constants.RESPONSE, "");
+                            log.info("Organization updated successfully. orgId: {}, result: {}", orgId, orgResult);
+                        }
                         response.getResult().put(Constants.FRAMEWORK, name);
                         response.setResponseCode(HttpStatus.OK);
                     } else {
@@ -477,6 +493,17 @@ public class OrgServiceImpl implements OrgService {
         } else {
             return null;
         }
+    }
+
+    public static Map<String, Object> createOrgHierarchyRequestMap(String organisationId, String frameworkIdKey, String frameworkStatusKey, String frameworkId, String frameworkStatus) {
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put(Constants.ORGANISATION_ID, organisationId);
+        requestMap.put(frameworkIdKey, frameworkId);
+        requestMap.put(frameworkStatusKey, frameworkStatus);
+
+        Map<String, Object> outerMap = new HashMap<>();
+        outerMap.put(Constants.REQUEST, requestMap);
+        return outerMap;
     }
 
 }
