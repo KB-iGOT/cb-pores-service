@@ -164,4 +164,7 @@ public class CbServerProperties {
 
     @Value("${cios.content.service.search.api}")
     private String ciosContentServiceSearchApiUrl;
+
+    @Value("${org.update.endpoint}")
+    private String orgUpdateEndpoint;
 }

@@ -370,8 +370,11 @@ public class Constants {
     public static final String TRANSFORM_CONTENT_VIA_API ="transformContentViaApi";
     public static final String TRANSFORM_PROGRESS_VIA_API = "transformProgressViaApi";
     public static final String API_ORG_HIERARCHY_FRAMEWORK_CREATE = "api.org.hierarchy.create";
-    public static final String ORG_HIERARCHY_STATUS = "orghierarchystatus";
-    public static final String ORG_HIERARCHY_ID  = "orghierarchyid";
+    public static final String ORG_HIERARCHY_FRAMEWORK_STATUS = "orghierarchyframeworkstatus";
+    public static final String ORG_HIERARCHY_FRAMEWORK_ID  = "orghierarchyframeworkid";
+    public static final String ORGANISATION_ID = "organisationId";
+    public static final String ORG_HIERARCHY_FRAMEWORK_ID_KEY = "orgHierarchyFrameworkId";
+    public static final String ORG_HIERARCHY_FRAMEWORK_STATUS_KEY = "orgHierarchyFrameworkStatus";
 
 
 
