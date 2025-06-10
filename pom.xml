@@ -143,6 +143,7 @@
             <version>5.2.1</version>
         </dependency>
 
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -286,7 +287,8 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.1.2</version>
                 <configuration>
-                    <forkCount>0</forkCount> <!-- disables forked JVM -->
+                    <forkCount>1</forkCount> <!-- Enable forked JVM -->
+                    <reuseForks>true</reuseForks>
                 </configuration>
             </plugin>
             <plugin>

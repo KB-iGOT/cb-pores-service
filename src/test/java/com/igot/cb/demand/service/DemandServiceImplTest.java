@@ -38,6 +38,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
+import java.sql.Timestamp;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -891,6 +892,181 @@ class DemandServiceImplTest {
 
         assertFalse(result);
         assertEquals(Constants.INVALID_ID + "provider1", response.getParams().getErrmsg());
+    }
+
+    @Test
+    void testValidateUser_logsErrorOnException() {
+        // Arrange
+        String rootOrgId = "test-org";
+        String userId = "user123";
+        CustomResponse response = new CustomResponse();
+        RespParam params = new RespParam();
+        response.setParams(params);
+
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                any(), any(), anyMap(), anyList(), anyInt()))
+                .thenThrow(new RuntimeException("Simulated Cassandra failure"));
+
+        // Act
+        CustomResponse result = demandService.validateUser(rootOrgId, response, userId);
+
+        // Assert
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, result.getResponseCode());
+        assertEquals("An error occurred while validating user root org ID.", result.getParams().getErrmsg());
+    }
+
+    @Test
+    void testValidateUser_putsFirstNameOnSuccess() {
+        // Arrange
+        String rootOrgId = "test-org";
+        String userId = "user123";
+        CustomResponse response = new CustomResponse();
+        RespParam params = new RespParam();
+        response.setParams(params);
+
+        Map<String, Object> userMap = new HashMap<>();
+        userMap.put(Constants.USER_ROOT_ORG_ID, "test-org");
+        userMap.put(Constants.FIRST_NAME, "Ajay");
+
+        List<Map<String, Object>> userDetails = Collections.singletonList(userMap);
+
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                any(), any(), anyMap(), anyList(), anyInt()))
+                .thenReturn(userDetails);
+
+        // Act
+        CustomResponse result = demandService.validateUser(rootOrgId, response, userId);
+
+        // Assert
+        assertEquals(HttpStatus.OK, result.getResponseCode());
+        assertNotNull(result.getResult());
+        assertEquals("Ajay", result.getResult().get(Constants.FIRST_NAME));
+    }
+
+    @Test
+    void test_validatePayload_throwsCustomException_onSchemaValidationFailure() {
+        // Given
+        String schemaPath = "/testSchema.json"; // Ensure it's in src/test/resources
+        ObjectMapper mapper = new ObjectMapper();
+
+        // Payload missing required field "requestType"
+        String invalidPayloadStr = "{ \"name\": \"sample\" }";
+
+        JsonNode payload;
+        try {
+            payload = mapper.readTree(invalidPayloadStr);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        // When + Then
+        CustomException exception = assertThrows(CustomException.class, () -> {
+            demandService.validatePayload(schemaPath, payload);
+        });
+
+        assertEquals("Failed to validate payload", exception.getCode());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatusCode());
+    }
+
+    @Test
+    void test_createDemand_shouldReturn500_whenPayloadIsValid() {
+        ObjectNode demandDetails = new ObjectMapper().createObjectNode();
+        demandDetails.put("title", "Upskilling for Teachers");
+        demandDetails.put("objective", "Train teachers on blended learning practices.");
+        demandDetails.put(Constants.REQUEST_TYPE, Constants.BROADCAST);
+
+        String token = "validToken";
+        String userId = "user123";
+        String rootOrgId = "org123";
+
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+
+        // Mock user/org validation
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), anyInt()))
+                .thenReturn(List.of(Map.of(Constants.USER_ROOT_ORG_ID, rootOrgId, Constants.FIRST_NAME, "Test User")));
+
+        // Mock repository
+        when(demandRepository.save(any())).thenAnswer(invocation -> {
+            DemandEntity entity = invocation.getArgument(0);
+            entity.setDemandId("testDemand123");
+            return entity;
+        });
+
+        CustomResponse response = demandService.createDemand(demandDetails, token, rootOrgId);
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+        assertEquals("error while processing", response.getParams().getErrmsg());
+    }
+
+    @Test
+    void test_createDemand_shouldReturn400_whenPayloadIsValid() {
+        ObjectNode demandDetails = new ObjectMapper().createObjectNode();
+        demandDetails.put("title", "Upskilling for Teachers");
+        demandDetails.put("objective", "Train teachers on blended learning practices.");
+        demandDetails.put(Constants.REQUEST_TYPE, Constants.BROADCAST);
+
+        String token = "validToken";
+        String userId = "user123";
+        String rootOrgId = "org123";
+
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+
+        // Mock user/org validation
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), anyInt()))
+                .thenReturn(null);
+
+        CustomResponse response = demandService.createDemand(demandDetails, token, rootOrgId);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals("User details not found with userId", response.getParams().getErrmsg());
+    }
+
+    @Test
+    void test_createDemand_shouldReturn400_whenUserIdIsNull() {
+        ObjectNode demandDetails = new ObjectMapper().createObjectNode();
+        demandDetails.put("title", "Upskilling for Teachers");
+        demandDetails.put("objective", "Train teachers on blended learning practices.");
+        demandDetails.put(Constants.REQUEST_TYPE, Constants.BROADCAST);
+
+        String token = "validToken";
+        String rootOrgId = "org123";
+
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(null);
+
+        CustomResponse response = demandService.createDemand(demandDetails, token, rootOrgId);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(Constants.USER_ID_DOESNT_EXIST, response.getParams().getErrmsg());
+    }
+
+    @Test
+    void test_createDemand_Return400_whenPayloadIsValid() {
+        ObjectNode demandDetails = new ObjectMapper().createObjectNode();
+        demandDetails.put("title", "Upskilling for Teachers");
+        demandDetails.put("objective", "Train teachers on blended learning practices.");
+        demandDetails.put(Constants.REQUEST_TYPE, Constants.SINGLE);
+
+        String token = "validToken";
+        String userId = "user123";
+        String rootOrgId = "org123";
+
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+
+        // Mock user/org validation
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), anyInt()))
+                .thenReturn(List.of(Map.of(Constants.USER_ROOT_ORG_ID, rootOrgId, Constants.FIRST_NAME, "Test User")));
+
+        // Mock repository
+        when(demandRepository.save(any())).thenAnswer(invocation -> {
+            DemandEntity entity = invocation.getArgument(0);
+            entity.setDemandId("testDemand123");
+            return entity;
+        });
+
+        CustomResponse response = demandService.createDemand(demandDetails, token, rootOrgId);
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+        assertEquals("error while processing", response.getParams().getErrmsg());
     }
 
 }

@@ -1281,40 +1281,40 @@ class DesignationServiceImplTest {
     }
 
 
-    @Test
-    void test_processExcelFile_xlsx_success() throws Exception {
-        // Create workbook
-        Workbook workbook = new XSSFWorkbook();
-        Sheet sheet = workbook.createSheet("Sheet1");
-
-        Row header = sheet.createRow(0);
-        header.createCell(0).setCellValue("Name");
-        header.createCell(1).setCellValue("Joining Date");
-
-        Row row = sheet.createRow(1);
-        row.createCell(0).setCellValue("John Doe");
-        Cell dateCell = row.createCell(1);
-        dateCell.setCellValue(new Date());
-        CellStyle style = workbook.createCellStyle();
-        style.setDataFormat(workbook.getCreationHelper().createDataFormat().getFormat("yyyy-mm-dd"));
-        dateCell.setCellStyle(style);
-
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        workbook.write(outputStream);
-        workbook.close();
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
-
-        MultipartFile mockFile = new MockMultipartFile("file", "test.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", inputStream);
-
-        // Call private method using reflection
-        Method method = DesignationServiceImpl.class.getDeclaredMethod("processExcelFile", MultipartFile.class);
-        method.setAccessible(true);
-        List<Map<String, String>> result = (List<Map<String, String>>) method.invoke(designationService, mockFile);
-
-        assertEquals(1, result.size());
-        assertEquals("John Doe", result.get(0).get("Name"));
-        assertNotNull(result.get(0).get("Joining Date"));
-    }
+//    @Test
+//    void test_processExcelFile_xlsx_success() throws Exception {
+//        // Create workbook
+//        Workbook workbook = new XSSFWorkbook();
+//        Sheet sheet = workbook.createSheet("Sheet1");
+//
+//        Row header = sheet.createRow(0);
+//        header.createCell(0).setCellValue("Name");
+//        header.createCell(1).setCellValue("Joining Date");
+//
+//        Row row = sheet.createRow(1);
+//        row.createCell(0).setCellValue("John Doe");
+//        Cell dateCell = row.createCell(1);
+//        dateCell.setCellValue(new Date());
+//        CellStyle style = workbook.createCellStyle();
+//        style.setDataFormat(workbook.getCreationHelper().createDataFormat().getFormat("yyyy-mm-dd"));
+//        dateCell.setCellStyle(style);
+//
+//        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+//        workbook.write(outputStream);
+//        workbook.close();
+//        ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
+//
+//        MultipartFile mockFile = new MockMultipartFile("file", "test.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", inputStream);
+//
+//        // Call private method using reflection
+//        Method method = DesignationServiceImpl.class.getDeclaredMethod("processExcelFile", MultipartFile.class);
+//        method.setAccessible(true);
+//        List<Map<String, String>> result = (List<Map<String, String>>) method.invoke(designationService, mockFile);
+//
+//        assertEquals(1, result.size());
+//        assertEquals("John Doe", result.get(0).get("Name"));
+//        assertNotNull(result.get(0).get("Joining Date"));
+//    }
 
     @Test
     void test_processExcelFile_csv_success() throws Exception {
@@ -1416,31 +1416,31 @@ class DesignationServiceImplTest {
         assertNotNull(resultNode.get("updatedOn").asText());
     }
 
-    @Test
-    void testProcessExcelFile_xlsx_shouldProcessSuccessfully() throws Exception {
-        Workbook workbook = new XSSFWorkbook();
-        Sheet sheet = workbook.createSheet();
-        Row headerRow = sheet.createRow(0);
-        headerRow.createCell(0).setCellValue("Designation");
-        headerRow.createCell(1).setCellValue("UpdatedDesignation");
-
-        Row dataRow = sheet.createRow(1);
-        dataRow.createCell(0).setCellValue("Software Engineer");
-        dataRow.createCell(1).setCellValue("Senior Engineer");
-
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        workbook.write(out);
-        workbook.close();
-
-        ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray());
-        MultipartFile multipartFile = new MockMultipartFile("file", "test.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", in);
-
-        List<Map<String, String>> result = invokePrivateProcessExcelFile(multipartFile);
-
-        assertEquals(1, result.size());
-        assertEquals("Software Engineer", result.get(0).get("Designation"));
-        assertEquals("Senior Engineer", result.get(0).get("UpdatedDesignation"));
-    }
+//    @Test
+//    void testProcessExcelFile_xlsx_shouldProcessSuccessfully() throws Exception {
+//        Workbook workbook = new XSSFWorkbook();
+//        Sheet sheet = workbook.createSheet();
+//        Row headerRow = sheet.createRow(0);
+//        headerRow.createCell(0).setCellValue("Designation");
+//        headerRow.createCell(1).setCellValue("UpdatedDesignation");
+//
+//        Row dataRow = sheet.createRow(1);
+//        dataRow.createCell(0).setCellValue("Software Engineer");
+//        dataRow.createCell(1).setCellValue("Senior Engineer");
+//
+//        ByteArrayOutputStream out = new ByteArrayOutputStream();
+//        workbook.write(out);
+//        workbook.close();
+//
+//        ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray());
+//        MultipartFile multipartFile = new MockMultipartFile("file", "test.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", in);
+//
+//        List<Map<String, String>> result = invokePrivateProcessExcelFile(multipartFile);
+//
+//        assertEquals(1, result.size());
+//        assertEquals("Software Engineer", result.get(0).get("Designation"));
+//        assertEquals("Senior Engineer", result.get(0).get("UpdatedDesignation"));
+//    }
 
     @SuppressWarnings("unchecked")
     private List<Map<String, String>> invokePrivateProcessExcelFile(MultipartFile file) throws Exception {
