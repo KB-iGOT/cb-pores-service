@@ -3,6 +3,8 @@ package com.igot.cb.playlist.util;
 import com.igot.cb.pores.util.ApiRespParam;
 import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.Constants;
+
+import java.util.Map;
 import java.util.UUID;
 import org.joda.time.DateTime;
 import org.springframework.http.HttpStatus;
@@ -20,4 +22,10 @@ public class ProjectUtil {
     return response;
   }
 
+  public static Map<String, String> getDefaultHeadrs(String userAuthToken) {
+    return Map.of(
+            Constants.X_AUTH_TOKEN, userAuthToken,
+            Constants.CONTENT_TYPE, Constants.APPLICATION_JSON
+    );
+  }
 }
