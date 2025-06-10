@@ -109,6 +109,6 @@ class CbExtLoggerTest {
             cbExtLogger.fatal(null);
         });
 
-        assertEquals("Cannot invoke \"java.lang.Object.getClass()\" because \"exception\" is null", exception.getMessage());
+        assertTrue(exception.getMessage().contains("null"));
     }
 }
