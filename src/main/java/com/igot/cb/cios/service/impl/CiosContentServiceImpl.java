@@ -296,6 +296,12 @@ public class CiosContentServiceImpl implements CiosContentService {
         payload.put(Constants.PAGE_NUMBER, 0);
         payload.put(Constants.PAGE_SIZE, 1);
         JsonNode node = callCiosSearchApiToGetStatusCount(payload);
+        if (node == null || !node.hasNonNull(Constants.TOTAL_COUNT) || !node.has(Constants.FACETS) ||
+                !node.get(Constants.FACETS).has(Constants.STATUS)) {
+            log.warn("Search API returned null or invalid structure for partnerCode: {}", partnerCode);
+            return;
+        }
+
         Long totalCount = node.get(Constants.TOTAL_COUNT).asLong();
         Long draftCount = 0L;
         Long liveCount = 0L;
@@ -404,6 +410,10 @@ public class CiosContentServiceImpl implements CiosContentService {
     @Override
     public SearchResult searchCotent(SearchCriteria searchCriteria) {
         log.info("CiosContentServiceImpl::searchCotent");
+        if (searchCriteria == null) {
+            log.error("searchCriteria is null");
+            throw new CustomException("ERROR", "Search criteria must not be null", HttpStatus.BAD_REQUEST);
+        }
         SearchResult searchResult = redisTemplate.opsForValue()
                 .get(generateRedisJwtTokenKey(searchCriteria));
         if (searchResult != null) {

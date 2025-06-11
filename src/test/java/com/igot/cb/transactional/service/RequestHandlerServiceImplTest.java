@@ -13,6 +13,9 @@ import org.springframework.web.client.RestTemplate;
 import org.slf4j.Logger;
 
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 class RequestHandlerServiceImplTest {
@@ -150,5 +153,84 @@ class RequestHandlerServiceImplTest {
 
         // Should not throw, but response will be null due to exception handling
         assertNull(response);
+    }
+
+    @Test
+    void testFetchResultUsingPatch_success() {
+        String uri = "http://test.com/patch";
+        Map<String, String> headers = Map.of("Authorization", "Bearer token");
+        Map<String, Object> expectedResponse = Map.of("status", "success");
+
+        when(restTemplate.patchForObject(eq(uri), any(HttpEntity.class), eq(Map.class)))
+                .thenReturn(expectedResponse);
+
+        Map<String, Object> result = service.fetchResultUsingPatch(uri, new HashMap<>(), headers);
+
+        assertEquals(expectedResponse, result);
+    }
+
+    @Test
+    void testFetchResultUsingPatch_emptyHeaders() {
+        String uri = "http://test.com/patch";
+        Map<String, Object> expectedResponse = Map.of("status", "ok");
+
+        when(restTemplate.patchForObject(eq(uri), any(HttpEntity.class), eq(Map.class)))
+                .thenReturn(expectedResponse);
+
+        Map<String, Object> result = service.fetchResultUsingPatch(uri, new HashMap<>(), Collections.emptyMap());
+
+        assertEquals(expectedResponse, result);
+    }
+
+    @Test
+    void testFetchResultUsingPatch_httpClientErrorException_withValidJson() throws Exception {
+        String uri = "http://test.com/patch";
+        String jsonError = "{\"error\":\"Bad Request\"}";
+
+        HttpClientErrorException exception = new HttpClientErrorException(
+                HttpStatus.BAD_REQUEST,
+                "Bad Request",
+                jsonError.getBytes(StandardCharsets.UTF_8),
+                StandardCharsets.UTF_8
+        );
+
+        when(restTemplate.patchForObject(eq(uri), any(HttpEntity.class), eq(Map.class)))
+                .thenThrow(exception);
+
+        Map<String, Object> result = service.fetchResultUsingPatch(uri, new HashMap<>(), Collections.emptyMap());
+
+        assertEquals("Bad Request", result.get("error"));
+    }
+
+    @Test
+    void testFetchResultUsingPatch_httpClientErrorException_withInvalidJson() {
+        String uri = "http://test.com/patch";
+        String invalidJson = "not a json";
+
+        HttpClientErrorException exception = new HttpClientErrorException(
+                HttpStatus.BAD_REQUEST,
+                "Bad Request",
+                invalidJson.getBytes(StandardCharsets.UTF_8),
+                StandardCharsets.UTF_8
+        );
+
+        when(restTemplate.patchForObject(eq(uri), any(HttpEntity.class), eq(Map.class)))
+                .thenThrow(exception);
+
+        Map<String, Object> result = service.fetchResultUsingPatch(uri, new HashMap<>(), Collections.emptyMap());
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void testFetchResultUsingPatch_nullResponse() {
+        String uri = "http://test.com/patch";
+
+        when(restTemplate.patchForObject(eq(uri), any(HttpEntity.class), eq(Map.class)))
+                .thenReturn(null);
+
+        Map<String, Object> result = service.fetchResultUsingPatch(uri, new HashMap<>(), Collections.emptyMap());
+
+        assertTrue(result.isEmpty());
     }
 }

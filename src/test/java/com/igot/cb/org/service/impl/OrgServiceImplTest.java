@@ -9,12 +9,8 @@ import com.igot.cb.transactional.cassandrautils.CassandraOperation;
 import com.igot.cb.transactional.service.RequestHandlerServiceImpl;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -1074,6 +1070,108 @@ class OrgServiceImplTest {
         // Validate the response
         assertEquals(HttpStatus.OK, response.getResponseCode());
     }
+
+    @Test
+    void testCreateOrgHierarchyFramework_SuccessfulCreation() {
+        String masterFramework = "masterFw";
+        String orgId = "org123";
+        String token = "token123";
+        String userId = "user123";
+        String frameworkId = "copied_fw_001";
+
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
+        when(requestHandlerService.fetchUsingGetWithHeadersProfile(anyString(), anyMap()))
+                .thenReturn(Map.of(Constants.RESULT, Map.of(Constants.RESPONSE, Map.of(Constants.ROLES, List.of("SPV_ADMIN")))));
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), anyMap(), any(), anyInt()))
+                .thenReturn(List.of(new HashMap<>()));
+        when(cbServerProperties.getKnowledgeMS()).thenReturn("http://kms/");
+        when(cbServerProperties.getFrameworkCopy()).thenReturn("copy");
+        when(outboundRequestHandlerServiceImpl.fetchResultUsingPost(any(), any(), anyMap()))
+                .thenReturn(Map.of(Constants.RESPONSE_CODE, "OK", Constants.RESULT, Map.of(Constants.NODE_ID, frameworkId)));
+        when(cbServerProperties.getLearnerServiceUrl()).thenReturn("http://learner/");
+        when(cbServerProperties.getOrgUpdateEndpoint()).thenReturn("org/update");
+        when(outboundRequestHandlerServiceImpl.fetchResultUsingPatch(any(), anyMap(), anyMap()))
+                .thenReturn(Map.of(Constants.RESPONSE_CODE, "OK", Constants.RESULT, Map.of(Constants.RESPONSE, "Org updated")));
+
+        ApiResponse response = orgService.createOrgHierarchyFramework(masterFramework, orgId, token);
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(frameworkId, response.getResult().get(Constants.FRAMEWORK));
+    }
+
+    @Test
+    void testCreateOrgHierarchyFramework_MissingParams() {
+        ApiResponse response = orgService.createOrgHierarchyFramework("", "", "token");
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+    }
+
+    @Test
+    void testCreateOrgHierarchyFramework_InvalidToken() {
+        when(accessTokenValidator.verifyUserToken("token")).thenReturn("");
+
+        ApiResponse response = orgService.createOrgHierarchyFramework("master", "org", "token");
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(Constants.USER_ID_DOESNT_EXIST, response.getParams().getErrMsg());
+    }
+
+    @Test
+    void testCreateOrgHierarchyFramework_InsufficientRoles() {
+        when(accessTokenValidator.verifyUserToken("token")).thenReturn("userId");
+        when(requestHandlerService.fetchUsingGetWithHeadersProfile(anyString(), anyMap()))
+                .thenReturn(Map.of(Constants.RESULT, Map.of(Constants.RESPONSE, Map.of(Constants.ROLES, List.of("USER")))));
+
+        ApiResponse response = orgService.createOrgHierarchyFramework("master", "org", "token");
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertTrue(response.getParams().getErrMsg().contains("User does not have the required role"));
+    }
+
+    @Test
+    void testCreateOrgHierarchyFramework_OrgNotFound() {
+        when(accessTokenValidator.verifyUserToken("token")).thenReturn("userId");
+        when(requestHandlerService.fetchUsingGetWithHeadersProfile(anyString(), anyMap()))
+                .thenReturn(Map.of(Constants.RESULT, Map.of(Constants.RESPONSE, Map.of(Constants.ROLES, List.of("SPV_ADMIN")))));
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), anyMap(), any(), anyInt()))
+                .thenReturn(Collections.emptyList());
+
+        ApiResponse response = orgService.createOrgHierarchyFramework("master", "org", "token");
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals("Organization not found", response.getParams().getErrMsg());
+    }
+
+    @Test
+    void testCreateOrgHierarchyFramework_FrameworkAlreadyInitialized() {
+        Map<String, Object> orgDetail = Map.of(
+                Constants.ORG_HIERARCHY_FRAMEWORK_STATUS, "COMPLETED",
+                Constants.ORG_HIERARCHY_FRAMEWORK_ID, "fw123"
+        );
+
+        when(accessTokenValidator.verifyUserToken("token")).thenReturn("userId");
+        when(requestHandlerService.fetchUsingGetWithHeadersProfile(anyString(), anyMap()))
+                .thenReturn(Map.of(Constants.RESULT, Map.of(Constants.RESPONSE, Map.of(Constants.ROLES, List.of("SPV_ADMIN")))));
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), anyMap(), any(), anyInt()))
+                .thenReturn(List.of(orgDetail));
+
+        ApiResponse response = orgService.createOrgHierarchyFramework("master", "org", "token");
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(Constants.FRAMEWORK_PROCESS_ALREADY_INITIALISED, response.getParams().getErrMsg());
+    }
+
+    @Test
+    void testCreateOrgHierarchyFramework_Exception() {
+        when(accessTokenValidator.verifyUserToken("token")).thenThrow(new RuntimeException("Unexpected error"));
+
+        ApiResponse response = orgService.createOrgHierarchyFramework("master", "org", "token");
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+    }
+
 
     private Method getFrameworkReadMethod() throws Exception {
         Method method = OrgServiceImpl.class.getDeclaredMethod("frameworkRead", String.class);

@@ -625,9 +625,10 @@ public class DesignationServiceImpl implements DesignationService {
 
     try (InputStream inputStream = file.getInputStream()) {
       if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
-        Workbook workbook = WorkbookFactory.create(inputStream);
-        Sheet sheet = workbook.getSheetAt(0);
-        return processSheetAndSendMessage(sheet);
+        try (Workbook workbook = WorkbookFactory.create(inputStream)) {
+          Sheet sheet = workbook.getSheetAt(0);
+          return processSheetAndSendMessage(sheet);
+        }
       } else if (fileName.endsWith(".csv")) {
         return processCsvAndSendMessage(inputStream);
       } else {
@@ -930,7 +931,7 @@ public class DesignationServiceImpl implements DesignationService {
                 .findFirst()
                 .orElse(null);
       }
-      if (MapUtils.isEmpty(category)) {
+      if (category == null || category.isEmpty()) {
         response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
         response.getParams().setErr("Category not found with code: " + categoryCode);
         return response;
@@ -946,7 +947,7 @@ public class DesignationServiceImpl implements DesignationService {
                 .findFirst()
                 .orElse(null);
       }
-      if (MapUtils.isEmpty(term)) {
+      if (term == null || term.isEmpty()) {
         response.setResponseCode(HttpStatus.NOT_FOUND);
         response.getParams().setErr("Term not found with code: " + termCode);
         return response;
