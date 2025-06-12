@@ -2,6 +2,7 @@ package com.igot.cb.org.service.impl;
 
 import com.igot.cb.authentication.util.AccessTokenValidator;
 import com.igot.cb.pores.Service.OutboundRequestHandlerServiceImpl;
+import com.igot.cb.pores.exceptions.CustomException;
 import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
@@ -11,6 +12,8 @@ import com.igot.cb.transactional.service.RequestHandlerServiceImpl;
 import java.lang.reflect.Method;
 import java.util.*;
 
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections.MapUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -1172,6 +1175,160 @@ class OrgServiceImplTest {
         assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
 
+    @Test
+    void testReadFramework_SuccessfulOrgUpdateLogsExpectedMessage() {
+        when(cbServerProperties.getKnowledgeMS()).thenReturn("http://test-knowledge-ms/");
+        when(cbServerProperties.getFrameworkCopy()).thenReturn("framework/copy");
+
+        // Arrange
+        String frameworkName = "cb_mdo_framework";
+        String orgId = "org123";
+        String termName = "testTerm";
+        String userAuthToken = "Bearer xyz-token";
+        String userId = "user-xyz";
+        String newFrameworkId = "org123_cb_mdo_framework";
+
+        Map<String, Object> orgRecord = new HashMap<>();
+        orgRecord.put(Constants.FRAMEWORK_STATUS, Constants.FAILED);
+        orgRecord.put(Constants.FRAMEWORKID, "");
+
+        Map<String, Object> resultMap = new HashMap<>();
+        resultMap.put(Constants.RESPONSE, "Org updated");
+
+        Map<String, Object> responseMap = new HashMap<>();
+        responseMap.put(Constants.RESPONSE_CODE, Constants.OK);
+        responseMap.put(Constants.RESULT, resultMap);
+
+        when(accessTokenValidator.verifyUserToken(userAuthToken)).thenReturn(userId);
+
+        Map<String, Object> userProfile = new HashMap<>();
+        userProfile.put(Constants.ROLES, List.of(Constants.SPV_ADMIN));
+        Map<String, Object> responseUserMap = new HashMap<>();
+        responseUserMap.put(Constants.RESPONSE, userProfile);
+        Map<String, Object> resultUserMap = new HashMap<>();
+        resultUserMap.put(Constants.RESULT, responseUserMap);
+        when(requestHandlerService.fetchUsingGetWithHeadersProfile(anyString(), anyMap())).thenReturn(resultUserMap);
+
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), anyInt()))
+                .thenReturn(List.of(orgRecord));
+
+
+
+        // Simulate framework creation
+        Map<String, Object> frameworkCreateResult = new HashMap<>();
+        frameworkCreateResult.put(Constants.NODE_ID, newFrameworkId);
+        Map<String, Object> frameworkCreateResponse = new HashMap<>();
+        frameworkCreateResponse.put(Constants.RESPONSE_CODE, Constants.OK);
+        frameworkCreateResponse.put(Constants.RESULT, frameworkCreateResult);
+        when(outboundRequestHandlerServiceImpl.fetchResultUsingPost(
+                contains("framework/copy"), any(), any()))
+                .thenReturn(frameworkCreateResponse);
+
+        // Simulate term creation
+        Map<String, Object> termCreateResult = new HashMap<>();
+        termCreateResult.put(Constants.NODE_ID, List.of("term1"));
+        Map<String, Object> termCreateResponse = new HashMap<>();
+        termCreateResponse.put(Constants.RESPONSE_CODE, Constants.OK);
+        termCreateResponse.put(Constants.RESULT, termCreateResult);
+        when(outboundRequestHandlerServiceImpl.fetchResultUsingPost(contains("term/create"), any()))
+                .thenReturn(termCreateResponse);
+
+        // Simulate framework publish
+        Map<String, Object> publishResponse = new HashMap<>();
+        publishResponse.put(Constants.RESPONSE_CODE, Constants.OK);
+        when(outboundRequestHandlerServiceImpl.fetchResultUsingPost(
+                contains("framework/publish"), any(), any()))
+                .thenReturn(publishResponse);
+
+        // Simulate org update
+        when(outboundRequestHandlerServiceImpl.fetchResultUsingPatch(
+                contains("org/v1/update"), any(), any()))
+                .thenReturn(responseMap);
+
+        Map<String, Object> mockResult = new HashMap<>();
+        mockResult.put(Constants.RESPONSE, "Org update success");
+
+        Map<String, Object> mockResponse = new HashMap<>();
+        mockResponse.put(Constants.RESPONSE_CODE, Constants.OK);
+        mockResponse.put(Constants.RESULT, mockResult);
+
+        when(outboundRequestHandlerServiceImpl.fetchResultUsingPatch(
+                anyString(), anyMap(), anyMap())
+        ).thenReturn(mockResponse);
+
+        // Act
+        ApiResponse response = orgService.readFramework(frameworkName, orgId, termName, userAuthToken);
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(newFrameworkId, response.getResult().get(Constants.FRAMEWORK));
+    }
+
+    @Test
+    void test_createOrgHierarchyFramework_whenFrameworkCopyFails_shouldLogUnableToCopy() {
+        // Arrange
+        String orgId = "org123";
+        String masterFramework = "baseFW";
+        String authToken = "Bearer token";
+        String userId = "user123";
+
+        // Mock user token validation
+        when(accessTokenValidator.verifyUserToken(authToken)).thenReturn(userId);
+
+        // Mock role validation
+        Map<String, Object> responseMap = new HashMap<>();
+        responseMap.put(Constants.ROLES, List.of(Constants.SPV_ADMIN));
+        Map<String, Object> resultMap = new HashMap<>();
+        resultMap.put(Constants.RESPONSE, responseMap);
+        Map<String, Object> readData = new HashMap<>();
+        readData.put(Constants.RESULT, resultMap);
+        when(requestHandlerService.fetchUsingGetWithHeadersProfile(anyString(), anyMap())).thenReturn(readData);
+
+        // Mock org details - framework not set or FAILED
+        Map<String, Object> orgDetail = new HashMap<>();
+        orgDetail.put(Constants.ORG_HIERARCHY_FRAMEWORK_ID, ""); // triggers framework copy
+        orgDetail.put(Constants.ORG_HIERARCHY_FRAMEWORK_STATUS, Constants.FAILED); // triggers processFrameworkCreate
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(any(), any(), any(), any(), anyInt()))
+                .thenReturn(List.of(orgDetail));
+
+        // Mock cbServerProperties URL
+        when(cbServerProperties.getKnowledgeMS()).thenReturn("http://mock-knowledge/");
+        when(cbServerProperties.getFrameworkCopy()).thenReturn("framework/copy");
+
+        // Mock framework copy failure
+        Map<String, Object> failedFrameworkResponse = new HashMap<>();
+        failedFrameworkResponse.put(Constants.RESPONSE_CODE, "CLIENT_ERROR"); // not OK
+        when(outboundRequestHandlerServiceImpl.fetchResultUsingPost(anyString(), anyMap(), anyMap()))
+                .thenReturn(failedFrameworkResponse);
+
+        // Act
+        ApiResponse response = orgService.createOrgHierarchyFramework(masterFramework, orgId, authToken);
+
+        // Assert
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(Constants.FRAMEWORK_PROCESS_ALREADY_INITIALISED, response.getParams().getErrMsg());
+    }
+
+    @Test
+    void testCreateOrgHierarchyFramework_CustomExceptionThrown_ShouldLogAndReturnBadRequest() {
+        // Arrange
+        String masterFramework = "masterFw";
+        String orgId = "org123";
+        String userAuthToken = "some-token";
+
+        // Simulate throwing CustomException from accessTokenValidator
+        when(accessTokenValidator.verifyUserToken(userAuthToken))
+                .thenThrow(new CustomException("ERR_AUTH", "Invalid token", HttpStatus.BAD_REQUEST));
+
+        // Act
+        ApiResponse response = orgService.createOrgHierarchyFramework(masterFramework, orgId, userAuthToken);
+
+        // Assert
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals("Invalid token", response.getParams().getErr());
+    }
 
     private Method getFrameworkReadMethod() throws Exception {
         Method method = OrgServiceImpl.class.getDeclaredMethod("frameworkRead", String.class);

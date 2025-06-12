@@ -601,6 +601,22 @@ class CiosContentServiceImplTest {
         verifyNoMoreInteractions(redisTemplate, valueOperations);
     }
 
+    @Test
+    void test_searchCotent_ShouldThrowException_WhenSearchCriteriaIsNull() {
+        // Arrange
+        SearchCriteria searchCriteria = null;
+
+        // Act & Assert
+        CustomException exception = assertThrows(CustomException.class, () -> {
+            ciosContentService.searchCotent(searchCriteria);
+        });
+
+        // Verify exception details
+        assertEquals("Search criteria must not be null", exception.getMessage());
+        assertEquals("ERROR", exception.getCode());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatusCode());
+    }
+
     /**
      * Test case for searchCotent method when the search result is not in Redis cache,
      * filterCriteriaMap is null, and isActive is not set in the filterCriteriaMap.

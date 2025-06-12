@@ -310,11 +310,9 @@ class OrgBookmarkServiceImplTest {
         when(orgBookmarkRepository.save(any())).thenReturn(entity);
         when(cbServerProperties.getElasticBookmarkJsonPath()).thenReturn("path");
 
-        doThrow(new RuntimeException("ES failure")).when(esUtilService)
-                .updateDocument(anyString(), anyString(), anyString(), anyMap(), anyString());
-
-        assertThrows(CustomException.class, () ->
-                orgBookmarkService.updateOrgBookmark(payload, AUTH_TOKEN));
+        ApiResponse response = orgBookmarkService.updateOrgBookmark(payload, AUTH_TOKEN);
+        assertEquals(HttpStatus.NOT_FOUND, response.getResponseCode());
+        assertEquals("Org bookmark not found", response.getParams().getErrMsg());
     }
 
     @Test

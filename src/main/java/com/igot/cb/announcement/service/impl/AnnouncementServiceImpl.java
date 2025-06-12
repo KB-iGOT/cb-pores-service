@@ -157,7 +157,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
       }
 
       Map<String, Object> expiredOnMap = new HashMap<>();
-      SimpleDateFormat dateFormat = new SimpleDateFormat("YYYY-MM-dd");
+      SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
       expiredOnMap.put(Constants.SEARCH_OPERATION_GREATER_THAN_EQUALS, dateFormat.format(new Date()));
       if (MapUtils.isNotEmpty(searchCriteria.getFilterCriteriaMap())) {
         searchCriteria.getFilterCriteriaMap().put(Constants.EXPIRED_ON, expiredOnMap);
