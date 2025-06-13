@@ -301,7 +301,6 @@ public class CiosContentServiceImpl implements CiosContentService {
             log.warn("Search API returned null or invalid structure for partnerCode: {}", partnerCode);
             return;
         }
-
         Long totalCount = node.get(Constants.TOTAL_COUNT).asLong();
         Long draftCount = 0L;
         Long liveCount = 0L;
@@ -332,7 +331,6 @@ public class CiosContentServiceImpl implements CiosContentService {
 
     private JsonNode callCiosSearchApiToGetStatusCount(JsonNode jsonNode) {
         String apiUrl = cbServerProperties.getCiosContentServiceHost()+cbServerProperties.getCiosContentServiceSearchApiUrl();
-        RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         headers.set("Content-Type", "application/json");
         HttpEntity<JsonNode> entity = new HttpEntity<>(jsonNode, headers);

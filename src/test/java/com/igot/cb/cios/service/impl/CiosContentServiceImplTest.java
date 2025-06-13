@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.igot.cb.cios.dto.ObjectDto;
 import com.igot.cb.cios.entity.CiosContentEntity;
@@ -43,6 +44,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
 import static org.assertj.core.api.AssertionsForClassTypes.not;
@@ -94,6 +96,9 @@ class CiosContentServiceImplTest {
 
     @Mock
     private RestTemplate restTemplate;
+
+    @Spy
+    private CiosContentServiceImpl spyService;
 
     private ObjectMapper realObjectMapper = new ObjectMapper();
 
@@ -1105,4 +1110,88 @@ class CiosContentServiceImplTest {
         assertEquals(Constants.ERROR, exception.getCode());
         assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatusCode());
     }
+
+    @Test
+    void test_fetchAndUpdateContentCountsInPartnerDb_whenFacetsMissing_logsWarning() throws Exception {
+        ObjectNode mockNode = mock(ObjectNode.class);
+        when(mockNode.hasNonNull(Constants.TOTAL_COUNT)).thenReturn(true);
+        when(mockNode.has(Constants.FACETS)).thenReturn(false);
+
+        CiosContentServiceImpl service = prepareServiceWithMocks(mockNode);
+
+        Method method = CiosContentServiceImpl.class.getDeclaredMethod("fetchAndUpdateContentCountsInPartnerDb", String.class);
+        method.setAccessible(true);
+        method.invoke(service, "PARTNER001");
+    }
+
+    private CiosContentServiceImpl prepareServiceWithMocks(JsonNode mockedNode) throws Exception {
+        CiosContentServiceImpl service = new CiosContentServiceImpl();
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        ReflectionTestUtils.setField(service, "objectMapper", objectMapper);
+
+        RestTemplate mockRestTemplate = mock(RestTemplate.class);
+        ReflectionTestUtils.setField(service, "restTemplate", mockRestTemplate);
+
+        CbServerProperties cbServerProperties = mock(CbServerProperties.class);
+        when(cbServerProperties.getCiosContentServiceHost()).thenReturn("http://mock-host");
+        when(cbServerProperties.getCiosContentServiceSearchApiUrl()).thenReturn("/mock-api");
+        ReflectionTestUtils.setField(service, "cbServerProperties", cbServerProperties);
+
+        ContentPartnerService contentPartnerService = mock(ContentPartnerService.class);
+        ReflectionTestUtils.setField(service, "contentPartnerService", contentPartnerService);
+
+        ResponseEntity<JsonNode> mockResponse = mock(ResponseEntity.class);
+        when(mockResponse.getBody()).thenReturn(mockedNode);
+
+        when(mockRestTemplate.exchange(
+                anyString(),
+                eq(HttpMethod.POST),
+                any(HttpEntity.class),
+                eq(JsonNode.class)
+        )).thenReturn(mockResponse);
+
+        return service;
+    }
+
+    @Test
+    void test_fetchAndUpdateContentCountsInPartnerDb_whenTotalCountMissing_logsWarning() throws Exception {
+        ObjectNode mockNode = mock(ObjectNode.class);
+        when(mockNode.hasNonNull(Constants.TOTAL_COUNT)).thenReturn(false);
+        when(mockNode.has(Constants.FACETS)).thenReturn(true);
+        when(mockNode.get(Constants.FACETS)).thenReturn(mock(JsonNode.class));
+
+        CiosContentServiceImpl service = prepareServiceWithMocks(mockNode);
+
+        Method method = CiosContentServiceImpl.class.getDeclaredMethod("fetchAndUpdateContentCountsInPartnerDb", String.class);
+        method.setAccessible(true);
+        method.invoke(service, "PARTNER001");
+    }
+
+    @Test
+    void test_fetchAndUpdateContentCountsInPartnerDb_whenStatusMissing_logsWarning() throws Exception {
+        ObjectNode mockNode = mock(ObjectNode.class);
+        when(mockNode.hasNonNull(Constants.TOTAL_COUNT)).thenReturn(true);
+        when(mockNode.has(Constants.FACETS)).thenReturn(true);
+
+        JsonNode mockFacetsNode = mock(JsonNode.class);
+        when(mockFacetsNode.has(Constants.STATUS)).thenReturn(false);
+        when(mockNode.get(Constants.FACETS)).thenReturn(mockFacetsNode);
+
+        CiosContentServiceImpl service = prepareServiceWithMocks(mockNode);
+
+        Method method = CiosContentServiceImpl.class.getDeclaredMethod("fetchAndUpdateContentCountsInPartnerDb", String.class);
+        method.setAccessible(true);
+        method.invoke(service, "PARTNER001");
+    }
+
+    @Test
+    void test_fetchAndUpdateContentCountsInPartnerDb_whenNodeIsNull_logsWarning() throws Exception {
+        CiosContentServiceImpl service = prepareServiceWithMocks(null);
+        Method method = CiosContentServiceImpl.class.getDeclaredMethod("fetchAndUpdateContentCountsInPartnerDb", String.class);
+        method.setAccessible(true);
+        method.invoke(service, "PARTNER001");
+    }
+
+
 }
