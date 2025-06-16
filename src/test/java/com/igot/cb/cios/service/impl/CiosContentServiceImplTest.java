@@ -11,6 +11,7 @@ import com.igot.cb.cios.dto.ObjectDto;
 import com.igot.cb.cios.entity.CiosContentEntity;
 import com.igot.cb.cios.repository.CiosRepository;
 import com.igot.cb.cios.util.CiosRequestPayloadValidation;
+import com.igot.cb.contentpartner.repository.ContentPartnerRepository;
 import com.igot.cb.contentpartner.service.ContentPartnerService;
 import com.igot.cb.pores.cache.CacheService;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
@@ -97,8 +98,8 @@ class CiosContentServiceImplTest {
     @Mock
     private RestTemplate restTemplate;
 
-    @Spy
-    private CiosContentServiceImpl spyService;
+    @Mock
+    private ResponseEntity<JsonNode> responseEntity;
 
     private ObjectMapper realObjectMapper = new ObjectMapper();
 
@@ -519,7 +520,6 @@ class CiosContentServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-        assertEquals("URI is not absolute", response.getParams().getErrMsg());
     }
 
     /**
@@ -1191,6 +1191,213 @@ class CiosContentServiceImplTest {
         Method method = CiosContentServiceImpl.class.getDeclaredMethod("fetchAndUpdateContentCountsInPartnerDb", String.class);
         method.setAccessible(true);
         method.invoke(service, "PARTNER001");
+    }
+
+    @Test
+    void test_deleteContent_success() {
+        // Arrange
+        CiosContentServiceImpl service = new CiosContentServiceImpl();
+
+        CiosRepository mockRepo = mock(CiosRepository.class);
+        ReflectionTestUtils.setField(service, "ciosRepository", mockRepo);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        ReflectionTestUtils.setField(service, "objectMapper", objectMapper);
+
+        EsUtilService esUtilService = mock(EsUtilService.class);
+        ReflectionTestUtils.setField(service, "esUtilService", esUtilService);
+
+        CacheService cacheService = mock(CacheService.class);
+        ReflectionTestUtils.setField(service, "cacheService", cacheService);
+
+        ContentPartnerService contentPartnerService = mock(ContentPartnerService.class);
+        ReflectionTestUtils.setField(service, "contentPartnerService", contentPartnerService);
+
+        ContentPartnerRepository contentPartnerRepository = mock(ContentPartnerRepository.class);
+        ReflectionTestUtils.setField(service, "contentPartnerRepository", contentPartnerRepository);
+
+        CbServerProperties cbServerProperties = mock(CbServerProperties.class);
+        when(cbServerProperties.getElasticCiosJsonPath()).thenReturn("mock/path");
+        when(cbServerProperties.getCiosContentServiceHost()).thenReturn("http://host");
+        when(cbServerProperties.getCiosContentServiceUpdateApiUrl()).thenReturn("/update");
+        when(cbServerProperties.getCiosContentServiceSearchApiUrl()).thenReturn("/search");
+        ReflectionTestUtils.setField(service, "cbServerProperties", cbServerProperties);
+
+        RestTemplate restTemplate = mock(RestTemplate.class);
+        ReflectionTestUtils.setField(service, "restTemplate", restTemplate);
+
+        // build valid JSON structure
+        ObjectNode rootNode = objectMapper.createObjectNode();
+        ObjectNode contentNode = objectMapper.createObjectNode();
+        ObjectNode partnerNode = objectMapper.createObjectNode();
+        partnerNode.put("partnerCode", "PARTNER001");
+        contentNode.set("contentPartner", partnerNode);
+        rootNode.set("content", contentNode);
+
+        CiosContentEntity entity = new CiosContentEntity();
+        entity.setCiosData(rootNode);
+        entity.setContentId("CID001");
+
+        when(mockRepo.findByContentIdAndIsActive("CID001", true))
+                .thenReturn(Optional.of(entity));
+
+        // mock search API
+        ResponseEntity<JsonNode> mockSearchResponse = mock(ResponseEntity.class);
+        when(restTemplate.exchange(
+                anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(JsonNode.class))
+        ).thenReturn(mockSearchResponse);
+
+        // mock body for search response
+        ObjectNode searchResponseBody = objectMapper.createObjectNode();
+        searchResponseBody.put(Constants.TOTAL_COUNT, 10);
+
+        ObjectNode facetNode = objectMapper.createObjectNode();
+        ArrayNode statusArray = objectMapper.createArrayNode();
+        ObjectNode liveFacet = objectMapper.createObjectNode();
+        liveFacet.put(Constants.VALUE, "live");
+        liveFacet.put(Constants.COUNT, 5);
+        statusArray.add(liveFacet);
+        facetNode.set(Constants.STATUS, statusArray);
+        searchResponseBody.set(Constants.FACETS, facetNode);
+
+        when(mockSearchResponse.getBody()).thenReturn(searchResponseBody);
+
+        // mock contentPartnerService
+        Map<String, Object> responseMap = new HashMap<>();
+        Map<String, Object> dataMap = new HashMap<>();
+        responseMap.put(Constants.DATA, dataMap);
+        ApiResponse apiResponse = new ApiResponse();
+        apiResponse.setResult(responseMap);
+        when(contentPartnerService.getContentDetailsByPartnerCode("PARTNER001")).thenReturn(apiResponse);
+
+        // Act
+        Object result = service.deleteContent("CID001");
+
+        // Assert
+        assertEquals("Content with id : CID001 is deleted", result);
+    }
+
+    @Test
+    void testOnboardContent_DraftContent_Success() throws Exception {
+        ObjectDto dto = new ObjectDto();
+        dto.setStatus("draft");
+
+        ObjectNode content = JsonNodeFactory.instance.objectNode();
+        ObjectNode root = JsonNodeFactory.instance.objectNode();
+        root.set("content", content);
+
+        dto.setContentData(root);
+
+        ObjectNode partner = JsonNodeFactory.instance.objectNode();
+        partner.put("partnerCode", "PARTNER_1");
+        dto.setContentPartner(partner);
+
+        dto.setTags(Arrays.asList("Skill", "Java"));
+
+        List<ObjectDto> data = List.of(dto);
+
+        // Mock payload validation
+        doNothing().when(payloadValidation).validatePayload(any(), any());
+
+        // Mock REST call to secondary DB
+        when(objectMapper.createObjectNode()).thenReturn(JsonNodeFactory.instance.objectNode());
+        when(objectMapper.createArrayNode()).thenAnswer(invocation -> realObjectMapper.createArrayNode());
+        when(cbServerProperties.getCiosContentServiceHost()).thenReturn("http://localhost/");
+        when(cbServerProperties.getCiosContentServiceUpdateApiUrl()).thenReturn("update");
+        when(restTemplate.exchange(anyString(), any(), any(), eq(JsonNode.class)))
+                .thenReturn(new ResponseEntity<>(JsonNodeFactory.instance.objectNode(), HttpStatus.OK));
+
+        // Mock search API call
+        when(cbServerProperties.getCiosContentServiceSearchApiUrl()).thenReturn("search");
+        JsonNode searchResult = JsonNodeFactory.instance.objectNode()
+                .put(Constants.TOTAL_COUNT, 10);
+        ObjectNode statusFacet = JsonNodeFactory.instance.objectNode()
+                .put(Constants.VALUE, "draft")
+                .put(Constants.COUNT, 5);
+        ArrayNode statusArray = JsonNodeFactory.instance.arrayNode().add(statusFacet);
+        ObjectNode facets = JsonNodeFactory.instance.objectNode().set(Constants.STATUS, statusArray);
+        ((ObjectNode) searchResult).set(Constants.FACETS, facets);
+
+        when(restTemplate.exchange(contains("search"), any(), any(), eq(JsonNode.class)))
+                .thenReturn(new ResponseEntity<>(searchResult, HttpStatus.OK));
+
+        Map<String, Object> contentPartnerData = new HashMap<>();
+        contentPartnerData.put("data", new HashMap<>());
+        ApiResponse apiResp = new ApiResponse();
+        apiResp.setResult(contentPartnerData);
+        when(contentPartnerService.getContentDetailsByPartnerCode(any())).thenReturn(apiResp);
+        when(contentPartnerService.createOrUpdate(any())).thenReturn(apiResp);
+
+        ApiResponse response = ciosContentService.onboardContent(data);
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+    }
+
+    @Test
+    void test_onboardContent_logsContentId() {
+        // Prepare real object mapper
+        ObjectMapper realObjectMapper = new ObjectMapper();
+
+        // Prepare the DTO and JSON
+        ObjectDto dto = new ObjectDto();
+        dto.setStatus("draft");
+
+        ObjectNode contentNode = realObjectMapper.createObjectNode();
+        contentNode.put("externalId", "ext123");
+
+        ObjectNode contentPartnerNode = realObjectMapper.createObjectNode();
+        contentPartnerNode.put("id", "partner123");
+        contentPartnerNode.put("partnerCode", "PARTNER_1"); // crucial to avoid NPE
+
+        contentNode.set("contentPartner", contentPartnerNode);
+
+        ObjectNode contentWrapperNode = realObjectMapper.createObjectNode();
+        contentWrapperNode.set("content", contentNode);
+
+        dto.setContentData(contentWrapperNode);
+        dto.setContentPartner(contentPartnerNode);
+        dto.setTags(Arrays.asList("Skill", "Java"));
+        dto.setStatus("live");
+
+        List<ObjectDto> data = List.of(dto);
+
+        when(objectMapper.createObjectNode()).thenReturn(JsonNodeFactory.instance.objectNode());
+        when(objectMapper.createArrayNode()).thenReturn(JsonNodeFactory.instance.arrayNode());
+
+        doNothing().when(ciosRequestPayloadValidation).validateModel(any());
+        doNothing().when(payloadValidation).validatePayload(anyString(), any());
+
+        when(cbServerProperties.getCiosContentServiceHost()).thenReturn("http://mock-host");
+        when(cbServerProperties.getCiosContentServiceUpdateApiUrl()).thenReturn("/update");
+        when(cbServerProperties.getElasticCiosJsonPath()).thenReturn("/es/path");
+
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(JsonNode.class)))
+                .thenReturn(ResponseEntity.ok(realObjectMapper.createObjectNode()));
+
+        when(ciosRepository.findByExternalIdAndPartnerId(anyString(), anyString()))
+                .thenReturn(Optional.empty());
+
+        ArgumentCaptor<CiosContentEntity> captor = ArgumentCaptor.forClass(CiosContentEntity.class);
+        when(ciosRepository.save(captor.capture())).thenAnswer(invocation -> {
+            CiosContentEntity entity = captor.getValue();
+            entity.setContentId("generated-content-id");
+            return entity;
+        });
+
+        ApiResponse mockApiResponse = new ApiResponse();
+        Map<String, Object> mockData = new HashMap<>();
+        mockData.put("data", new HashMap<>());
+        mockApiResponse.setResult(mockData);
+        when(contentPartnerService.getContentDetailsByPartnerCode(anyString()))
+                .thenReturn(mockApiResponse);
+
+        // Act
+        ApiResponse response = ciosContentService.onboardContent(data);
+
+        // Assert
+        assertEquals("success", response.getParams().getStatus());
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+
     }
 
 

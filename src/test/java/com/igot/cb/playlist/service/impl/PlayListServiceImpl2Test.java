@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.igot.cb.playlist.dto.SearchDto;
 import com.igot.cb.playlist.entity.PlayListEntity;
 import com.igot.cb.playlist.repository.PlayListRepository;
@@ -13,6 +14,7 @@ import com.igot.cb.pores.Service.OutboundRequestHandlerServiceImpl;
 import com.igot.cb.pores.cache.CacheService;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
+import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.PayloadValidation;
@@ -22,6 +24,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.HttpStatus;
 
 import java.util.*;
 
@@ -74,6 +77,11 @@ class PlayListServiceImpl2Test {
 
     private ObjectMapper objectMapper = new ObjectMapper();
 
+    private static final String REDIS_INDEX = "12";
+    private static final String ORG_ID = "org123";
+    private static final String ID = "someKey";
+    private static final String PLAYLIST_ID = "playlist456";
+
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
@@ -84,6 +92,7 @@ class PlayListServiceImpl2Test {
         injectField("cbServerProperties", cbServerProperties);
         injectField("outboundRequestHandlerService", outboundRequestHandlerService);
         injectField("redisInsightIndex", 1);
+        injectField("payloadValidation", payloadValidation);
     }
 
     private void injectField(String fieldName, Object value) {
@@ -154,6 +163,57 @@ class PlayListServiceImpl2Test {
 
         method.invoke(playListService, enriched, entity, "org1playlist");
         verify(redisCacheMngr, times(1)).hset(any(), anyInt(), any());
+    }
+
+    @Test
+    void test_updateV2PlayList_whenExceptionThrown_logsError() {
+        // Arrange
+        JsonNode mockPlayListDetails = mock(ObjectNode.class);
+        when(mockPlayListDetails.has(Constants.ID)).thenReturn(true);
+        when(mockPlayListDetails.get(Constants.ID)).thenReturn(new TextNode("playlist123"));
+
+        PlayListEntity entity = new PlayListEntity();
+        entity.setId("playlist123");
+        entity.setIsActive(true);
+        entity.setOrgId("org1");
+        entity.setRequestType("type1");
+        ObjectNode data = new ObjectMapper().createObjectNode();
+        entity.setData(data);
+
+        when(playListRepository.findByIdAndIsActive("playlist123", true)).thenReturn(entity);
+
+        // Force exception on save
+        when(playListRepository.save(any())).thenThrow(new RuntimeException("DB save failed"));
+
+        // Act
+        ApiResponse response = playListService.updateV2PlayList(mockPlayListDetails);
+
+        // Assert
+        assertEquals(HttpStatus.NOT_FOUND, response.getResponseCode());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+    }
+
+    @Test
+    void test_createV2PlayList_whenExceptionThrown_logsError() {
+        // Arrange
+        ObjectNode input = new ObjectMapper().createObjectNode();
+        input.put(Constants.ORG_ID, "org123");
+        input.put(Constants.RQST_CONTENT_TYPE, "course");
+        input.put(Constants.TITLE, "Sample Playlist");
+
+        // Do not throw in validation
+        doNothing().when(payloadValidation).validatePayload(anyString(), eq(input));
+
+        // Force failure at DB save
+        when(playListRepository.save(any())).thenThrow(new RuntimeException("Simulated failure"));
+
+        // Act
+        ApiResponse response = playListService.createV2PlayList(input);
+
+        // Assert
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals("Not found", response.getParams().getErrMsg());
     }
 
 }

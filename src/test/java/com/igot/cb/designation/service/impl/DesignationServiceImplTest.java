@@ -1557,4 +1557,26 @@ class DesignationServiceImplTest {
         assertEquals("42", result); // .asText() returns string "42"
     }
 
+    @Test
+    void searchDesignation_shouldHandleEsException() throws Exception {
+        // Arrange
+        SearchCriteria searchCriteria = new SearchCriteria();
+        searchCriteria.setSearchString("developer");
+
+        // Simulate Redis has no cached result
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(null);
+
+        // Simulate exception from esUtilService
+        when(esUtilService.searchDocuments(eq(Constants.DESIGNATION_INDEX_NAME), any(SearchCriteria.class)))
+                .thenThrow(new RuntimeException("ES error"));
+
+        // Act
+        CustomResponse response = designationService.searchDesignation(searchCriteria);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+    }
+
 }

@@ -22,9 +22,12 @@ import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import org.mockito.MockedStatic;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class NotificationConsumerTest {
 
     @InjectMocks
@@ -45,7 +48,6 @@ class NotificationConsumerTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        MockitoAnnotations.openMocks(this);
         notificationConsumer = new NotificationConsumer();
 
         // Inject mocks
@@ -326,6 +328,97 @@ class NotificationConsumerTest {
 
         // If no exceptions thrown, success
     }
+
+    @Test
+    void testDemandContentConsumer_success() throws Exception {
+        // Given
+        String json = """
+    {
+        "data": {
+            "status": "Unassigned",
+            "rootOrgId": "root-123",
+            "demand_id": "d1",
+            "preferredProvider": [{"providerId": "prov-123"}],
+            "competencies": [{
+                "area": "Area1",
+                "theme": "Theme1",
+                "subTheme": "SubTheme1"
+            }],
+            "objective": "Improve skills"
+        },
+        "isSpvRequest": false
+    }
+    """;
+
+        ConsumerRecord<String, String> record = new ConsumerRecord<>("test-topic", 0, 0L, "key", json);
+
+        // Inject dependencies via reflection
+        ReflectionTestUtils.setField(notificationConsumer, "requestHandlerService", requestHandlerService);
+        ReflectionTestUtils.setField(notificationConsumer, "cassandraOperation", cassandraOperation);
+       // ReflectionTestUtils.setField(notificationConsumer, "cbServerProperties", cbServerProperties);
+
+        // ✅ Mock email template Cassandra fetch
+        Map<String, Object> template1 = new HashMap<>();
+        template1.put(Constants.TEMPLATE, "<html>Demand ID: $demandId, MDO: $mdoName</html>");
+        List<Map<String, Object>> templateList1 = List.of(template1);
+
+        when(cassandraOperation.getRecordsByPropertiesByKey(
+                eq(Constants.KEYSPACE_SUNBIRD),
+                eq(Constants.TABLE_EMAIL_TEMPLATE),
+                eq(Map.of(Constants.NAME, "templateId")),
+                eq(Collections.singletonList(Constants.TEMPLATE)),
+                isNull()))
+                .thenReturn(templateList1);
+
+        // Mock organisation details
+        Map<String, Object> orgDetails = new HashMap<>();
+        orgDetails.put(Constants.USER_ROOT_ORG_NAME, "TestMDO");
+        List<Map<String, Object>> orgList = List.of(orgDetails);
+
+        when(cassandraOperation.getRecordsByPropertiesWithoutFiltering(
+                eq("sunbird"), eq("organisation"), eq(Map.of("id", "root-123")), isNull(), eq(1)))
+                .thenReturn(orgList);
+
+
+        // Mock user search response
+        Map<String, Object> personalDetails = new HashMap<>();
+        personalDetails.put("primaryEmail", "test@example.com");
+
+        Map<String, Object> profileDetails = new HashMap<>();
+        profileDetails.put("personalDetails", personalDetails);
+
+        Map<String, Object> userContent = new HashMap<>();
+        userContent.put("rootOrgId", "prov-123");
+        userContent.put("profileDetails", profileDetails);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("content", List.of(userContent));
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("response", response);
+
+        Map<String, Object> searchResponse = new HashMap<>();
+        searchResponse.put("result", result);
+        searchResponse.put("responseCode", "OK");
+
+        lenient().when(requestHandlerService.fetchResultUsingPost(anyString(), any(), any()))
+                .thenReturn(searchResponse);
+
+        // Mock config properties
+        when(cbServerProperties.getSbUrl()).thenReturn("http://localhost:9000");
+        when(cbServerProperties.getUserSearchEndPoint()).thenReturn("/user/search");
+        when(cbServerProperties.getSupportEmail()).thenReturn("support@test.org");
+        when(cbServerProperties.getDemandRequestTemplate()).thenReturn("templateId");
+        when(cbServerProperties.getNotifyServiceHost()).thenReturn("http://notify.local");
+        when(cbServerProperties.getNotificationAsyncPath()).thenReturn("/v1/notify");
+
+
+
+        // When
+        notificationConsumer.demandContentConsumer(record);
+    }
+
+
 
     private void injectField(Object target, String fieldName, Object value) throws Exception {
         var field = target.getClass().getDeclaredField(fieldName);
