@@ -836,4 +836,19 @@ class PlayListServiceImplTest {
         assertEquals(Constants.ID_NOT_FOUND, response.getParams().getStatus());
     }
 
+    @Test
+    void test_delete_throwsException_logsErrorAndReturnsErrorResponse() {
+        // Arrange
+        String id = "mock-playlist-id";
+        when(playListRepository.findByIdAndIsActive(eq(id), eq(true)))
+                .thenThrow(new RuntimeException("Database is down"));
+
+        // Act
+        ApiResponse response = playListService.delete(id);
+
+        // Assert
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertTrue(response.getParams().getErrMsg().contains("Database is down"));
+    }
 }

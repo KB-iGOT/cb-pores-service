@@ -16,6 +16,7 @@ import org.springframework.http.*;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import java.lang.reflect.Field;
 import java.util.*;
 
 class OutboundRequestHandlerServiceImplTest {
@@ -27,24 +28,14 @@ class OutboundRequestHandlerServiceImplTest {
     private RestTemplate restTemplate;
 
     // Use a spy for logger to verify debug logs if needed (optional)
-    @Spy
-    private CbExtLogger log = new CbExtLogger(OutboundRequestHandlerServiceImpl.class.getName());
+   @Mock
+   private CbExtLogger mockLogger;
 
     private final ObjectMapper mapper = new ObjectMapper();
 
     @BeforeEach
     void setup() {
         MockitoAnnotations.openMocks(this);
-        // Inject spy logger into service via reflection (optional, if you want to verify logs)
-        // or just ignore logging
-        // Using reflection to set private field 'log'
-        try {
-            var logField = OutboundRequestHandlerServiceImpl.class.getDeclaredField("log");
-            logField.setAccessible(true);
-            logField.set(service, log);
-        } catch (Exception e) {
-            // ignore
-        }
     }
 
     @Test
@@ -96,9 +87,16 @@ class OutboundRequestHandlerServiceImplTest {
     }
 
     @Test
-    void testFetchResult_success() {
+    void testFetchResult_success() throws NoSuchFieldException, IllegalAccessException {
         String uri = "http://example.com/get";
         Map<String, Object> mockResponse = Map.of("responseKey", "responseValue");
+
+        Field logField = OutboundRequestHandlerServiceImpl.class.getDeclaredField("log");
+        logField.setAccessible(true);
+        logField.set(service, mockLogger);
+
+        // Enable debug logging
+        when(mockLogger.isDebugEnabled()).thenReturn(true);
 
         when(restTemplate.getForObject(eq(uri), eq(Map.class))).thenReturn(mockResponse);
 
@@ -138,13 +136,19 @@ class OutboundRequestHandlerServiceImplTest {
     }
 
     @Test
-    void testFetchUsingGetWithHeaders_success() {
+    void testFetchUsingGetWithHeaders_success() throws IllegalAccessException, NoSuchFieldException {
         String uri = "http://example.com/getHeaders";
         Map<String, String> headersMap = Map.of("Authorization", "Bearer token");
         Map<String, Object> mockResponse = Map.of("data", "value");
 
         ResponseEntity<Map> responseEntity = new ResponseEntity<>(mockResponse, HttpStatus.OK);
 
+        Field logField = OutboundRequestHandlerServiceImpl.class.getDeclaredField("log");
+        logField.setAccessible(true);
+        logField.set(service, mockLogger);
+
+        // Enable debug logging
+        when(mockLogger.isDebugEnabled()).thenReturn(true);
         when(restTemplate.exchange(eq(uri), eq(HttpMethod.GET), any(HttpEntity.class), eq(Map.class)))
                 .thenReturn(responseEntity);
 
@@ -184,12 +188,19 @@ class OutboundRequestHandlerServiceImplTest {
     }
 
     @Test
-    void testFetchUsingGetWithHeadersProfile_success() throws JsonProcessingException {
+    void testFetchUsingGetWithHeadersProfile_success() throws JsonProcessingException, NoSuchFieldException, IllegalAccessException {
         String uri = "http://example.com/getProfile";
         Map<String, String> headersMap = Map.of("Authorization", "Bearer token");
         Map<String, Object> mockResponse = Map.of("profile", "data");
 
         ResponseEntity<Map> responseEntity = new ResponseEntity<>(mockResponse, HttpStatus.OK);
+
+        Field logField = OutboundRequestHandlerServiceImpl.class.getDeclaredField("log");
+        logField.setAccessible(true);
+        logField.set(service, mockLogger);
+
+        // Enable debug logging
+        when(mockLogger.isDebugEnabled()).thenReturn(true);
 
         when(restTemplate.exchange(eq(uri), eq(HttpMethod.GET), any(HttpEntity.class), eq(Map.class)))
                 .thenReturn(responseEntity);
@@ -233,11 +244,18 @@ class OutboundRequestHandlerServiceImplTest {
     }
 
     @Test
-    void testFetchResultUsingPost_withHeaders_success() throws JsonProcessingException {
+    void testFetchResultUsingPost_withHeaders_success() throws JsonProcessingException, NoSuchFieldException, IllegalAccessException {
         String uri = "http://example.com/postWithHeaders";
         Map<String, Object> request = Map.of("key", "value");
         Map<String, String> headersMap = Map.of("Authorization", "Bearer token");
         Map<String, Object> mockResponse = Map.of("responseKey", "responseValue");
+
+        Field logField = OutboundRequestHandlerServiceImpl.class.getDeclaredField("log");
+        logField.setAccessible(true);
+        logField.set(service, mockLogger);
+
+        // Enable debug logging
+        when(mockLogger.isDebugEnabled()).thenReturn(true);
 
         when(restTemplate.postForObject(eq(uri), any(HttpEntity.class), eq(Map.class))).thenReturn(mockResponse);
 
@@ -293,11 +311,18 @@ class OutboundRequestHandlerServiceImplTest {
     }
 
     @Test
-    void testFetchResultUsingPatch_success() {
+    void testFetchResultUsingPatch_success() throws NoSuchFieldException, IllegalAccessException {
         String uri = "http://example.com/patch";
         Map<String, Object> request = Map.of("field", "value");
         Map<String, String> headersMap = Map.of("Authorization", "Bearer token");
         Map<String, Object> mockResponse = Map.of("patched", true);
+
+        Field logField = OutboundRequestHandlerServiceImpl.class.getDeclaredField("log");
+        logField.setAccessible(true);
+        logField.set(service, mockLogger);
+
+        // Enable debug logging
+        when(mockLogger.isDebugEnabled()).thenReturn(true);
 
         when(restTemplate.patchForObject(eq(uri), any(HttpEntity.class), eq(Map.class))).thenReturn(mockResponse);
 

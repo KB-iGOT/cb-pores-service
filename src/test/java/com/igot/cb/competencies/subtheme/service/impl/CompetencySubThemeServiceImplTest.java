@@ -16,6 +16,7 @@ import com.igot.cb.pores.dto.CustomResponse;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
+import com.igot.cb.pores.exceptions.CustomException;
 import com.igot.cb.pores.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -80,6 +81,10 @@ class CompetencySubThemeServiceImplTest {
 
     @Mock
     private ValueOperations<String, SearchResult> valueOperations;
+
+    private static final String TEST_ID = "test-id";
+    private static final String FRAMEWORK = "cbse";
+    private static final String CATEGORY = "designation";
 
     @BeforeEach
     void setUp() {
@@ -733,4 +738,36 @@ class CompetencySubThemeServiceImplTest {
         verifyNoInteractions(competencySubThemeRepository);
     }
 
+    @Test
+    void test_readCompSubTheme_whenExceptionThrown_logsErrorAndThrowsCustomException() {
+        // Arrange
+        when(cacheService.getCache(TEST_ID)).thenThrow(new RuntimeException("Cache failure"));
+
+        // Act & Assert
+        CustomException exception = assertThrows(CustomException.class, () -> {
+            competencySubThemeService.readCompSubTheme(TEST_ID);
+        });
+
+        assertEquals("error while processing", exception.getMessage());
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, exception.getHttpStatusCode());
+    }
+
+    @Test
+    void test_readTerm_logsError_whenFetchResultThrowsException() {
+        // Arrange
+        when(cbServerProperties.getKnowledgeMS()).thenReturn("http://mock-knowledge-ms");
+        when(cbServerProperties.getOdcsDesignationTermRead()).thenReturn("/term/read");
+
+        // Simulate exception on fetchResult
+        when(outboundRequestHandlerServiceImpl.fetchResult(anyString()))
+                .thenThrow(new RuntimeException("Service failure"));
+
+        // Act
+        ApiResponse response = competencySubThemeService.readTerm(TEST_ID, FRAMEWORK, CATEGORY);
+
+        // Assert
+        assertEquals(HttpStatus.NOT_FOUND, response.getResponseCode());
+        assertEquals("Failed", response.getParams().getStatus());
+        assertTrue(response.getParams().getErr().contains("Failed to read term"));
+    }
 }
