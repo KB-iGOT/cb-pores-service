@@ -100,7 +100,7 @@ public class OrgServiceImpl implements OrgService {
                         publishFramework(name,orgId);
                         log.info("copy framework published and term creation also done.");
                         String orgUpdateUrl = cbServerProperties.getLearnerServiceUrl() + cbServerProperties.getOrgUpdateEndpoint();
-                        Map<String, Object> orgResponse = outboundRequestHandlerServiceImpl.fetchResultUsingPatch(orgUpdateUrl,createOrgHierarchyRequestMap(orgId, Constants.ORG_HIERARCHY_FRAMEWORK_ID_KEY, Constants.ORG_HIERARCHY_FRAMEWORK_STATUS_KEY, name, Constants.COMPLETED),ProjectUtil.getDefaultHeadrs(userAuthToken));
+                        Map<String, Object> orgResponse = outboundRequestHandlerServiceImpl.fetchResultUsingPatch(orgUpdateUrl,createOrgHierarchyRequestMap(orgId, Constants.FRAMEWORK_ID_KEY, Constants.FRAMEWORK_STATUS_KEY, name, Constants.COMPLETED),ProjectUtil.getDefaultHeadrs(userAuthToken));
                         if (MapUtils.isNotEmpty(orgResponse) && Constants.OK.equalsIgnoreCase(
                                 (String) orgResponse.get(Constants.RESPONSE_CODE))) {
                             Map<String, Object> result = (Map<String, Object>) orgResponse.get(
@@ -108,6 +108,7 @@ public class OrgServiceImpl implements OrgService {
                             String orgResult = (String) result.getOrDefault(Constants.RESPONSE, "");
                             log.info("Organization updated successfully. orgId: {}, result: {}", orgId, orgResult);
                         }
+                        updateOrganizationFramework(name,orgId, Constants.FRAMEWORKID, Constants.FRAMEWORK_STATUS);
                         response.getResult().put(Constants.FRAMEWORK, name);
                         response.setResponseCode(HttpStatus.OK);
                     } else {
@@ -441,6 +442,7 @@ public class OrgServiceImpl implements OrgService {
                             String orgResult = (String) result.getOrDefault(Constants.RESPONSE, "");
                             log.info("Organization updated successfully. orgId: {}, result: {}", orgId, orgResult);
                         }
+                        updateOrganizationFramework(name,orgId, Constants.ORG_HIERARCHY_FRAMEWORK_ID, Constants.ORG_HIERARCHY_FRAMEWORK_STATUS);
                         response.getResult().put(Constants.FRAMEWORK, name);
                         response.setResponseCode(HttpStatus.OK);
                     } else {
