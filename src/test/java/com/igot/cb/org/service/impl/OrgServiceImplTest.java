@@ -1082,6 +1082,7 @@ class OrgServiceImplTest {
         String userId = "user123";
         String frameworkId = "copied_fw_001";
 
+        when(cbServerProperties.getOrgHierarchyCreateRequiredRoles()).thenReturn(List.of("SPV_ADMIN"));
         when(accessTokenValidator.verifyUserToken(token)).thenReturn(userId);
         when(requestHandlerService.fetchUsingGetWithHeadersProfile(anyString(), anyMap()))
                 .thenReturn(Map.of(Constants.RESULT, Map.of(Constants.RESPONSE, Map.of(Constants.ROLES, List.of("SPV_ADMIN")))));
@@ -1134,6 +1135,7 @@ class OrgServiceImplTest {
 
     @Test
     void testCreateOrgHierarchyFramework_OrgNotFound() {
+        when(cbServerProperties.getOrgHierarchyCreateRequiredRoles()).thenReturn(Arrays.asList("SPV_ADMIN"));
         when(accessTokenValidator.verifyUserToken("token")).thenReturn("userId");
         when(requestHandlerService.fetchUsingGetWithHeadersProfile(anyString(), anyMap()))
                 .thenReturn(Map.of(Constants.RESULT, Map.of(Constants.RESPONSE, Map.of(Constants.ROLES, List.of("SPV_ADMIN")))));
@@ -1152,7 +1154,7 @@ class OrgServiceImplTest {
                 Constants.ORG_HIERARCHY_FRAMEWORK_STATUS, "COMPLETED",
                 Constants.ORG_HIERARCHY_FRAMEWORK_ID, "fw123"
         );
-
+        when(cbServerProperties.getOrgHierarchyCreateRequiredRoles()).thenReturn(List.of("SPV_ADMIN"));
         when(accessTokenValidator.verifyUserToken("token")).thenReturn("userId");
         when(requestHandlerService.fetchUsingGetWithHeadersProfile(anyString(), anyMap()))
                 .thenReturn(Map.of(Constants.RESULT, Map.of(Constants.RESPONSE, Map.of(Constants.ROLES, List.of("SPV_ADMIN")))));
@@ -1273,6 +1275,7 @@ class OrgServiceImplTest {
         String userId = "user123";
 
         // Mock user token validation
+        when(cbServerProperties.getOrgHierarchyCreateRequiredRoles()).thenReturn(List.of("SPV_ADMIN"));
         when(accessTokenValidator.verifyUserToken(authToken)).thenReturn(userId);
 
         // Mock role validation
