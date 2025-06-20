@@ -409,7 +409,7 @@ public class OrgServiceImpl implements OrgService {
                 response.setResponseCode(HttpStatus.BAD_REQUEST);
                 return response;
             }
-            if (!isSpvRequest(userId, Arrays.asList(Constants.MDO_ADMIN,Constants.MDO_LEADER, Constants.SPV_ADMIN, Constants.SPV_PUBLISHER))) {
+            if (!isSpvRequest(userId, cbServerProperties.getOrgHierarchyCreateRequiredRoles())) {
                 response.getParams().setStatus(Constants.FAILED);
                 response.getParams().setErrMsg("User does not have the required role:");
                 response.setResponseCode(HttpStatus.BAD_REQUEST);

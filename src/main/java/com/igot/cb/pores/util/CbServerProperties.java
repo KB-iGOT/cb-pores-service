@@ -167,4 +167,12 @@ public class CbServerProperties {
 
     @Value("${org.update.endpoint}")
     private String orgUpdateEndpoint;
+
+    @Value("${org.hierarchy.required.roles}")
+    private String orgHierarchyCreateRoles;
+
+    public List<String> getOrgHierarchyCreateRequiredRoles() {
+      return Arrays.asList(orgHierarchyCreateRoles.split(","));
+    }
+
 }
