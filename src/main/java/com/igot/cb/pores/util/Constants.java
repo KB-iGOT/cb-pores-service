@@ -377,7 +377,6 @@ public class Constants {
     public static final String ORG_HIERARCHY_FRAMEWORK_STATUS_KEY = "orgHierarchyFrameworkStatus";
     public static final String FRAMEWORK_ID_KEY  = "frameworkId";
     public static final String FRAMEWORK_STATUS_KEY = "frameworkStatus";
-    public static final String STATE_ADMIN = "STATE_ADMIN";
 
 
 
