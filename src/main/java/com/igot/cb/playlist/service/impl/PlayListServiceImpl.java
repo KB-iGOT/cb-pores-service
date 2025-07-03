@@ -220,6 +220,7 @@ public class PlayListServiceImpl implements PlayListSerive {
           }));
       filters.put(Constants.STATUS, Arrays.asList(Constants.LIVE));
       req.put(Constants.FILTERS, filters);
+      req.put(Constants.LIMIT, childrenNode.size());
       reqBody.put(Constants.REQUEST, req);
 
       compositeSearchRes = outboundRequestHandlerService.fetchResultUsingPost(
