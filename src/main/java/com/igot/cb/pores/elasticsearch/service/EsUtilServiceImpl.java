@@ -296,7 +296,6 @@ public class EsUtilServiceImpl implements EsUtilService {
                                         boolQueryBuilder.must(Query.of(q -> q.terms(t -> t.field(fullPath + Constants.KEYWORD)
                                                 .terms(terms -> terms.value(termList))
                                         )));
-                                        //boolQueryBuilder.must(Query.of(q -> q.terms(t -> t.field(fullPath + Constants.KEYWORD).terms((TermsQueryField) termList))));
                                     } else if (nestedValue instanceof ArrayList) {
                                         boolQueryBuilder.must(Query.of(q -> q.terms(t -> t.field(fullPath + Constants.KEYWORD).terms((TermsQueryField) nestedValue))));
                                     }
