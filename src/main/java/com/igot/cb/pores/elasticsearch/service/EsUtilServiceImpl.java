@@ -270,22 +270,20 @@ public class EsUtilServiceImpl implements EsUtilService {
                                 nestedMap.forEach((rangeOperator, rangeValue) -> {
                                     switch (rangeOperator) {
                                         case Constants.SEARCH_OPERATION_GREATER_THAN_EQUALS:
-                                            rangeQuery.gte((JsonData) rangeValue);
+                                            rangeQuery.gte(JsonData.of(rangeValue));
                                             break;
                                         case Constants.SEARCH_OPERATION_LESS_THAN_EQUALS:
-                                            rangeQuery.lte((JsonData) rangeValue);
+                                            rangeQuery.lte(JsonData.of( rangeValue));
                                             break;
                                         case Constants.SEARCH_OPERATION_GREATER_THAN:
-                                            rangeQuery.gt((JsonData) rangeValue);
+                                            rangeQuery.gt(JsonData.of( rangeValue));
                                             break;
                                         case Constants.SEARCH_OPERATION_LESS_THAN:
-                                            rangeQuery.lt((JsonData) rangeValue);
+                                            rangeQuery.lt(JsonData.of( rangeValue));
                                             break;
                                     }
                                 });
-                                rangeOrNullQuery.should(rangeQuery.build()._toQuery());
-                                rangeOrNullQuery.should(Query.of(q -> q.bool(b -> b.mustNot(Query.of(qn -> qn.exists(e -> e.field(field)))))));
-                                boolQueryBuilder.must(rangeOrNullQuery.build()._toQuery());
+                                boolQueryBuilder.must(rangeQuery.build()._toQuery());
                             } else {
                                 nestedMap.forEach((nestedField, nestedValue) -> {
                                     String fullPath = field + "." + nestedField;
