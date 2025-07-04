@@ -248,7 +248,7 @@ public class EsUtilServiceImpl implements EsUtilService {
             filterCriteriaMap.forEach(
                     (field, value) -> {
                         if (field.equals("must_not") && value instanceof ArrayList) {
-                            mustNotQueries.add(Query.of(q ->q.termsSet(t->t.field(field).terms((ArrayList<String>) value))));
+                            mustNotQueries.forEach(mustNotQuery -> boolQueryBuilder.mustNot(mustNotQuery));
                         } else if (value instanceof Boolean) {
                             boolQueries.add(Query.of(q ->q.term(t->t.field(field).value((boolean)value))));
                         } else if (value instanceof ArrayList) {
@@ -293,7 +293,10 @@ public class EsUtilServiceImpl implements EsUtilService {
                                         boolQueryBuilder.must(Query.of(q -> q.term(t -> t.field(fullPath).value((Boolean) nestedValue))));
                                     } else if (nestedValue instanceof String) {
                                         List<FieldValue> termList = Collections.singletonList(FieldValue.of((String) nestedValue));
-                                        boolQueryBuilder.must(Query.of(q -> q.terms(t -> t.field(fullPath + Constants.KEYWORD).terms((TermsQueryField) termList))));
+                                        boolQueryBuilder.must(Query.of(q -> q.terms(t -> t.field(fullPath + Constants.KEYWORD)
+                                                .terms(terms -> terms.value(termList))
+                                        )));
+                                        //boolQueryBuilder.must(Query.of(q -> q.terms(t -> t.field(fullPath + Constants.KEYWORD).terms((TermsQueryField) termList))));
                                     } else if (nestedValue instanceof ArrayList) {
                                         boolQueryBuilder.must(Query.of(q -> q.terms(t -> t.field(fullPath + Constants.KEYWORD).terms((TermsQueryField) nestedValue))));
                                     }
