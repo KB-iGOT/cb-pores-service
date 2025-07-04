@@ -283,7 +283,9 @@ public class EsUtilServiceImpl implements EsUtilService {
                                             break;
                                     }
                                 });
-                                boolQueryBuilder.must(rangeQuery.build()._toQuery());
+                                rangeOrNullQuery.should(rangeQuery.build()._toQuery());
+                                rangeOrNullQuery.should(Query.of(q -> q.bool(b -> b.mustNot(Query.of(qn -> qn.exists(e -> e.field(field)))))));
+                                boolQueryBuilder.must(rangeOrNullQuery.build()._toQuery());
                             } else {
                                 nestedMap.forEach((nestedField, nestedValue) -> {
                                     String fullPath = field + "." + nestedField;
