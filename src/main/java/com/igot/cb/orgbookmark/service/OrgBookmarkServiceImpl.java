@@ -2,7 +2,7 @@ package com.igot.cb.orgbookmark.service;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
-import com.datastax.driver.core.utils.UUIDs;
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -86,7 +86,7 @@ public class OrgBookmarkServiceImpl implements OrgBookmarkService {
                 return response;
             }
             log.info("OrgBookmarkService::createOrgList:creating orgList");
-            String id = String.valueOf(UUIDs.timeBased());
+            String id = String.valueOf(Uuids.timeBased());
             ((ObjectNode) orgDetails).put(Constants.IS_ACTIVE, Constants.ACTIVE_STATUS);
             Timestamp currentTime = new Timestamp(System.currentTimeMillis());
             ((ObjectNode) orgDetails).put(Constants.CREATED_BY, userId);
@@ -172,6 +172,12 @@ public class OrgBookmarkServiceImpl implements OrgBookmarkService {
                 ((ObjectNode) dataNode).remove(Constants.ORG_BOOKMARK_ID);
                 orgBookmarkEntity.get().setUpdatedOn(currentTime);
                 orgBookmarkEntityUpdated = orgBookmarkRepository.save(orgBookmarkEntity.get());
+            } else {
+                log.error("OrgBookmarkEntity not found for ID: {}", orgBookmarkId);
+                response.getParams().setStatus(Constants.FAILED);
+                response.getParams().setErrMsg("Org bookmark not found");
+                response.setResponseCode(HttpStatus.NOT_FOUND);
+                return response;
             }
 
             ObjectMapper objectMapper = new ObjectMapper();
@@ -389,11 +395,10 @@ public class OrgBookmarkServiceImpl implements OrgBookmarkService {
         // request body
         Map<String, Object> requestObj = new HashMap<>();
         Map<String, Object> reqMap = new HashMap<>();
-        reqMap.put(Constants.FILTERS, new HashMap<String, Object>() {
-            {
-                put(key, value);
-            }
-        });
+        Map<String, Object> filtersMap = new HashMap<>();
+        filtersMap.put(key, value);
+
+        reqMap.put(Constants.FILTERS, filtersMap);
         requestObj.put(Constants.REQUEST, reqMap);
 
         HashMap<String, String> headersValue = new HashMap<>();

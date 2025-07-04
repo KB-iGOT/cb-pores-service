@@ -49,9 +49,10 @@ public class FileProcessService {
 
     try (InputStream inputStream = file.getInputStream()) {
       if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
-        Workbook workbook = WorkbookFactory.create(inputStream);
-        Sheet sheet = workbook.getSheetAt(0);
-        return processSheetAndSendMessage(sheet);
+        try (Workbook workbook = WorkbookFactory.create(inputStream)) {
+          Sheet sheet = workbook.getSheetAt(0);
+          return processSheetAndSendMessage(sheet);
+        }
       } else if (fileName.endsWith(".csv")) {
         return processCsvAndSendMessage(inputStream);
       } else {
