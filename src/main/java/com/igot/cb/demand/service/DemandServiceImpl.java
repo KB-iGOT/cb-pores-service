@@ -88,6 +88,8 @@ public class DemandServiceImpl implements DemandService {
     @Autowired
     private RequestHandlerServiceImpl requestHandlerService;
 
+    private static final Random RANDOM = new Random();
+
     @Override
     public CustomResponse createDemand(JsonNode demandDetails, String token, String rootOrgId) {
         log.info("DemandService::createDemand:creating demand");
@@ -536,13 +538,12 @@ public class DemandServiceImpl implements DemandService {
         while (totalIds >= Math.pow(10, digitLength)) {
             digitLength++;
         }
-        Random random = new Random();
         do {
             ZonedDateTime now = ZonedDateTime.ofInstant(Instant.now(), ZoneId.systemDefault());
             int secondsInDay = now.getHour() * 3600 + now.getMinute() * 60 + now.getSecond();
             int randomPartLength = digitLength - 5;
             int maxRandomValue = (int) Math.pow(10, randomPartLength);
-            int randomNumber = random.nextInt(maxRandomValue);
+            int randomNumber = RANDOM.nextInt(maxRandomValue);
             id = String.format("%05d%" + String.format("0%dd", randomPartLength), secondsInDay, randomNumber);
 
             idExists = demandRepository.existsById(id);

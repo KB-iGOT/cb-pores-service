@@ -7,12 +7,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.Type;
-import org.hibernate.annotations.TypeDef;
-
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import com.vladmihalcea.hibernate.type.json.JsonType;
+import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.sql.Timestamp;
 
 @Getter
@@ -20,13 +17,13 @@ import java.sql.Timestamp;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name ="content_partner")
-@TypeDef(name = "jsonb", typeClass = JsonBinaryType.class)
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Entity
 public class ContentPartnerEntity {
     @Id
     private String id;
 
-    @Type(type = "jsonb")
+    @Type(JsonType.class)
     @Column(columnDefinition = "jsonb")
     private JsonNode data;
 
@@ -36,29 +33,29 @@ public class ContentPartnerEntity {
 
     private Boolean isActive;
 
-    @Type(type = "jsonb")
+    @Type(JsonType.class)
     @Column(columnDefinition = "jsonb")
     private JsonNode trasformContentJson;
 
-    @Type(type = "jsonb")
+    @Type(JsonType.class)
     @Column(columnDefinition = "jsonb")
     private JsonNode transformContentViaApi;
 
-    @Type(type = "jsonb")
+    @Type(JsonType.class)
     @Column(columnDefinition = "jsonb")
     private JsonNode transformProgressJson;
 
-    @Type(type = "jsonb")
+    @Type(JsonType.class)
     @Column(columnDefinition = "jsonb")
     private JsonNode transformProgressViaApi;
 
     private String certificateTemplateUrl;
 
-    @Type(type = "jsonb")
+    @Type(JsonType.class)
     @Column(columnDefinition = "jsonb")
     private JsonNode serviceRegistryDetails;
 
-    @Type(type = "jsonb")
+    @Type(JsonType.class)
     @Column(columnDefinition = "jsonb")
     private JsonNode contentFileValidation;
 }

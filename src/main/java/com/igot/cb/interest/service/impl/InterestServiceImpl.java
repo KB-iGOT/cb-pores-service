@@ -2,7 +2,7 @@ package com.igot.cb.interest.service.impl;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
-import com.datastax.driver.core.utils.UUIDs;
+import com.datastax.oss.driver.api.core.uuid.Uuids;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -108,7 +108,7 @@ public class InterestServiceImpl implements InterestService {
     try {
       log.info("InterestServiceImpl::createInterest:creating interest");
       Interests interest = new Interests();
-      UUID interestIdUuid = UUIDs.timeBased();
+      UUID interestIdUuid = Uuids.timeBased();
       String interestId = String.valueOf(interestIdUuid);
       interest.setInterestId(interestId);
       ((ObjectNode) interestDetails).put(Constants.INTEREST_ID_RQST, String.valueOf(interestId));
