@@ -378,6 +378,7 @@ public class Constants {
     public static final String FRAMEWORK_ID_KEY  = "frameworkId";
     public static final String FRAMEWORK_STATUS_KEY = "frameworkStatus";
     public static final String CASSANDRA_CONFIG_PORT = "cassandra.config.port";
+    public static final String ACCESS_SETTINGS_ENABLED = "accessSettingsEnabled";
 
     private Constants() {
     }

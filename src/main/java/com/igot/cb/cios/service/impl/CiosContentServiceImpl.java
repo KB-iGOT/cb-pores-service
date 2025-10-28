@@ -8,6 +8,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.BooleanNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.igot.cb.cios.dto.ObjectDto;
 import com.igot.cb.cios.entity.CiosContentEntity;
@@ -225,6 +226,7 @@ public class CiosContentServiceImpl implements CiosContentService {
                         JsonNode searchTags = addSearchTags(eachData.getTags(),eachData.getContentData());
                         contentNode.set(Constants.SEARCHTAGS, searchTags);
                     }
+                    contentNode.set(Constants.ACCESS_SETTINGS_ENABLED, BooleanNode.valueOf(eachData.isAccessSettingsEnabled()));
                     apiCallToCiosSecondaryDbForUpdateData(jsonNode);
                 } else if(eachData.getStatus().equals("live")) {
                     log.info("Status of the data {}",eachData.getStatus());
@@ -252,6 +254,7 @@ public class CiosContentServiceImpl implements CiosContentService {
                         JsonNode searchTags = addSearchTags(eachData.getTags(),eachData.getContentData());
                         contentNode.set(Constants.SEARCHTAGS, searchTags);
                     }
+                    contentNode.set(Constants.ACCESS_SETTINGS_ENABLED, BooleanNode.valueOf(eachData.isAccessSettingsEnabled()));
                     apiCallToCiosSecondaryDbForUpdateData(jsonNode);
                     CiosContentEntity ciosContentEntity = createNewContent(jsonNode);
                     ciosRepository.save(ciosContentEntity);
@@ -341,7 +344,6 @@ public class CiosContentServiceImpl implements CiosContentService {
     private JsonNode apiCallToCiosSecondaryDbForUpdateData(JsonNode jsonNode) {
         log.info("CiosContentServiceImpl::apiCallToCiosSecondaryDbForUpdateData:inside");
         String apiUrl = cbServerProperties.getCiosContentServiceHost()+cbServerProperties.getCiosContentServiceUpdateApiUrl();
-        //RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         headers.set("Content-Type", "application/json");
         HttpEntity<JsonNode> entity = new HttpEntity<>(jsonNode, headers);
