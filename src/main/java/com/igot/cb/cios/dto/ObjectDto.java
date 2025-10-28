@@ -19,5 +19,5 @@ public class ObjectDto{
     private JsonNode contentPartner;
     private List<String> tags;
     private String status;
-
+    private boolean accessSettingsEnabled;
 }
