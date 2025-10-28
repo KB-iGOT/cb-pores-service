@@ -341,13 +341,14 @@ public class CiosContentServiceImpl implements CiosContentService {
         return response.getBody();
     }
 
-    private void apiCallToCiosSecondaryDbForUpdateData(JsonNode jsonNode) {
+    private JsonNode apiCallToCiosSecondaryDbForUpdateData(JsonNode jsonNode) {
         log.info("CiosContentServiceImpl::apiCallToCiosSecondaryDbForUpdateData:inside");
         String apiUrl = cbServerProperties.getCiosContentServiceHost()+cbServerProperties.getCiosContentServiceUpdateApiUrl();
         HttpHeaders headers = new HttpHeaders();
         headers.set("Content-Type", "application/json");
         HttpEntity<JsonNode> entity = new HttpEntity<>(jsonNode, headers);
         ResponseEntity<JsonNode> response = restTemplate.exchange(apiUrl, HttpMethod.POST, entity, JsonNode.class);
+        return response.getBody();
     }
 
     private CiosContentEntity createNewContent(JsonNode ciosRequestInput) {
