@@ -150,6 +150,7 @@ public class CiosContentServiceImpl implements CiosContentService {
             Map<String, Object> map = objectMapper.convertValue(fetchedEntity.getCiosData().get("content"), Map.class);
             esUtilService.addDocument(Constants.CIOS_INDEX_NAME, Constants.INDEX_TYPE, fetchedEntity.getContentId(), map, cbServerProperties.getElasticCiosJsonPath());
             cacheService.deleteCache(fetchedEntity.getContentId());
+            cacheService.deleteCache(fetchedEntity.getExternalId()+"_"+fetchedEntity.getContentId());
             log.info("deleted content");
             return "Content with id : " + contentId + " is deleted";
         } else {
