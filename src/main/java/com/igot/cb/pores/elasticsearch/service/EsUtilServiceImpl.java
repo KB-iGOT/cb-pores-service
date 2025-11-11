@@ -311,14 +311,16 @@ public class EsUtilServiceImpl implements EsUtilService {
 
     private void addSortToSearchSourceBuilder(
             SearchCriteria searchCriteria, SearchRequest.Builder searchRequestBuilder) {
+
         if (isNotBlank(searchCriteria.getOrderBy()) && isNotBlank(searchCriteria.getOrderDirection())) {
-            SortOrder sortOrder =
-                    Constants.ASC.equals(searchCriteria.getOrderDirection()) ? SortOrder.Asc : SortOrder.Desc;
-            searchRequestBuilder.sort(SortOptions.of(so -> so
-                    .field(f -> f
-                            .field(searchCriteria.getOrderBy() + Constants.KEYWORD)
-                            .order(sortOrder)
-                    )
+            String field = searchCriteria.getOrderBy();
+            SortOrder sortOrder = Constants.ASC.equals(searchCriteria.getOrderDirection())
+                    ? SortOrder.Asc : SortOrder.Desc;
+            String sortableField = cbServerProperties.getNonTextFields().contains(field)
+                    ? field
+                    : field + Constants.KEYWORD;
+            searchRequestBuilder.sort(SortOptions.of(so ->
+                    so.field(f -> f.field(sortableField).order(sortOrder))
             ));
         }
     }

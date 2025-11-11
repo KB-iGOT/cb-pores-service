@@ -60,6 +60,8 @@ public class CbServerProperties {
   @Value("${elastic.required.field.cios.json.path}")
   private String elasticCiosJsonPath;
 
+  @Value("${non.text.fields}")
+  private List<String> nonTextFields;
 
   public List<String> getBookmarkDuplicateNotAllowedCategory() {
     return Arrays.asList(bookmarkDuplicateNotAllowedCategory.split(","));
