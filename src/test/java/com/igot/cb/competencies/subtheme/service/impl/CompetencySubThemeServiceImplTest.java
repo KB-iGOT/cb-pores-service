@@ -98,14 +98,16 @@ class CompetencySubThemeServiceImplTest {
      */
     @Test
     void testSearchCompSubThemeWithShortSearchString() {
+        ReflectionTestUtils.setField(competencySubThemeService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("a");
-
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         CustomResponse response = competencySubThemeService.searchCompSubTheme(searchCriteria);
-
+        assertNotNull(response);
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
     }
+
+
 
     /**
      * Test case for createErrorResponse method
@@ -226,26 +228,18 @@ class CompetencySubThemeServiceImplTest {
      * when provided with a non-null request payload.
      */
     @Test
-    void test_generateRedisJwtTokenKey_1() {
+    void test_generateRedisJwtTokenKey_1() throws Exception {
         MockitoAnnotations.openMocks(this);
-
-        // Arrange
+        ReflectionTestUtils.setField(competencySubThemeService, "jwtSecretKey", "test-secret");
         Object requestPayload = new Object();
         String mockJsonString = "{\"key\":\"value\"}";
-
-        try {
-            when(objectMapper.writeValueAsString(any())).thenReturn(mockJsonString);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        // Act
+        when(objectMapper.writeValueAsString(requestPayload)).thenReturn(mockJsonString);
         String result = competencySubThemeService.generateRedisJwtTokenKey(requestPayload);
-
-        // Assert
         assertNotNull(result);
-        assertTrue(JWT.decode(result).getClaim(Constants.REQUEST_PAYLOAD).asString().equals(mockJsonString));
+        assertEquals(mockJsonString,
+                JWT.decode(result).getClaim(Constants.REQUEST_PAYLOAD).asString());
     }
+
 
     /**
      * Testcase 2 for public String generateRedisJwtTokenKey(Object requestPayload)
@@ -506,23 +500,18 @@ class CompetencySubThemeServiceImplTest {
      */
     @Test
     void test_searchCompSubTheme_1() {
-        // Arrange
+        ReflectionTestUtils.setField(competencySubThemeService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         SearchResult mockSearchResult = new SearchResult();
-        String mockRedisKey = "mockRedisKey";
-
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(competencySubThemeService.generateRedisJwtTokenKey(searchCriteria)).thenReturn(mockRedisKey);
-        lenient().when(valueOperations.get(mockRedisKey)).thenReturn(mockSearchResult);
-
-        // Act
+        when(valueOperations.get(anyString())).thenReturn(mockSearchResult);
         CustomResponse response = competencySubThemeService.searchCompSubTheme(searchCriteria);
-
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+        assertEquals(mockSearchResult, response.getResult().get(Constants.RESULT));
     }
+
 
     /**
      * Test case for searchCompSubTheme method when Redis cache is empty and search string is valid.
@@ -531,24 +520,19 @@ class CompetencySubThemeServiceImplTest {
      */
     @Test
     void test_searchCompSubTheme_3() throws Exception {
-        // Arrange
+        ReflectionTestUtils.setField(competencySubThemeService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("valid search");
-
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
-
         SearchResult mockSearchResult = new SearchResult();
         when(esUtilService.searchDocuments(anyString(), any(SearchCriteria.class))).thenReturn(mockSearchResult);
-
-        // Act
         CustomResponse response = competencySubThemeService.searchCompSubTheme(searchCriteria);
-
-        // Assert
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
         assertEquals(mockSearchResult, response.getResult().get(Constants.RESULT));
     }
+
 
     /**
      * Testcase 2 for searchCompSubTheme method
@@ -556,18 +540,15 @@ class CompetencySubThemeServiceImplTest {
      */
     @Test
     void test_searchCompSubTheme_shortSearchString() {
+        ReflectionTestUtils.setField(competencySubThemeService, "jwtSecretKey", "test-secret");
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-//        when(valueOperations.get(anyString())).thenReturn(null);
-        // Arrange
         SearchCriteria searchCriteria = new SearchCriteria();
-        searchCriteria.setSearchString("a");
-
-        // Act
+        searchCriteria.setSearchString("a"); // short string (<2 chars)
         CustomResponse response = competencySubThemeService.searchCompSubTheme(searchCriteria);
-
-        // Assert
+        assertNotNull(response);
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
     }
+
 
     /**
      * Test case for updating a CompetencySubTheme when the ID exists and the entity is present.

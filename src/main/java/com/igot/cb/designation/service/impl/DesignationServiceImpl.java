@@ -112,6 +112,9 @@ public class DesignationServiceImpl implements DesignationService {
   @Value("${search.result.redis.ttl}")
   private long searchResultRedisTtl;
 
+  @Value("${security.jwt.secret}")
+  private String jwtSecretKey;
+
   private Logger logger = LoggerFactory.getLogger(DesignationServiceImpl.class);
 
   @Autowired
@@ -877,14 +880,14 @@ public class DesignationServiceImpl implements DesignationService {
 
   public String generateRedisJwtTokenKey(Object requestPayload) {
     if (requestPayload != null) {
-      try {
-        String reqJsonString = objectMapper.writeValueAsString(requestPayload);
-        return JWT.create()
-            .withClaim(Constants.REQUEST_PAYLOAD, reqJsonString)
-            .sign(Algorithm.HMAC256(Constants.JWT_SECRET_KEY));
-      } catch (JsonProcessingException e) {
-        logger.error("Error occurred while converting json object to json string", e);
-      }
+        try {
+            String reqJsonString = objectMapper.writeValueAsString(requestPayload);
+            return JWT.create()
+                    .withClaim(Constants.REQUEST_PAYLOAD, reqJsonString)
+                    .sign(Algorithm.HMAC256(jwtSecretKey));
+        } catch (JsonProcessingException e) {
+            logger.error("Error occurred while converting json object to json string", e);
+        }
     }
     return "";
   }

@@ -669,24 +669,17 @@ class DesignationServiceImplTest {
      * when given a non-null request payload.
      */
     @Test
-    void test_generateRedisJwtTokenKey_whenRequestPayloadNotNull() {
-        // Arrange
+    void test_generateRedisJwtTokenKey_whenRequestPayloadNotNull() throws Exception {
+        ReflectionTestUtils.setField(designationService, "jwtSecretKey", "test-secret");
         Object requestPayload = new Object();
         String mockJsonString = "{\"key\":\"value\"}";
-        try {
-            when(objectMapper.writeValueAsString(requestPayload)).thenReturn(mockJsonString);
-        } catch (Exception e) {
-            fail("Exception should not be thrown");
-        }
-
-        // Act
+        when(objectMapper.writeValueAsString(any())).thenReturn(mockJsonString);
         String result = designationService.generateRedisJwtTokenKey(requestPayload);
-
-        // Assert
         assertNotNull(result);
         assertFalse(result.isEmpty());
-        assertTrue(result.split("\\.").length == 3); // Basic JWT structure check
+        assertEquals(3, result.split("\\.").length); // Basic JWT structure
     }
+
 
     /**
      * Test case for readDesignation method when the input id is empty.
@@ -878,21 +871,17 @@ class DesignationServiceImplTest {
      */
     @Test
     void test_searchDesignation_1() {
-        // Arrange
+        ReflectionTestUtils.setField(designationService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         SearchResult cachedResult = new SearchResult();
-
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(any())).thenReturn(cachedResult);
-
-        // Act
         CustomResponse response = designationService.searchDesignation(searchCriteria);
-
-        // Assert
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
         assertEquals(cachedResult, response.getResult().get(Constants.RESULT));
     }
+
 
     /**
     * Testcase 2 for @Override public CustomResponse searchDesignation(SearchCriteria searchCriteria)
@@ -901,17 +890,14 @@ class DesignationServiceImplTest {
     */
     @Test
     void test_searchDesignation_2() {
-        // Arrange
+        ReflectionTestUtils.setField(designationService, "jwtSecretKey", "test-secret");
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         SearchCriteria searchCriteria = mock(SearchCriteria.class);
         when(searchCriteria.getSearchString()).thenReturn("a");
-
-        // Act
         CustomResponse response = designationService.searchDesignation(searchCriteria);
-
-        // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
     }
+
 
     /**
      * Test case for searchDesignation method when Redis cache is empty and search string is valid.
@@ -920,24 +906,20 @@ class DesignationServiceImplTest {
      */
     @Test
     void test_searchDesignation_3() throws Exception {
-        // Arrange
+        ReflectionTestUtils.setField(designationService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("Valid Search");
-
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
-
         SearchResult mockSearchResult = new SearchResult();
-        when(esUtilService.searchDocuments(anyString(), any(SearchCriteria.class))).thenReturn(mockSearchResult);
-
-        // Act
+        when(esUtilService.searchDocuments(anyString(), any(SearchCriteria.class)))
+                .thenReturn(mockSearchResult);
         CustomResponse response = designationService.searchDesignation(searchCriteria);
-
-        // Assert
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(mockSearchResult, response.getResult().get("result"));
         verify(esUtilService, times(1)).searchDocuments(anyString(), any(SearchCriteria.class));
     }
+
 
     /**
      * Tests that searchDesignation returns an error response when the search string is too short (less than 2 characters).
@@ -945,7 +927,10 @@ class DesignationServiceImplTest {
      */
     @Test
     void test_searchDesignation_shortSearchString() {
+        ReflectionTestUtils.setField(designationService, "jwtSecretKey", "test-secret");
+
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("a");
 
@@ -953,6 +938,7 @@ class DesignationServiceImplTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
     }
+
 
     /**
      * Test case for updateDesignation method when the designation exists and is successfully updated.
@@ -1559,24 +1545,17 @@ class DesignationServiceImplTest {
 
     @Test
     void searchDesignation_shouldHandleEsException() throws Exception {
-        // Arrange
+        ReflectionTestUtils.setField(designationService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("developer");
-
-        // Simulate Redis has no cached result
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
-
-        // Simulate exception from esUtilService
         when(esUtilService.searchDocuments(eq(Constants.DESIGNATION_INDEX_NAME), any(SearchCriteria.class)))
                 .thenThrow(new RuntimeException("ES error"));
-
-        // Act
         CustomResponse response = designationService.searchDesignation(searchCriteria);
-
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
     }
+
 
 }

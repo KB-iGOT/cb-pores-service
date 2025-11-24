@@ -588,23 +588,19 @@ class CiosContentServiceImplTest {
      */
     @Test
     void test_searchCotent_1() {
-        // Arrange
+        ReflectionTestUtils.setField(ciosContentService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         SearchResult expectedResult = new SearchResult();
-
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(expectedResult);
-
-        // Act
         SearchResult actualResult = ciosContentService.searchCotent(searchCriteria);
-
-        // Assert
         assertNotNull(actualResult);
         assertEquals(expectedResult, actualResult);
         verify(redisTemplate).opsForValue();
         verify(valueOperations).get(anyString());
         verifyNoMoreInteractions(redisTemplate, valueOperations);
     }
+
 
     @Test
     void test_searchCotent_ShouldThrowException_WhenSearchCriteriaIsNull() {
@@ -630,32 +626,25 @@ class CiosContentServiceImplTest {
      */
     @Test
     void test_searchCotent_2() throws Exception {
-        // Arrange
+        ReflectionTestUtils.setField(ciosContentService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setFilterCriteriaMap(null);
-
         ValueOperations<String, SearchResult> valueOperations = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
-
         SearchResult expectedSearchResult = new SearchResult();
         when(esUtilService.searchDocuments(eq(Constants.CIOS_INDEX_NAME), any(SearchCriteria.class)))
                 .thenReturn(expectedSearchResult);
-
-        // Act
         SearchResult result = ciosContentService.searchCotent(searchCriteria);
-
-        // Assert
         assertNotNull(result);
         assertEquals(expectedSearchResult, result);
-
         verify(esUtilService).searchDocuments(eq(Constants.CIOS_INDEX_NAME), argThat(criteria -> {
             HashMap<String, Object> filterMap = criteria.getFilterCriteriaMap();
             return filterMap != null && filterMap.containsKey("isActive") && (boolean) filterMap.get("isActive");
         }));
-
         verify(valueOperations).set(anyString(), eq(expectedSearchResult), anyLong(), any());
     }
+
 
     /**
      * Test case for searchCotent method when the result is not in Redis cache,
@@ -665,23 +654,20 @@ class CiosContentServiceImplTest {
      */
     @Test
     void test_searchCotent_3() throws Exception {
-        // Arrange
+        ReflectionTestUtils.setField(ciosContentService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         HashMap<String, Object> filterCriteriaMap = new HashMap<>();
         searchCriteria.setFilterCriteriaMap(filterCriteriaMap);
-
         SearchResult expectedResult = new SearchResult();
-
         ValueOperations<String, SearchResult> valueOperations = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
 
-        when(esUtilService.searchDocuments(eq(Constants.CIOS_INDEX_NAME), any(SearchCriteria.class))).thenReturn(expectedResult);
+        when(esUtilService.searchDocuments(eq(Constants.CIOS_INDEX_NAME), any(SearchCriteria.class)))
+                .thenReturn(expectedResult);
 
-        // Act
         SearchResult result = ciosContentService.searchCotent(searchCriteria);
 
-        // Assert
         assertNotNull(result);
         assertEquals(expectedResult, result);
         assertTrue(searchCriteria.getFilterCriteriaMap().containsKey("isActive"));
@@ -691,6 +677,7 @@ class CiosContentServiceImplTest {
         verify(valueOperations).set(anyString(), eq(expectedResult), anyLong(), any());
     }
 
+
     /**
      * Test case for searchCotent method when Redis cache is empty, filterCriteriaMap is null,
      * and isActive is not explicitly set.
@@ -699,20 +686,16 @@ class CiosContentServiceImplTest {
      */
     @Test
     void test_searchCotent_4() throws Exception {
-        // Arrange
+        ReflectionTestUtils.setField(ciosContentService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         SearchResult expectedResult = new SearchResult();
-
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(any())).thenReturn(null);
         when(esUtilService.searchDocuments(eq(Constants.CIOS_INDEX_NAME), any())).thenReturn(expectedResult);
-
-        // Act
         SearchResult result = ciosContentService.searchCotent(searchCriteria);
-
-        // Assert
         assertEquals(expectedResult, result);
     }
+
 
     /**
      * Test validatePayload method with invalid payload

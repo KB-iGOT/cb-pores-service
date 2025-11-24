@@ -547,36 +547,35 @@ class CompetencySubThemeServiceImpl3Test {
 
     @Test
     void testSearchCompSubTheme_fetchFromRedis() {
+        ReflectionTestUtils.setField(service, "jwtSecretKey", "test-secret");
         SearchCriteria criteria = new SearchCriteria();
         criteria.setSearchString("example");
-
         SearchResult redisResult = new SearchResult();
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(redisResult);
-
         CustomResponse response = service.searchCompSubTheme(criteria);
-
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getResponseCode());
-        assertTrue(response.getResult().containsKey(Constants.RESULT));
         assertEquals(redisResult, response.getResult().get(Constants.RESULT));
+        verify(redisTemplate.opsForValue()).get(anyString());
+        verifyNoMoreInteractions(redisTemplate.opsForValue());
     }
+
 
     @Test
     void testSearchCompSubTheme_esThrowsException_redisSetInvoked() throws Exception {
+        ReflectionTestUtils.setField(service, "jwtSecretKey", "test-secret");
         SearchCriteria criteria = new SearchCriteria();
         criteria.setSearchString("errorTest");
-
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
         when(esUtilService.searchDocuments(anyString(), any()))
                 .thenThrow(new RuntimeException("ES failed"));
-
         CustomResponse response = service.searchCompSubTheme(criteria);
-
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
         assertEquals(Constants.FAILED_CONST, response.getParams().getStatus());
     }
+
 
     @Test
     void testReadCompSubTheme_invalidIdFromDb_shouldLogErrorAndReturnNotFound() {

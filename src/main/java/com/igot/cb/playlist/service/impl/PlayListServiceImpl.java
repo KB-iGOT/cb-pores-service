@@ -103,6 +103,9 @@ public class PlayListServiceImpl implements PlayListSerive {
   @Value("${search.result.redis.ttl}")
   private long searchResultRedisTtl;
 
+  @Value("${security.jwt.secret}")
+  private String jwtSecretKey;
+
   private String requiredJsonFilePath = "/EsFieldsmapping/playListEsMap.json";
 
 
@@ -860,14 +863,14 @@ public class PlayListServiceImpl implements PlayListSerive {
 
   public String generateRedisJwtTokenKey(Object requestPayload) {
     if (requestPayload != null) {
-      try {
-        String reqJsonString = objectMapper.writeValueAsString(requestPayload);
-        return JWT.create()
-            .withClaim(Constants.REQUEST_PAYLOAD, reqJsonString)
-            .sign(Algorithm.HMAC256(Constants.JWT_SECRET_KEY));
-      } catch (JsonProcessingException e) {
-        logger.error("Error occurred while converting json object to json string", e);
-      }
+        try {
+            String reqJsonString = objectMapper.writeValueAsString(requestPayload);
+            return JWT.create()
+                    .withClaim(Constants.REQUEST_PAYLOAD, reqJsonString)
+                    .sign(Algorithm.HMAC256(jwtSecretKey));
+        } catch (JsonProcessingException e) {
+            logger.error("Error occurred while converting json object to json string", e);
+        }
     }
     return "";
   }

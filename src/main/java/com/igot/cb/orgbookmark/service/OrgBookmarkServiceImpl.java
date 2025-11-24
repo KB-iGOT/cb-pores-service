@@ -35,6 +35,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -70,6 +71,9 @@ public class OrgBookmarkServiceImpl implements OrgBookmarkService {
     private AccessTokenValidator accessTokenValidator;
     @Autowired
     private OutboundRequestHandlerServiceImpl outboundRequestHandlerService;
+
+    @Value("${security.jwt.secret}")
+    private String jwtSecretKey;
 
     private Logger logger = LoggerFactory.getLogger(OrgBookmarkServiceImpl.class);
 
@@ -297,7 +301,7 @@ public class OrgBookmarkServiceImpl implements OrgBookmarkService {
                 String reqJsonString = objectMapper.writeValueAsString(requestPayload);
                 return JWT.create()
                         .withClaim(Constants.REQUEST_PAYLOAD, reqJsonString)
-                        .sign(Algorithm.HMAC256(Constants.JWT_SECRET_KEY));
+                        .sign(Algorithm.HMAC256(jwtSecretKey));
             } catch (JsonProcessingException e) {
                 logger.error("Error occurred while converting json object to json string", e);
             }

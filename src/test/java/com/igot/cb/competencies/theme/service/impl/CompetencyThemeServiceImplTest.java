@@ -1,5 +1,6 @@
 package com.igot.cb.competencies.theme.service.impl;
 
+import com.auth0.jwt.JWT;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -40,6 +41,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -619,22 +621,21 @@ class CompetencyThemeServiceImplTest {
         CompetencyThemeServiceImpl service = new CompetencyThemeServiceImpl();
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         service.objectMapper = objectMapper;
-
+        ReflectionTestUtils.setField(service, "jwtSecretKey", "test-secret");
         Object requestPayload = new Object();
         String reqJsonString = "{\"key\":\"value\"}";
-
         try {
             when(objectMapper.writeValueAsString(requestPayload)).thenReturn(reqJsonString);
-
             String result = service.generateRedisJwtTokenKey(requestPayload);
-
             assertNotNull(result);
-            // Additional assertions can be added to verify the JWT structure and claims
+            assertEquals(3, result.split("\\.").length);
+            String extracted = JWT.decode(result).getClaim(Constants.REQUEST_PAYLOAD).asString();
+            assertEquals(reqJsonString, extracted);
         } catch (Exception e) {
-            // Handle or fail the test if an exception occurs
             throw new RuntimeException("Test failed due to exception", e);
         }
     }
+
 
     /**
      * Test case for generateRedisJwtTokenKey method when null input is provided.
@@ -1222,16 +1223,12 @@ class CompetencyThemeServiceImplTest {
      */
     @Test
     void test_searchCompTheme_1() {
-        // Arrange
+        ReflectionTestUtils.setField(competencyThemeService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         SearchResult mockSearchResult = new SearchResult();
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(mockSearchResult);
-
-        // Act
         CustomResponse response = competencyThemeService.searchCompTheme(searchCriteria);
-
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertTrue(response.getResult().containsKey(Constants.RESULT));
@@ -1240,6 +1237,7 @@ class CompetencyThemeServiceImplTest {
         verifyNoMoreInteractions(redisTemplate.opsForValue());
     }
 
+
     /**
      * Testcase 2 for @Override public CustomResponse searchCompTheme(SearchCriteria searchCriteria)
      * This test verifies that when the search string is less than 2 characters long,
@@ -1247,15 +1245,15 @@ class CompetencyThemeServiceImplTest {
      */
     @Test
     void test_searchCompTheme_2() {
+        ReflectionTestUtils.setField(competencyThemeService, "jwtSecretKey", "test-secret");
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("a");
-
         CustomResponse response = competencyThemeService.searchCompTheme(searchCriteria);
-
         assertNotNull(response);
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
     }
+
 
     /**
      * Test case for searchCompTheme method when Redis cache is empty and search string is valid.
@@ -1266,7 +1264,8 @@ class CompetencyThemeServiceImplTest {
     void test_searchCompTheme_3() throws Exception {
         MockitoAnnotations.openMocks(this);
 
-        // Arrange
+        ReflectionTestUtils.setField(competencyThemeService, "jwtSecretKey", "test-secret");
+
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("validSearchString");
 
@@ -1276,10 +1275,8 @@ class CompetencyThemeServiceImplTest {
         SearchResult mockSearchResult = new SearchResult();
         when(esUtilService.searchDocuments(anyString(), any(SearchCriteria.class))).thenReturn(mockSearchResult);
 
-        // Act
         CustomResponse response = competencyThemeService.searchCompTheme(searchCriteria);
 
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals("success", response.getParams().getStatus());
@@ -1290,6 +1287,7 @@ class CompetencyThemeServiceImplTest {
         verify(esUtilService, times(1)).searchDocuments(anyString(), any(SearchCriteria.class));
     }
 
+
     /**
     * Edge case test for `searchCompTheme` when search string is less than 3 characters
     * This test verifies that the method handles the case where the search string is too short,
@@ -1297,14 +1295,15 @@ class CompetencyThemeServiceImplTest {
     */
     @Test
     void test_searchCompTheme_shortSearchString() {
+        ReflectionTestUtils.setField(competencyThemeService, "jwtSecretKey", "test-secret");
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("ab");
-
         CustomResponse response = competencyThemeService.searchCompTheme(searchCriteria);
-
+        assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getResponseCode());
     }
+
 
     /**
      * Test case for updateCompTheme method when the competency theme exists and is successfully updated.

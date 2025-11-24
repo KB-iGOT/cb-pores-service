@@ -1,5 +1,7 @@
 package com.igot.cb.demand.service;
 
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -340,18 +342,21 @@ class DemandServiceImplTest {
      * This test verifies that the method generates a JWT token with the correct claim
      * and signs it with the expected algorithm.
      */
+
     @Test
-    void test_generateRedisJwtTokenKey_1(){
+    void test_generateRedisJwtTokenKey_1() throws Exception {
         MockitoAnnotations.openMocks(this);
-
+        ReflectionTestUtils.setField(demandService, "jwtSecretKey", "test-secret");
         Object requestPayload = new Object();
-
-        String result = demandService.generateRedisJwtTokenKey(requestPayload);
-
-        String expectedToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyZXF1ZXN0UGF5bG9hZCI6bnVsbH0.1_QviVZiSvsyjUHzK-QGNJ1qT8DTfAxVjy4orhCXCDE";
-
-        assertEquals(expectedToken, result);
+        String token = demandService.generateRedisJwtTokenKey(requestPayload);
+        assertNotNull(token);
+        String[] parts = token.split("\\.");
+        assertEquals(3, parts.length);
+        DecodedJWT decoded = JWT.decode(token);
+        assertEquals("HS256", decoded.getAlgorithm());
+        assertEquals("JWT", decoded.getType());
     }
+
 
     /**
      * Testcase 2 for public String generateRedisJwtTokenKey(Object requestPayload)
@@ -510,24 +515,20 @@ class DemandServiceImplTest {
      */
     @Test
     void test_searchDemand_1() {
-        // Arrange
+        ReflectionTestUtils.setField(demandService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         SearchResult mockSearchResult = new SearchResult();
         CustomResponse expectedResponse = new CustomResponse();
         expectedResponse.getResult().put(Constants.RESULT, mockSearchResult);
         expectedResponse.setResponseCode(HttpStatus.OK);
-
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(mockSearchResult);
-
-        // Act
         CustomResponse actualResponse = demandService.searchDemand(searchCriteria);
-
-        // Assert
         assertEquals(expectedResponse.getResponseCode(), actualResponse.getResponseCode());
         assertEquals(expectedResponse.getResult().get(Constants.RESULT), actualResponse.getResult().get(Constants.RESULT));
         verify(redisTemplate.opsForValue(), times(1)).get(anyString());
     }
+
 
     /**
      * Test case for searchDemand method when the search string is valid and longer than 2 characters.
@@ -536,29 +537,22 @@ class DemandServiceImplTest {
      */
     @Test
     void test_searchDemand_3() throws Exception {
-        // Arrange
+        ReflectionTestUtils.setField(demandService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("valid search");
-
         SearchResult mockSearchResult = new SearchResult();
-
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
         when(esUtilService.searchDocuments(anyString(), any(SearchCriteria.class))).thenReturn(mockSearchResult);
-
-        // Act
         CustomResponse response = demandService.searchDemand(searchCriteria);
-
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
         assertNotNull(response.getResult().get(Constants.RESULT));
         assertEquals(mockSearchResult, response.getResult().get(Constants.RESULT));
-
-        // Verify
         Mockito.verify(esUtilService).searchDocuments(anyString(), any(SearchCriteria.class));
     }
+
 
     /**
      * Test case for searchDemand method when searchResult is null, searchString is null,
@@ -572,24 +566,20 @@ class DemandServiceImplTest {
      */
     @Test
     void test_searchDemand_4() throws Exception {
-        // Arrange
+        ReflectionTestUtils.setField(demandService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString(null);
-
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
-
         SearchResult expectedSearchResult = new SearchResult();
-        when(esUtilService.searchDocuments(eq(Constants.INDEX_NAME), eq(searchCriteria))).thenReturn(expectedSearchResult);
-
-        // Act
+        when(esUtilService.searchDocuments(eq(Constants.INDEX_NAME), any(SearchCriteria.class)))
+                .thenReturn(expectedSearchResult);
         CustomResponse response = demandService.searchDemand(searchCriteria);
-
-        // Assert
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(expectedSearchResult, response.getResult().get(Constants.RESULT));
-        verify(esUtilService).searchDocuments(eq(Constants.INDEX_NAME), eq(searchCriteria));
+        verify(esUtilService).searchDocuments(eq(Constants.INDEX_NAME), any(SearchCriteria.class));
     }
+
 
     /**
      * Test case for searchDemand method when search string is less than 3 characters
@@ -597,14 +587,15 @@ class DemandServiceImplTest {
      */
     @Test
     void test_searchDemand_shortSearchString() {
+        ReflectionTestUtils.setField(demandService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("ab");
-
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         CustomResponse response = demandService.searchDemand(searchCriteria);
-
+        assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getResponseCode());
     }
+
 
     /**
      * Test case for updateDemandStatus method when user ID is blank

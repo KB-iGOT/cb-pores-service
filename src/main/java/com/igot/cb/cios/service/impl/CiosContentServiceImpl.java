@@ -70,6 +70,9 @@ public class CiosContentServiceImpl implements CiosContentService {
     @Value("${search.result.redis.ttl}")
     private long searchResultRedisTtl;
 
+    @Value("${security.jwt.secret}")
+    private String jwtSecretKey;
+
     @Autowired
     private CbServerProperties cbServerProperties;
 
@@ -458,7 +461,7 @@ public class CiosContentServiceImpl implements CiosContentService {
                 String reqJsonString = objectMapper.writeValueAsString(requestPayload);
                 return JWT.create()
                         .withClaim(Constants.REQUEST_PAYLOAD, reqJsonString)
-                        .sign(Algorithm.HMAC256(Constants.JWT_SECRET_KEY));
+                        .sign(Algorithm.HMAC256(jwtSecretKey));
             } catch (JsonProcessingException e) {
                 log.error("Error occurred while converting json object to json string", e);
             }

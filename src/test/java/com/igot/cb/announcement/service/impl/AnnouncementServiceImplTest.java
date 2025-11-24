@@ -1,6 +1,9 @@
 package com.igot.cb.announcement.service.impl;
 
 import com.auth0.jwt.JWT;
+import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.interfaces.DecodedJWT;
+import com.auth0.jwt.interfaces.JWTVerifier;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -33,6 +36,8 @@ import org.slf4j.Logger;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.util.ReflectionTestUtils;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -336,23 +341,20 @@ class AnnouncementServiceImplTest {
     @Test
     void test_generateRedisJwtTokenKey_whenRequestPayloadNotNull() throws Exception {
         MockitoAnnotations.openMocks(this);
-
+        ReflectionTestUtils.setField(announcementService, "jwtSecretKey", "test-secret");
         Object requestPayload = new Object();
         String reqJsonString = "{\"key\":\"value\"}";
-
         when(objectMapper.writeValueAsString(requestPayload)).thenReturn(reqJsonString);
-
         String result = announcementService.generateRedisJwtTokenKey(requestPayload);
-
         assertNotNull(result);
         assertTrue(result.length() > 0);
-
         String[] parts = result.split("\\.");
         assertEquals(3, parts.length);
-
-        String payload = JWT.decode(result).getClaim(Constants.REQUEST_PAYLOAD).asString();
+        Algorithm algorithm = Algorithm.HMAC256("test-secret");
+        JWTVerifier verifier = JWT.require(algorithm).build();
+        DecodedJWT decodedJWT = verifier.verify(result);
+        String payload = decodedJWT.getClaim(Constants.REQUEST_PAYLOAD).asString();
         assertEquals(reqJsonString, payload);
-
         verify(objectMapper).writeValueAsString(requestPayload);
     }
 
@@ -409,14 +411,14 @@ class AnnouncementServiceImplTest {
      */
     @Test
     void test_searchAnnouncement_shortSearchString() {
+        ReflectionTestUtils.setField(announcementService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("ab");
-
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         CustomResponse response = announcementService.searchAnnouncement(searchCriteria);
-
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
     }
+
 
     /**
      * Test case for searchAnnouncement method when search string is less than 2 characters
@@ -425,15 +427,14 @@ class AnnouncementServiceImplTest {
      */
     @Test
     void test_searchAnnouncement_shortSearchString_2() {
+        ReflectionTestUtils.setField(announcementService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = mock(SearchCriteria.class);
         when(searchCriteria.getSearchString()).thenReturn("a");
-        // Mock opsForValue call
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-
         CustomResponse response = announcementService.searchAnnouncement(searchCriteria);
-
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
     }
+
 
     /**
      * Test case for searchAnnouncement method when:
@@ -446,25 +447,22 @@ class AnnouncementServiceImplTest {
      */
     @Test
     void test_searchAnnouncement_whenCacheEmptyAndValidSearchString() throws Exception {
+        ReflectionTestUtils.setField(announcementService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("valid");
         searchCriteria.setPageSize(0);
-
         ValueOperations<String, SearchResult> valueOperations = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
-
         when(serverProperties.getAnnouncementDefaultSearchPageSize()).thenReturn(10);
-
         SearchResult mockSearchResult = new SearchResult();
         when(esUtilService.searchDocuments(eq(Constants.ANNOUNCEMENT_INDEX), any(SearchCriteria.class)))
                 .thenReturn(mockSearchResult);
-
         CustomResponse response = announcementService.searchAnnouncement(searchCriteria);
-
         verify(serverProperties).getAnnouncementDefaultSearchPageSize();
         verify(esUtilService).searchDocuments(eq(Constants.ANNOUNCEMENT_INDEX), any(SearchCriteria.class));
     }
+
 
     /**
      * Test case for searchAnnouncement method when:
@@ -481,28 +479,22 @@ class AnnouncementServiceImplTest {
      */
     @Test
     void test_searchAnnouncement_whenCacheMissAndValidSearchStringAndEmptyPageSizeAndNonEmptyFilter() throws Exception {
-        // Arrange
+        ReflectionTestUtils.setField(announcementService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("validSearch");
         searchCriteria.setPageSize(0);
         Map<String, Object> filterCriteria = new HashMap<>();
         filterCriteria.put("someKey", "someValue");
         searchCriteria.setFilterCriteriaMap((HashMap<String, Object>) filterCriteria);
-
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
         when(serverProperties.getAnnouncementDefaultSearchPageSize()).thenReturn(10);
-
         SearchResult mockSearchResult = new SearchResult();
-        when(esUtilService.searchDocuments(eq(Constants.ANNOUNCEMENT_INDEX), any(SearchCriteria.class))).thenReturn(mockSearchResult);
-
+        when(esUtilService.searchDocuments(eq(Constants.ANNOUNCEMENT_INDEX), any(SearchCriteria.class)))
+                .thenReturn(mockSearchResult);
         Map<String, Object> resultMap = new HashMap<>();
         when(objectMapper.convertValue(mockSearchResult, Map.class)).thenReturn(resultMap);
-
-        // Act
         CustomResponse response = announcementService.searchAnnouncement(searchCriteria);
-
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
@@ -512,6 +504,7 @@ class AnnouncementServiceImplTest {
         assertEquals(10, searchCriteria.getPageSize());
     }
 
+
     /**
      * Test case for searchAnnouncement method when search result is found in Redis cache.
      * This test verifies that when a search result is available in the Redis cache,
@@ -519,20 +512,20 @@ class AnnouncementServiceImplTest {
      */
     @Test
     void test_searchAnnouncement_whenResultFoundInCache() {
+        ReflectionTestUtils.setField(announcementService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         SearchResult cachedResult = new SearchResult();
         CustomResponse expectedResponse = new CustomResponse();
         expectedResponse.getResult().put(Constants.RESULT, cachedResult);
-
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(cachedResult);
-
         CustomResponse actualResponse = announcementService.searchAnnouncement(searchCriteria);
-
-        assertEquals(expectedResponse.getResult().get(Constants.RESULT), actualResponse.getResult().get(Constants.RESULT));
+        assertEquals(expectedResponse.getResult().get(Constants.RESULT),
+                actualResponse.getResult().get(Constants.RESULT));
         verify(redisTemplate.opsForValue(), times(1)).get(anyString());
         verifyNoMoreInteractions(redisTemplate.opsForValue());
     }
+
 
     /**
      * Test case for searchAnnouncement method when the search result is not in Redis,
@@ -542,34 +535,28 @@ class AnnouncementServiceImplTest {
      */
     @Test
     void test_searchAnnouncement_whenSearchResultNotInRedisAndValidCriteria() throws Exception {
-        // Arrange
+        ReflectionTestUtils.setField(announcementService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("valid search");
         searchCriteria.setPageSize(10);
         Map<String, Object> filterCriteria = new HashMap<>();
         filterCriteria.put("someKey", "someValue");
         searchCriteria.setFilterCriteriaMap((HashMap<String, Object>) filterCriteria);
-
         ValueOperations<String, SearchResult> valueOperations = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
-
         SearchResult mockSearchResult = new SearchResult();
         when(esUtilService.searchDocuments(eq(Constants.ANNOUNCEMENT_INDEX), any(SearchCriteria.class)))
                 .thenReturn(mockSearchResult);
-
         Map<String, Object> resultMap = new HashMap<>();
         when(objectMapper.convertValue(mockSearchResult, Map.class)).thenReturn(resultMap);
-
-        // Act
         CustomResponse response = announcementService.searchAnnouncement(searchCriteria);
-
-        // Assert
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
         verify(esUtilService).searchDocuments(eq(Constants.ANNOUNCEMENT_INDEX), any(SearchCriteria.class));
         verify(objectMapper).convertValue(mockSearchResult, Map.class);
     }
+
 
     /**
      * Test case for updating an existing announcement successfully.

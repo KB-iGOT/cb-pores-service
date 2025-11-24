@@ -82,6 +82,8 @@ public class CompetencyAreaServiceImpl implements CompetencyAreaService {
   @Autowired
   private RedisTemplate<String, SearchResult> redisTemplate;
 
+  @Value("${security.jwt.secret}")
+  private String jwtSecretKey;
 
   @Override
   public void loadCompetencyArea(MultipartFile file, String token) {
@@ -492,14 +494,14 @@ public class CompetencyAreaServiceImpl implements CompetencyAreaService {
 
   public String generateRedisJwtTokenKey(Object requestPayload) {
     if (requestPayload != null) {
-      try {
-        String reqJsonString = objectMapper.writeValueAsString(requestPayload);
-        return JWT.create()
-            .withClaim(Constants.REQUEST_PAYLOAD, reqJsonString)
-            .sign(Algorithm.HMAC256(Constants.JWT_SECRET_KEY));
-      } catch (JsonProcessingException e) {
-        log.error("Error occurred while converting json object to json string", e);
-      }
+        try {
+            String reqJsonString = objectMapper.writeValueAsString(requestPayload);
+            return JWT.create()
+                    .withClaim(Constants.REQUEST_PAYLOAD, reqJsonString)
+                    .sign(Algorithm.HMAC256(jwtSecretKey));
+        } catch (JsonProcessingException e) {
+            log.error("Error occurred while converting json object to json string", e);
+        }
     }
     return "";
   }

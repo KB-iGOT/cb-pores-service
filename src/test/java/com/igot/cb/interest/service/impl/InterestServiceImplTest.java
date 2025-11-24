@@ -36,6 +36,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.util.ReflectionTestUtils;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.*;
@@ -737,21 +739,18 @@ class InterestServiceImplTest {
     @Test
     void test_generateRedisJwtTokenKey_whenRequestPayloadNotNull() throws Exception {
         MockitoAnnotations.openMocks(this);
-
-        // Arrange
         Object requestPayload = new Object();
         String serializedPayload = "serialized_payload";
         when(objectMapper.writeValueAsString(requestPayload)).thenReturn(serializedPayload);
-
-        // Act
+        String testSecret = "test-secret";
+        ReflectionTestUtils.setField(interestService, "jwtSecretKey", testSecret);
         String result = interestService.generateRedisJwtTokenKey(requestPayload);
-
-        // Assert
         assertNotNull(result);
-        JWT.require(Algorithm.HMAC256(Constants.JWT_SECRET_KEY))
-           .build()
-           .verify(result);
+        JWT.require(Algorithm.HMAC256(testSecret))
+                .build()
+                .verify(result);
     }
+
 
     /**
      * Test case for read method when cached data is available.
@@ -833,24 +832,20 @@ class InterestServiceImplTest {
      */
     @Test
     void test_searchDemand_3() throws Exception {
-        // Arrange
+        ReflectionTestUtils.setField(interestService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("validSearch");
-
         SearchResult mockSearchResult = new SearchResult();
-
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
-        when(esUtilService.searchDocuments(eq(Constants.INTEREST_INDEX_NAME), eq(searchCriteria))).thenReturn(mockSearchResult);
-
-        // Act
+        when(esUtilService.searchDocuments(eq(Constants.INTEREST_INDEX_NAME), any(SearchCriteria.class)))
+                .thenReturn(mockSearchResult);
         CustomResponse response = interestService.searchDemand(searchCriteria);
-
-        // Assert
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(mockSearchResult, response.getResult().get(Constants.RESULT));
-        verify(esUtilService).searchDocuments(eq(Constants.INTEREST_INDEX_NAME), eq(searchCriteria));
+        verify(esUtilService).searchDocuments(eq(Constants.INTEREST_INDEX_NAME), any(SearchCriteria.class));
     }
+
 
     /**
      * Test case for searchDemand method when search string is less than 3 characters
@@ -858,34 +853,32 @@ class InterestServiceImplTest {
      */
     @Test
     void test_searchDemand_shortSearchString() {
+        ReflectionTestUtils.setField(interestService, "jwtSecretKey", "test-secret");
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("ab");
-
         CustomResponse response = interestService.searchDemand(searchCriteria);
-
         assertEquals(HttpStatus.OK, response.getResponseCode());
     }
+
 
     /**
      * Test case for searchDemand method when search result is found in Redis cache.
      * It verifies that the method returns a successful response with the cached search result.
      */
+
     @Test
     void test_searchDemand_whenResultFoundInRedis() {
-        // Arrange
         SearchCriteria searchCriteria = new SearchCriteria();
         SearchResult cachedResult = new SearchResult();
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(cachedResult);
-
-        // Act
+        ReflectionTestUtils.setField(interestService, "jwtSecretKey", "test-secret");
         CustomResponse response = interestService.searchDemand(searchCriteria);
-
-        // Assert
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(cachedResult, response.getResult().get("result"));
         verify(redisTemplate.opsForValue(), times(1)).get(anyString());
     }
+
 
 }

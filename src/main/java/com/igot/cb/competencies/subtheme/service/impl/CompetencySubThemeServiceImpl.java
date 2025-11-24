@@ -83,6 +83,9 @@ public class CompetencySubThemeServiceImpl implements CompetencySubThemeService 
   @Autowired
   private DesignationService designationService;
 
+  @Value("${security.jwt.secret}")
+  private String jwtSecretKey;
+
   @Override
   public void loadCompetencySubTheme(MultipartFile file, String token) {
     log.info("CompetencySubThemeService::loadCompetencySubTheme");
@@ -582,14 +585,14 @@ public class CompetencySubThemeServiceImpl implements CompetencySubThemeService 
   }
   public String generateRedisJwtTokenKey(Object requestPayload) {
     if (requestPayload != null) {
-      try {
-        String reqJsonString = objectMapper.writeValueAsString(requestPayload);
-        return JWT.create()
-            .withClaim(Constants.REQUEST_PAYLOAD, reqJsonString)
-            .sign(Algorithm.HMAC256(Constants.JWT_SECRET_KEY));
-      } catch (JsonProcessingException e) {
-        log.error("Error occurred while converting json object to json string", e);
-      }
+        try {
+            String reqJsonString = objectMapper.writeValueAsString(requestPayload);
+            return JWT.create()
+                    .withClaim(Constants.REQUEST_PAYLOAD, reqJsonString)
+                    .sign(Algorithm.HMAC256(jwtSecretKey));
+        } catch (JsonProcessingException e) {
+            log.error("Error occurred while converting json object to json string", e);
+        }
     }
     return "";
   }

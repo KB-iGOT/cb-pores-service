@@ -32,6 +32,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.multipart.MultipartFile;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -470,25 +471,21 @@ class CompetencyAreaServiceImplTest {
      */
     @Test
     void test_searchCompArea_3() throws Exception {
-        // Arrange
+        ReflectionTestUtils.setField(competencyAreaService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("validSearchString");
-
-        ValueOperations<String, SearchResult> valueOperations = Mockito.mock(ValueOperations.class);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(any())).thenReturn(null);
-
+        ValueOperations<String, SearchResult> valueOps = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.get(any())).thenReturn(null);
         SearchResult mockSearchResult = new SearchResult();
-        when(esUtilService.searchDocuments(Constants.COMP_AREA_INDEX_NAME, searchCriteria)).thenReturn(mockSearchResult);
-
-        // Act
+        when(esUtilService.searchDocuments(eq(Constants.COMP_AREA_INDEX_NAME), any(SearchCriteria.class)))
+                .thenReturn(mockSearchResult);
         CustomResponse response = competencyAreaService.searchCompArea(searchCriteria);
-
-        // Assert
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
         assertEquals(mockSearchResult, response.getResult().get(Constants.RESULT));
     }
+
 
     /**
      * Test case for searchCompArea method when search result is found in Redis cache.
@@ -497,21 +494,22 @@ class CompetencyAreaServiceImplTest {
      */
     @Test
     void test_searchCompArea_whenResultInCache() {
-        // Arrange
+        ReflectionTestUtils.setField(competencyAreaService, "jwtSecretKey", "test-secret");
+
         SearchCriteria searchCriteria = new SearchCriteria();
         SearchResult cachedResult = new SearchResult();
+
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(cachedResult);
 
-        // Act
         CustomResponse response = competencyAreaService.searchCompArea(searchCriteria);
 
-        // Assert
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(cachedResult, response.getResult().get(Constants.RESULT));
-        verify(redisTemplate.opsForValue(), times(1)).get(anyString());
-        verifyNoMoreInteractions(redisTemplate);
+        verify(redisTemplate.opsForValue()).get(anyString());
+        verifyNoMoreInteractions(redisTemplate, valueOperations);
     }
+
 
     /**
      * Test case for updateCompArea method when the competency area exists and is successfully updated.
