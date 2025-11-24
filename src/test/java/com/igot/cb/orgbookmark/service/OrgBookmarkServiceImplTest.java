@@ -29,6 +29,7 @@ import org.mockito.quality.Strictness;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.sql.Timestamp;
 import java.util.*;
@@ -104,7 +105,9 @@ class OrgBookmarkServiceImplTest {
     }
 
     @Test
-    void testCreateOrgBookmark_duplicateBookmarkFailure() {
+    void testCreateOrgBookmark_duplicateBookmarkFailure() throws Exception {
+        ReflectionTestUtils.setField(orgBookmarkService, "jwtSecretKey", "test-secret");
+
         when(cbServerProperties.getBookmarkDuplicateNotAllowedCategory())
                 .thenReturn(List.of("testCategory"));
         when(cbServerProperties.getElasticBookmarkJsonPath()).thenReturn("dummyPath");
@@ -115,20 +118,14 @@ class OrgBookmarkServiceImplTest {
                 .thenReturn("user123");
 
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        // Mock duplicate found
-        CustomResponse customResponse = new CustomResponse();
-        customResponse.getResult().put("totalCount", 1L);
-        SearchCriteria searchCriteria = new SearchCriteria();
-        Map<String, Object> filter = new HashMap<>();
-        filter.put(Constants.CATEGORY, "category");
-        filter.put(Constants.ORG_ID, "orgId");
-        filter.put(Constants.IS_ACTIVE, Constants.ACTIVE_STATUS);
-        searchCriteria.setFilterCriteriaMap((HashMap<String, Object>) filter);
-        when(orgBookmarkService.search(searchCriteria)).thenReturn(customResponse);
 
+        SearchResult esResult = new SearchResult();
+        esResult.setTotalCount(1L);
+        when(esUtilService.searchDocuments(anyString(), any(SearchCriteria.class)))
+                .thenReturn(esResult);
 
-        assertThrows(CustomException.class, () ->
-                orgBookmarkService.createOrgBookmark(validPayload.deepCopy(), "token"));
+        assertThrows(CustomException.class,
+                () -> orgBookmarkService.createOrgBookmark(validPayload.deepCopy(), "token"));
     }
 
     @Test
@@ -155,38 +152,39 @@ class OrgBookmarkServiceImplTest {
 
     @Test
     void testSearch_resultFromRedis() {
+        ReflectionTestUtils.setField(orgBookmarkService, "jwtSecretKey", "test-secret");
         SearchCriteria criteria = new SearchCriteria();
+        SearchResult cachedResult = new SearchResult();
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(anyString())).thenReturn(new SearchResult());
-
+        when(valueOperations.get(anyString())).thenReturn(cachedResult);
         CustomResponse response = orgBookmarkService.search(criteria);
-
         assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(cachedResult, response.getResult().get(Constants.RESULT));
     }
 
     @Test
     void testSearch_shortSearchString() {
+        ReflectionTestUtils.setField(orgBookmarkService, "jwtSecretKey", "test-secret");
         SearchCriteria criteria = new SearchCriteria();
         criteria.setSearchString("a");
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         CustomResponse response = orgBookmarkService.search(criteria);
-
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals("FAILED", response.getParams().getStatus());
     }
 
     @Test
     void testSearch_elasticsearchThrowsException() throws Exception {
+        ReflectionTestUtils.setField(orgBookmarkService, "jwtSecretKey", "test-secret");
         SearchCriteria criteria = new SearchCriteria();
         criteria.setSearchString("valid");
-
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(null);
         when(esUtilService.searchDocuments(any(), any())).thenThrow(new RuntimeException("ES error"));
-
         CustomResponse response = orgBookmarkService.search(criteria);
-
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
     }
+
 
     @Test
     void testUpdateOrgBookmark_success() {

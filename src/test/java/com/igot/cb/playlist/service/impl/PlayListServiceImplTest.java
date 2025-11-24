@@ -33,6 +33,8 @@ import org.slf4j.Logger;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.util.ReflectionTestUtils;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -349,22 +351,17 @@ class PlayListServiceImplTest {
      * This test verifies that the method returns a non-null JWT token when given a non-null request payload.
      */
     @Test
-    void test_generateRedisJwtTokenKey_1() {
-        MockitoAnnotations.initMocks(this);
-
+    void test_generateRedisJwtTokenKey_1() throws Exception {
+        MockitoAnnotations.openMocks(this);
+        ReflectionTestUtils.setField(playListService, "jwtSecretKey", "test-secret");
         Object requestPayload = new Object();
         String jsonString = "{\"key\":\"value\"}";
-
-        try {
-            when(objectMapper.writeValueAsString(requestPayload)).thenReturn(jsonString);
-        } catch (Exception e) {
-            // Handle exception
-        }
-
+        when(objectMapper.writeValueAsString(any())).thenReturn(jsonString);
         String result = playListService.generateRedisJwtTokenKey(requestPayload);
-
-        assertNotNull("Generated JWT token should not be null", result);
+        assertNotNull(result);
+        assertEquals(3, result.split("\\.").length);  // basic JWT structure
     }
+
 
     /**
      * Testcase 2 for public String generateRedisJwtTokenKey(Object requestPayload)
@@ -602,26 +599,21 @@ class PlayListServiceImplTest {
      */
     @Test
     void test_searchPlayList_1() {
-        // Arrange
+        ReflectionTestUtils.setField(playListService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         SearchResult mockSearchResult = new SearchResult();
-        ApiResponse expectedResponse = new ApiResponse();
-        expectedResponse.setResponseCode(HttpStatus.OK);
-        expectedResponse.getParams().setStatus(Constants.SUCCESS);
-
-        when(redisTemplate.opsForValue()).thenReturn(mock(ValueOperations.class));
-        when(redisTemplate.opsForValue().get(anyString())).thenReturn(mockSearchResult);
+        @SuppressWarnings("unchecked")
+        ValueOperations<String, SearchResult> valueOps = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.get(anyString())).thenReturn(mockSearchResult);
         when(objectMapper.convertValue(any(), eq(Map.class))).thenReturn(new HashMap<>());
-
-        // Act
         ApiResponse actualResponse = playListService.searchPlayList(searchCriteria);
-
-        // Assert
         assertEquals(HttpStatus.OK, actualResponse.getResponseCode());
         assertEquals(Constants.SUCCESS, actualResponse.getParams().getStatus());
         verify(redisTemplate.opsForValue()).get(anyString());
         verify(objectMapper).convertValue(eq(mockSearchResult), eq(Map.class));
     }
+
 
     /**
      * Testcase 2 for searchPlayList method
@@ -629,31 +621,28 @@ class PlayListServiceImplTest {
      */
     @Test
     void test_searchPlayList_2() throws Exception {
-        // Arrange
+        ReflectionTestUtils.setField(playListService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("test search");
-
         SearchResult searchResult = new SearchResult();
         Map<String, Object> resultMap = new HashMap<>();
         resultMap.put("key", "value");
-
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        //when(valueOperations.get(anyString())).thenReturn(null); // Simulate cache miss
-        when(esUtilService.searchDocuments(eq(Constants.PLAYLIST_INDEX_NAME), eq(searchCriteria))).thenReturn(searchResult);
+        @SuppressWarnings("unchecked")
+        ValueOperations<String, SearchResult> valueOps = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.get(anyString())).thenReturn(null);
+        when(esUtilService.searchDocuments(eq(Constants.PLAYLIST_INDEX_NAME), any(SearchCriteria.class)))
+                .thenReturn(searchResult);
         when(objectMapper.convertValue(searchResult, Map.class)).thenReturn(resultMap);
-
-        // Act
         ApiResponse response = playListService.searchPlayList(searchCriteria);
-
-        // Assert
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
         assertEquals(resultMap, response.getResult());
-
-        verify(redisTemplate.opsForValue()).get(anyString());
-        verify(esUtilService).searchDocuments(eq(Constants.PLAYLIST_INDEX_NAME), eq(searchCriteria));
+        verify(valueOps).get(anyString());
+        verify(esUtilService).searchDocuments(eq(Constants.PLAYLIST_INDEX_NAME), any(SearchCriteria.class));
         verify(objectMapper).convertValue(searchResult, Map.class);
     }
+
 
     /**
      * Test case for searchPlayList method when searchResult is null and searchString is null or less than 3 characters.
@@ -661,22 +650,18 @@ class PlayListServiceImplTest {
      * and the search string is invalid or too short.
      */
     @Test
-    void test_searchPlayList_3(){
-        // Arrange
+    void test_searchPlayList_3() {
+        ReflectionTestUtils.setField(playListService, "jwtSecretKey", "test-secret");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString(null);
-
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
-
-        // Act
         ApiResponse response = playListService.searchPlayList(searchCriteria);
-
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
         assertEquals(Constants.FAILED_CONST, response.getParams().getStatus());
     }
+
 
     /**
      * Test case for updating a playlist when the playlist exists but doesn't have a title.
