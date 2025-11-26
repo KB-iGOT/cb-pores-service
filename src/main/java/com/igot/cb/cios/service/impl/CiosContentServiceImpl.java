@@ -233,6 +233,10 @@ public class CiosContentServiceImpl implements CiosContentService {
                         contentNode.set(Constants.SEARCHTAGS, searchTags);
                     }
                     contentNode.set(Constants.ACCESS_SETTINGS_ENABLED, BooleanNode.valueOf(eachData.isAccessSettingsEnabled()));
+                    String knowledgeLevel = eachData.getKnowledgeLevel();
+                    if (StringUtils.isNotBlank(knowledgeLevel)) {
+                        contentNode.put(Constants.KNOWLEDGE_LEVEL, knowledgeLevel);
+                    }
                     apiCallToCiosSecondaryDbForUpdateData(jsonNode);
                 } else if(eachData.getStatus().equals("live")) {
                     log.info("Status of the data {}",eachData.getStatus());
@@ -266,6 +270,10 @@ public class CiosContentServiceImpl implements CiosContentService {
                         contentNode.set(Constants.SEARCHTAGS, searchTags);
                     }
                     contentNode.set(Constants.ACCESS_SETTINGS_ENABLED, BooleanNode.valueOf(eachData.isAccessSettingsEnabled()));
+                    String knowledgeLevel = eachData.getKnowledgeLevel();
+                    if (StringUtils.isNotBlank(knowledgeLevel)) {
+                        contentNode.put(Constants.KNOWLEDGE_LEVEL, knowledgeLevel);
+                    }
                     apiCallToCiosSecondaryDbForUpdateData(jsonNode);
                     CiosContentEntity ciosContentEntity = createNewContent(jsonNode);
                     ciosRepository.save(ciosContentEntity);

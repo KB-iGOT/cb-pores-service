@@ -12,6 +12,9 @@
         "description": {
           "type": "string"
         },
+        "summary": {
+          "type": "string"
+        },
         "duration": {
           "type": "string",
           "minimum": 1

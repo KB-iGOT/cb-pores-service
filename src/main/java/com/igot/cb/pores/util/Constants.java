@@ -387,6 +387,7 @@ public class Constants {
     public static final String CONTENT_PARTNER_CREATED = "Content partner created successfully";
     public static final String CONTENT_PARTNER_CACHE_DELETE = "during content partner create Deleting cache for partner code {}";
     public static final String CONTENT_PARTNER_UPDATE_CACHE_DELETE = "during content partner update Deleting cache for partner code {}";
+    public static final String KNOWLEDGE_LEVEL = "knowledgeLevel";
 
 
     private Constants() {
