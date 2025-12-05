@@ -197,75 +197,27 @@ public class CiosContentServiceImpl implements CiosContentService {
     @Override
     public ApiResponse onboardContent(List<ObjectDto> data) {
         log.info("CiosContentServiceImpl::createOrUpdateContent");
-        ApiResponse apiResponse=ProjectUtil.createDefaultResponse(Constants.API_CIOS_CURATION_CREATE);
+        ApiResponse apiResponse = ProjectUtil.createDefaultResponse(Constants.API_CIOS_CURATION_CREATE);
         try {
-            Timestamp timestamp=new Timestamp(System.currentTimeMillis());
-            String partnerCode=null;
+            Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+            String partnerCode = null;
             for (ObjectDto eachData : data) {
-                partnerCode=eachData.getContentPartner().get("partnerCode").asText();
-                String contentId;
+                partnerCode = eachData.getContentPartner().get("partnerCode").asText();
+                JsonNode jsonNode = eachData.getContentData();
+                payloadValidation.validatePayload(Constants.CIOS_CONTENT_VALIDATION_FILE_JSON, jsonNode);
+                ObjectNode contentNode = (ObjectNode) jsonNode.path("content");
+                updateContentWithRequiredFields(contentNode, timestamp, eachData);
                 if (Constants.DRAFT.equalsIgnoreCase(eachData.getStatus())) {
-                    log.info("Status of the data {}",eachData.getStatus());
-                    JsonNode jsonNode = eachData.getContentData();
-                    payloadValidation.validatePayload(Constants.CIOS_CONTENT_VALIDATION_FILE_JSON,jsonNode);
-                    ObjectNode contentNode = (ObjectNode) jsonNode.path("content");
-                    contentId = contentNode.path(Constants.CONTENT_ID).asText(null);
-                    if (StringUtils.isBlank(contentId)) {
-                        contentId = generateId();
-                    }
-                    contentNode.put(Constants.STATUS, eachData.getStatus());
+                    log.info("Status of the data {}", eachData.getStatus());
                     contentNode.put(Constants.IS_ACTIVE, Constants.ACTIVE_STATUS_FALSE);
                     contentNode.put(Constants.PUBLISHED_ON, "0000-00-00 00:00:00.000");
-                    contentNode.put(Constants.UPDATED_DATE, timestamp.toString());
                     contentNode.put(Constants.CREATED_DATE, timestamp.toString());
-                    contentNode.put(Constants.CONTENT_ID, contentId);
-                    if (eachData.getCompetencies_v5() != null) {
-                        contentNode.set(Constants.COMPETENCIES_V5, eachData.getCompetencies_v5());
-                    }
-                    if (eachData.getCompetencies_v6() != null) {
-                        contentNode.set(Constants.COMPETENCIES_V6, eachData.getCompetencies_v6());
-                    }
-                    if (eachData.getContentPartner() != null) {
-                        contentNode.set(Constants.CONTENT_PARTNER, eachData.getContentPartner());
-                    }
-                    if (eachData.getTags() != null) {
-                        JsonNode searchTags = addSearchTags(eachData.getTags(),eachData.getContentData());
-                        contentNode.set(Constants.SEARCHTAGS, searchTags);
-                    }
-                    contentNode.set(Constants.ACCESS_SETTINGS_ENABLED, BooleanNode.valueOf(eachData.isAccessSettingsEnabled()));
                     apiCallToCiosSecondaryDbForUpdateData(jsonNode);
-                } else if(eachData.getStatus().equals("live")) {
-                    log.info("Status of the data {}",eachData.getStatus());
-                    ciosRequestPayloadValidation.validateModel(eachData);
-                    JsonNode jsonNode = eachData.getContentData();
-                    payloadValidation.validatePayload(Constants.CIOS_CONTENT_VALIDATION_FILE_JSON,jsonNode);
-                    ObjectNode contentNode = (ObjectNode) jsonNode.path("content");
-                    contentId = contentNode.path(Constants.CONTENT_ID).asText(null);
-                    if (StringUtils.isBlank(contentId)) {
-                        contentId = generateId();
-                    }
-                    contentNode.put(Constants.STATUS, eachData.getStatus());
+                } else if (eachData.getStatus().equals("live")) {
+                    log.info("Status of the data {}", eachData.getStatus());
                     contentNode.put(Constants.IS_ACTIVE, Constants.ACTIVE_STATUS);
                     contentNode.put(Constants.PUBLISHED_ON, timestamp.toString());
                     contentNode.put(Constants.UPDATED_DATE, timestamp.toString());
-                    contentNode.put(Constants.CONTENT_ID, contentId);
-                    if (eachData.getCompetencies_v5() != null) {
-                        payloadValidation.validatePayload(Constants.COMPETENCIESVALIDATION_FILE_JSON, eachData.getCompetencies_v5());
-                        contentNode.set(Constants.COMPETENCIES_V5, eachData.getCompetencies_v5());
-                    }
-                    if (eachData.getCompetencies_v6() != null) {
-                        payloadValidation.validatePayload(Constants.COMPETENCIES_V6_VALIDATION_FILE_JSON, eachData.getCompetencies_v6());
-                        contentNode.set(Constants.COMPETENCIES_V6, eachData.getCompetencies_v6());
-                    }
-                    if (eachData.getContentPartner() != null) {
-                        payloadValidation.validatePayload(Constants.CONTENT_PARTNER_FILE_JSON, eachData.getContentPartner());
-                        contentNode.set(Constants.CONTENT_PARTNER, eachData.getContentPartner());
-                    }
-                    if (eachData.getTags() != null) {
-                        JsonNode searchTags = addSearchTags(eachData.getTags(),eachData.getContentData());
-                        contentNode.set(Constants.SEARCHTAGS, searchTags);
-                    }
-                    contentNode.set(Constants.ACCESS_SETTINGS_ENABLED, BooleanNode.valueOf(eachData.isAccessSettingsEnabled()));
                     apiCallToCiosSecondaryDbForUpdateData(jsonNode);
                     CiosContentEntity ciosContentEntity = createNewContent(jsonNode);
                     ciosRepository.save(ciosContentEntity);
@@ -275,8 +227,7 @@ public class CiosContentServiceImpl implements CiosContentService {
                     cacheService.putCache(ciosContentEntity.getContentId(), ciosContentEntity.getCiosData());
                     cacheService.putCache(ciosContentEntity.getExternalId() + "_" + ciosContentEntity.getPartnerId(), ciosContentEntity.getCiosData());
                     esUtilService.addDocument(Constants.CIOS_INDEX_NAME, Constants.INDEX_TYPE, ciosContentEntity.getContentId(), map, cbServerProperties.getElasticCiosJsonPath());
-                }
-                else{
+                } else {
                     apiResponse.getParams().setErrMsg(Constants.STATUS_NOT_VALID);
                     apiResponse.getParams().setStatus(Constants.FAILED);
                     apiResponse.setResponseCode(HttpStatus.BAD_REQUEST);
@@ -483,6 +434,34 @@ public class CiosContentServiceImpl implements CiosContentService {
             }
         } catch (Exception e) {
             throw new CustomException(Constants.ERROR, "Failed to validate payload: " + e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private void updateContentWithRequiredFields(ObjectNode contentNode,Timestamp timestamp,ObjectDto eachData) {
+        String contentId = contentNode.path(Constants.CONTENT_ID).asText(null);
+        if (StringUtils.isBlank(contentId)) {
+            contentId = generateId();
+        }
+        contentNode.put(Constants.STATUS, eachData.getStatus());
+        contentNode.put(Constants.UPDATED_DATE, timestamp.toString());
+        contentNode.put(Constants.CONTENT_ID, contentId);
+        if (eachData.getCompetencies_v5() != null) {
+            contentNode.set(Constants.COMPETENCIES_V5, eachData.getCompetencies_v5());
+        }
+        if (eachData.getCompetencies_v6() != null) {
+            contentNode.set(Constants.COMPETENCIES_V6, eachData.getCompetencies_v6());
+        }
+        if (eachData.getContentPartner() != null) {
+            contentNode.set(Constants.CONTENT_PARTNER, eachData.getContentPartner());
+        }
+        if (eachData.getTags() != null) {
+            JsonNode searchTags = addSearchTags(eachData.getTags(),eachData.getContentData());
+            contentNode.set(Constants.SEARCHTAGS, searchTags);
+        }
+        contentNode.set(Constants.ACCESS_SETTINGS_ENABLED, BooleanNode.valueOf(eachData.isAccessSettingsEnabled()));
+        String knowledgeLevel = eachData.getKnowledgeLevel();
+        if (StringUtils.isNotBlank(knowledgeLevel)) {
+            contentNode.put(Constants.KNOWLEDGE_LEVEL, knowledgeLevel);
         }
     }
 }

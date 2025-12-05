@@ -48,5 +48,11 @@
   },
   "contentPartner": {
     "type": "text"
+  },
+  "summary": {
+    "type": "text"
+  },
+  "knowledgeLevel": {
+    "type": "text"
   }
 }
