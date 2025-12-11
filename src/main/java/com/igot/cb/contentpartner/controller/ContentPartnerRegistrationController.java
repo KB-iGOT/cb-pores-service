@@ -1,0 +1,38 @@
+package com.igot.cb.contentpartner.controller;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.igot.cb.contentpartner.service.ContentPartnerRegistrationService;
+import com.igot.cb.pores.util.ApiResponse;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/contentpartnerregistration")
+public class ContentPartnerRegistrationController {
+
+    @Autowired
+    ContentPartnerRegistrationService partnerService;
+
+    @PostMapping("/v1/create")
+    public ResponseEntity<ApiResponse> create(@RequestBody JsonNode contentPartnerDetails) {
+        ApiResponse response = partnerService.createOrUpdate(contentPartnerDetails);
+        return new ResponseEntity<>(response, response.getResponseCode());
+    }
+
+    @PostMapping("/v1/update")
+    public ResponseEntity<?> update(@RequestBody JsonNode contentPartnerDetails) {
+        ApiResponse response = partnerService.createOrUpdate(contentPartnerDetails);
+        return new ResponseEntity<>(response, response.getResponseCode());
+    }
+
+    @GetMapping("/v1/read/{id}")
+    public ResponseEntity<?> read(@PathVariable String id) {
+        ApiResponse response = partnerService.read(id);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+
+
+}

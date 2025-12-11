@@ -57,6 +57,7 @@ public class Constants {
     public static final String REQUEST_PAYLOAD = "requestPayload";
     public static final String JWT_SECRET_KEY = "demand_search_result";
     public static final String PAYLOAD_VALIDATION_FILE_CONTENT_PROVIDER = "/payloadValidation/contentProviderValidation.json";
+    public static final String PAYLOAD_VALIDATION_FILE_CONTENT_PARTNER_REGISTRATION = "/payloadValidation/contentPartnerRegistrationValidationfile.json";
     public static final String CONTENT_PROVIDER_ID = "id";
     public static final String INTEREST_COUNT = "interestCount";
     public static final String INTERESTS = "demand_search_result";
@@ -312,7 +313,11 @@ public class Constants {
     public static final String CHANNELS = "channels";
     public static final String MASTER = "master";
     public static final String CONTENT_PROVIDER_INDEX_NAME = "content_provider";
+    public static final String CONTENT_PARTNER_REGISTRATION_INDEX_NAME = "content_provider_registration";
     public static final String CONTENT_PARTNER = "contentPartner";
+    public static final String PENDING = "PENDING";
+    public static final String APPROVED = "APPROVED";
+    public static final String REJECTED = "REJECTED";
     public static final String CATEGORIES  = "categories";
     public static final String ASSOCIATIONS = "associations";
     public static final String PREV_TERM_CODE = "previousTermCode";
