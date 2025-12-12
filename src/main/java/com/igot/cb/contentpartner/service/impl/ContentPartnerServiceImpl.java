@@ -93,10 +93,11 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                         });
                 esUtilService.updateDocument(Constants.CONTENT_PROVIDER_INDEX_NAME, Constants.INDEX_TYPE, existingId, jsonMap, cbServerProperties.getElasticContentJsonPath());
                 Map<String, Object> result = objectMapper.convertValue(updateJsonEntity, Map.class);
-                cacheService.putCache(updateJsonEntity.getId(), result);
-                if (!partnerDetails.path(Constants.PARTNERCODE).isMissingNode()) {
+
+                if (jsonMap != null && StringUtils.isNotBlank((String) jsonMap.get(Constants.PARTNERCODE))) {
                     log.info(Constants.CONTENT_PARTNER_UPDATE_CACHE_DELETE, partnerDetails.path(Constants.PARTNERCODE).asText());
-                    cacheService.deleteCache(partnerDetails.get(Constants.PARTNERCODE).asText());
+                    cacheService.deleteCache((String) jsonMap.get(Constants.PARTNERCODE));
+                    cacheService.deleteCache(updateJsonEntity.getId());
                 }
                 log.info(Constants.UPDATED_CONTENT_PARTNER);
                 response.setResult(result);
@@ -205,8 +206,7 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
         Map<String, Object> result = objectMapper.convertValue(saveJsonEntity, Map.class);
         cacheService.putCache(saveJsonEntity.getId(), result);
         if (!partnerDetails.path(Constants.PARTNERCODE).isMissingNode()) {
-            log.info(Constants.CONTENT_PARTNER_CACHE_DELETE, partnerDetails.path(Constants.PARTNERCODE).asText());
-            cacheService.deleteCache(partnerDetails.get(Constants.PARTNERCODE).asText());
+            cacheService.putCache(partnerDetails.path(Constants.PARTNERCODE).asText(), result);
         }
         log.info(Constants.CONTENT_PARTNER_CREATED);
         response.setResult(result);
@@ -306,6 +306,7 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                     Map<String, Object> map = objectMapper.convertValue(josnEntity.getData(), Map.class);
                     esUtilService.addDocument(Constants.CONTENT_PROVIDER_INDEX_NAME, Constants.INDEX_TYPE, id, map, cbServerProperties.getElasticContentJsonPath());
                     cacheService.deleteCache(id);
+                    cacheService.deleteCache((String) map.get(Constants.PARTNERCODE));
                     Map<String,Object> map1=new HashMap<>();
                     map1.put(id,Constants.DELETED_SUCCESSFULLY);
                     response.setResponseCode(HttpStatus.OK);
