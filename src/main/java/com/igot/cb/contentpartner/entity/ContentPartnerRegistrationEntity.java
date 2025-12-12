@@ -31,6 +31,9 @@ public class ContentPartnerRegistrationEntity {
     private JsonNode data;
 
     private Timestamp createdOn;
+    private String createdBy;
 
     private Timestamp updatedOn;
+    private String updatedBy;
+
 }
