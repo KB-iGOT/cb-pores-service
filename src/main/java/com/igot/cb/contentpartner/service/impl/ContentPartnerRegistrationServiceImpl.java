@@ -1,0 +1,244 @@
+package com.igot.cb.contentpartner.service.impl;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.igot.cb.authentication.util.AccessTokenValidator;
+import com.igot.cb.contentpartner.entity.ContentPartnerRegistrationEntity;
+import com.igot.cb.contentpartner.repository.ContentPartnerRegistrationRepository;
+import com.igot.cb.contentpartner.service.ContentPartnerRegistrationService;
+import com.igot.cb.playlist.util.ProjectUtil;
+import com.igot.cb.pores.cache.CacheService;
+import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
+import com.igot.cb.pores.elasticsearch.dto.SearchResult;
+import com.igot.cb.pores.elasticsearch.service.EsUtilService;
+import com.igot.cb.pores.util.ApiResponse;
+import com.igot.cb.pores.util.CbServerProperties;
+import com.igot.cb.pores.util.Constants;
+import com.igot.cb.pores.util.PayloadValidation;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+
+import java.sql.Timestamp;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+@Service
+@Slf4j
+public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegistrationService {
+    private final PayloadValidation payloadValidation;
+    private final ContentPartnerRegistrationRepository registrationRepository;
+    private final CacheService cacheService;
+    private final ObjectMapper objectMapper;
+    private final CbServerProperties cbServerProperties;
+    private final EsUtilService esUtilService;
+    private final AccessTokenValidator accessTokenValidator;
+
+    public ContentPartnerRegistrationServiceImpl(
+            PayloadValidation payloadValidation,
+            ContentPartnerRegistrationRepository registrationRepository,
+            CacheService cacheService,
+            ObjectMapper objectMapper,
+            CbServerProperties cbServerProperties,
+            EsUtilService esUtilService,
+            AccessTokenValidator accessTokenValidator
+    ) {
+        this.payloadValidation = payloadValidation;
+        this.registrationRepository = registrationRepository;
+        this.cacheService = cacheService;
+        this.objectMapper = objectMapper;
+        this.cbServerProperties = cbServerProperties;
+        this.esUtilService = esUtilService;
+        this.accessTokenValidator=accessTokenValidator;
+    }
+
+    private Logger logger = LoggerFactory.getLogger(ContentPartnerServiceImpl.class);
+
+
+    @Override
+    public ApiResponse upsert(JsonNode partnerDetails, String token) {
+        log.info("ContentPartnerServiceImpl::createOrUpdate:inside");
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_CREATE_UPSERT);
+        try {
+            if (partnerDetails.get(Constants.ID) == null) {
+                response = createContentPartnerRegistration(partnerDetails,token);
+            } else {
+                response = updateContentPartner(partnerDetails,token);
+            }
+            return response;
+        } catch (Exception e) {
+            response.getParams().setErrMsg(e.getMessage());
+            response.getParams().setStatus(Constants.FAILED);
+            response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
+            return response;
+        }
+    }
+
+    private ApiResponse createContentPartnerRegistration(JsonNode registrationDetails,String token) {
+        log.info("ContentPartnerRegistrationServiceImpl::createContentPartnerRegistration");
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_CREATE);
+        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+        String userId = accessTokenValidator.verifyUserToken(token);
+        payloadValidation.validatePayload(Constants.PAYLOAD_VALIDATION_FILE_CONTENT_PARTNER_REGISTRATION, registrationDetails);
+        String organizationName = registrationDetails.path("contentPartnerName").asText("");
+        String email = registrationDetails.path("email").asText("");
+
+        Optional<ContentPartnerRegistrationEntity> existingByOrgName =
+                registrationRepository.findByContentPartnerOrganizationName(organizationName);
+
+        if (existingByOrgName.isPresent()) {
+            ProjectUtil.errorResponse(response,"Organization Name already registered",HttpStatus.BAD_REQUEST);
+            return response;
+        }
+        Optional<ContentPartnerRegistrationEntity> existingByEmail =
+                registrationRepository.findByContentPartnerEmail(email);
+        if (existingByEmail.isPresent()) {
+            ProjectUtil.errorResponse(response,"Email already registered", HttpStatus.BAD_REQUEST);
+            return response;
+        }
+        String id = UUID.randomUUID().toString();
+
+        ObjectNode jsonNode = (ObjectNode) registrationDetails;
+        jsonNode.put("id", id);
+        jsonNode.put("createdOn", currentTime.toString());
+        jsonNode.put("updatedOn", currentTime.toString());
+        jsonNode.put("createdBy", userId);
+        jsonNode.put("updatedBy", userId);
+        jsonNode.put("status", Constants.PENDING);
+
+        ContentPartnerRegistrationEntity entity = new ContentPartnerRegistrationEntity();
+        entity.setId(id);
+        entity.setData(registrationDetails);
+        entity.setCreatedOn(currentTime);
+        entity.setUpdatedOn(currentTime);
+        entity.setCreatedBy(userId);
+        entity.setUpdatedBy(userId);
+        ContentPartnerRegistrationEntity savedEntity = registrationRepository.save(entity);
+
+        Map<String, Object> map = objectMapper.convertValue(savedEntity.getData(), Map.class);
+        esUtilService.addDocument(Constants.CONTENT_PARTNER_REGISTRATION_INDEX_NAME, Constants.INDEX_TYPE, id, map, cbServerProperties.getElasticContentPartnerJsonPath());
+        Map<String, Object> result = objectMapper.convertValue(savedEntity, Map.class);
+        cacheService.putCache(savedEntity.getId(), result);
+
+        log.info("Content Partner Registration Created Successfully");
+        response.setResult(result);
+        return response;
+    }
+
+    private ApiResponse updateContentPartner(JsonNode partnerDetails,String token) {
+        log.info("ContentPartnerRegistrationServiceImpl::updateContentPartnerRegistration");
+
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_UPDATE);
+        String userId = accessTokenValidator.verifyUserToken(token);
+        String existingId = partnerDetails.path("id").asText(null);
+        String newStatus = partnerDetails.path("status").asText(null);
+
+        if (existingId == null || newStatus == null) {
+            ProjectUtil.errorResponse(response, "id and status are required", HttpStatus.BAD_REQUEST);
+            return response;
+        }
+        if (!Constants.APPROVED.equalsIgnoreCase(newStatus) &&
+                !Constants.REJECTED.equalsIgnoreCase(newStatus)) {
+            ProjectUtil.errorResponse(response, "Invalid status. Allowed values: APPROVED, REJECTED", HttpStatus.BAD_REQUEST);
+            return response;
+        }
+        Optional<ContentPartnerRegistrationEntity> content = registrationRepository.findById(existingId);
+        if (content.isEmpty()) {
+            ProjectUtil.errorResponse(response, "Content Partner Registration not found", HttpStatus.NOT_FOUND);
+            return response;
+        }
+
+        ContentPartnerRegistrationEntity entity = content.get();
+        ObjectNode dataNode = (ObjectNode) entity.getData();
+        dataNode.put("status", newStatus);
+        Timestamp now = new Timestamp(System.currentTimeMillis());
+        entity.setUpdatedOn(now);
+        entity.setUpdatedBy(userId);
+        dataNode.put("updatedOn", now.toString());
+        dataNode.put("updatedBy", userId);
+        ContentPartnerRegistrationEntity updated = registrationRepository.save(entity);
+
+        Map<String, Object> esMap = objectMapper.convertValue(updated.getData(), Map.class);
+        esUtilService.updateDocument(
+                Constants.CONTENT_PARTNER_REGISTRATION_INDEX_NAME,
+                Constants.INDEX_TYPE,
+                existingId,
+                esMap,
+                cbServerProperties.getElasticContentPartnerJsonPath()
+        );
+
+        Map<String, Object> resultMap = objectMapper.convertValue(updated, Map.class);
+        cacheService.putCache(updated.getId(), resultMap);
+
+        response.setResult(resultMap);
+        return response;
+    }
+
+    @Override
+    public ApiResponse read(String id,String token) {
+        log.info("ContentPartnerRegistrationServiceImpl::read:reading information about the content partner");
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_READ);
+        accessTokenValidator.verifyUserToken(token);
+        if (StringUtils.isEmpty(id)) {
+            ProjectUtil.errorResponse(response, Constants.ID_NOT_FOUND, HttpStatus.INTERNAL_SERVER_ERROR);
+            return response;
+        }
+        try {
+            String cachedJson = cacheService.getCache(id);
+            if (StringUtils.isNotEmpty(cachedJson)) {
+                log.info("Record coming from redis cache");
+                response.setResult(objectMapper.readValue(cachedJson, new TypeReference<Map>() {
+                }));
+            } else {
+                Optional<ContentPartnerRegistrationEntity> entityOptional = registrationRepository.findById(id);
+                if (entityOptional.isPresent()) {
+                    ContentPartnerRegistrationEntity entity = entityOptional.get();
+                    cacheService.putCache(id, entity);
+                    log.info("Record coming from postgres db");
+                    response.setResult(objectMapper.convertValue(entity, Map.class));
+                } else {
+                    ProjectUtil.errorResponse(response, Constants.INVALID_ID, HttpStatus.BAD_REQUEST);
+                    return response;
+                }
+            }
+        } catch (Exception e) {
+            log.error("error while processing", e);
+            ProjectUtil.errorResponse(response, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+            return response;
+        }
+        return response;
+    }
+
+    @Override
+    public ApiResponse searchEntity(SearchCriteria searchCriteria,String token) {
+        log.info("ContentPartnerRegistrationServiceImpl::searchEntity:searching the content partner");
+        String searchString = searchCriteria.getSearchString();
+        accessTokenValidator.verifyUserToken(token);
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_SEARCH);
+        if (searchString != null && searchString.length() < 3) {
+            ProjectUtil.errorResponse(response, "Minimum 3 characters are required to search", HttpStatus.BAD_REQUEST);
+            return response;
+        }
+        try {
+            SearchResult searchResult =
+                    esUtilService.searchDocuments(Constants.CONTENT_PARTNER_REGISTRATION_INDEX_NAME, searchCriteria);
+            Map<String, Object> jsonMap =
+                    objectMapper.convertValue(searchResult, new TypeReference<Map<String, Object>>() {
+                    });
+            response.setResult(jsonMap);
+            return response;
+        } catch (Exception e) {
+            logger.error("Error while processing to search", e);
+            ProjectUtil.errorResponse(response, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        return response;
+    }
+
+
+}

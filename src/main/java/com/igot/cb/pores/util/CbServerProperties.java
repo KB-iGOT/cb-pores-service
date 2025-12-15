@@ -48,6 +48,10 @@ public class CbServerProperties {
   @Value("${elastic.required.field.content.json.path}")
   private String elasticContentJsonPath;
 
+  @Value("${elastic.required.field.content.partner.json.path}")
+  private String elasticContentPartnerJsonPath;
+
+
   @Value("${elastic.required.field.interest.json.path}")
   private String elasticInterestJsonPath;
 
