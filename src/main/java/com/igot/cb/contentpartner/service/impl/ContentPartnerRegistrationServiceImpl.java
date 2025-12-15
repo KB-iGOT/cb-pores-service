@@ -19,8 +19,6 @@ import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.PayloadValidation;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
