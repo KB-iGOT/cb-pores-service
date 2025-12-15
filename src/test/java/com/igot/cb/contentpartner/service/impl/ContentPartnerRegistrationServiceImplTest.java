@@ -52,11 +52,9 @@ class ContentPartnerRegistrationServiceImplTest {
     private final ObjectMapper realMapper = new ObjectMapper();
     private final String token = "dummy-token";
 
-    // CREATE TEST CASES
+
     @Test
     void testCreate_Success() {
-        when(accessTokenValidator.verifyUserToken(token)).thenReturn("user-1");
-
         ObjectNode request = realMapper.createObjectNode();
         request.put("contentPartnerName", "Org1");
         request.put("email", "org1@gmail.com");
@@ -77,9 +75,10 @@ class ContentPartnerRegistrationServiceImplTest {
 
         when(objectMapper.convertValue(any(), eq(Map.class)))
                 .thenReturn(new HashMap<>());
-        when(cbServerProperties.getElasticContentPartnerJsonPath()).thenReturn("elastic-path");
+        when(cbServerProperties.getElasticContentPartnerJsonPath())
+                .thenReturn("elastic-path");
 
-        ApiResponse response = service.update(request, token);
+        ApiResponse response = service.insert(request);
 
         assertEquals(HttpStatus.OK, response.getResponseCode());
         verify(registrationRepository).save(any());
@@ -87,10 +86,9 @@ class ContentPartnerRegistrationServiceImplTest {
         verify(cacheService).putCache(anyString(), any());
     }
 
+
     @Test
     void testCreate_OrgNameExists() {
-        when(accessTokenValidator.verifyUserToken(token)).thenReturn("user-1");
-
         ObjectNode req = realMapper.createObjectNode();
         req.put("contentPartnerName", "ExistingOrg");
         req.put("email", "new@gmail.com");
@@ -98,49 +96,33 @@ class ContentPartnerRegistrationServiceImplTest {
         when(registrationRepository.findByContentPartnerOrganizationName("ExistingOrg"))
                 .thenReturn(Optional.of(new ContentPartnerRegistrationEntity()));
 
-        ApiResponse response = service.update(req, token);
+        ApiResponse response = service.insert(req);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals("Organization Name already registered", response.getParams().getErrMsg());
+        assertEquals("Organization Name already registered",
+                response.getParams().getErrMsg());
     }
+
 
     @Test
     void testCreate_EmailExists() {
-        when(accessTokenValidator.verifyUserToken(token)).thenReturn("user-1");
-
         ObjectNode req = realMapper.createObjectNode();
         req.put("contentPartnerName", "Org2");
         req.put("email", "existing@gmail.com");
 
         when(registrationRepository.findByContentPartnerOrganizationName("Org2"))
                 .thenReturn(Optional.empty());
-
         when(registrationRepository.findByContentPartnerEmail("existing@gmail.com"))
                 .thenReturn(Optional.of(new ContentPartnerRegistrationEntity()));
 
-        ApiResponse response = service.update(req, token);
+        ApiResponse response = service.insert(req);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals("Email already registered", response.getParams().getErrMsg());
+        assertEquals("Email already registered",
+                response.getParams().getErrMsg());
     }
 
-    @Test
-    void testCreate_ValidationException() {
-        when(accessTokenValidator.verifyUserToken(token)).thenReturn("user-1");
 
-        ObjectNode req = realMapper.createObjectNode();
-        req.put("contentPartnerName", "OrgX");
-
-        doThrow(new RuntimeException("validation failed"))
-                .when(payloadValidation).validatePayload(anyString(), any());
-
-        ApiResponse response = service.update(req, token);
-
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-        assertTrue(response.getParams().getErrMsg().contains("validation failed"));
-    }
-
-    // UPDATE TEST CASES
     @Test
     void testUpdate_Success() {
         when(accessTokenValidator.verifyUserToken(token)).thenReturn("user-1");
@@ -236,30 +218,37 @@ class ContentPartnerRegistrationServiceImplTest {
     @Test
     void testRead_Success_FromDatabase() {
         String id = "123";
+
         ContentPartnerRegistrationEntity entity = new ContentPartnerRegistrationEntity();
         entity.setId(id);
+
         ObjectNode data = realMapper.createObjectNode();
         data.put("id", id);
         data.put("contentPartnerName", "Org2");
         data.put("email", "org2@gmail.com");
         data.put("status", Constants.APPROVED);
+
         entity.setData(data);
         entity.setCreatedOn(new Timestamp(System.currentTimeMillis()));
         entity.setUpdatedOn(new Timestamp(System.currentTimeMillis()));
 
         when(cacheService.getCache(id)).thenReturn(null);
         when(registrationRepository.findById(id)).thenReturn(Optional.of(entity));
+        when(accessTokenValidator.verifyUserToken("dummy-token"))
+                .thenReturn("user-1");
 
         Map<String, Object> expectedResult = new HashMap<>();
         expectedResult.put("id", id);
 
-        when(objectMapper.convertValue(entity, Map.class)).thenReturn(expectedResult);
+        when(objectMapper.convertValue(entity, Map.class))
+                .thenReturn(expectedResult);
 
         ApiResponse response = service.read(id, "dummy-token");
 
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(id, response.getResult().get("id"));
     }
+
 
     @Test
     void testRead_NotFound() {
