@@ -58,33 +58,11 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         this.accessTokenValidator=accessTokenValidator;
     }
 
-    private Logger logger = LoggerFactory.getLogger(ContentPartnerServiceImpl.class);
-
-
     @Override
-    public ApiResponse upsert(JsonNode partnerDetails, String token) {
-        log.info("ContentPartnerServiceImpl::createOrUpdate:inside");
-        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_CREATE_UPSERT);
-        try {
-            if (partnerDetails.get(Constants.ID) == null) {
-                response = createContentPartnerRegistration(partnerDetails,token);
-            } else {
-                response = updateContentPartner(partnerDetails,token);
-            }
-            return response;
-        } catch (Exception e) {
-            response.getParams().setErrMsg(e.getMessage());
-            response.getParams().setStatus(Constants.FAILED);
-            response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
-            return response;
-        }
-    }
-
-    private ApiResponse createContentPartnerRegistration(JsonNode registrationDetails,String token) {
+    public ApiResponse insert(JsonNode registrationDetails) {
         log.info("ContentPartnerRegistrationServiceImpl::createContentPartnerRegistration");
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_CREATE);
         Timestamp currentTime = new Timestamp(System.currentTimeMillis());
-        String userId = accessTokenValidator.verifyUserToken(token);
         payloadValidation.validatePayload(Constants.PAYLOAD_VALIDATION_FILE_CONTENT_PARTNER_REGISTRATION, registrationDetails);
         String organizationName = registrationDetails.path("contentPartnerName").asText("");
         String email = registrationDetails.path("email").asText("");
@@ -93,32 +71,28 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
                 registrationRepository.findByContentPartnerOrganizationName(organizationName);
 
         if (existingByOrgName.isPresent()) {
-            ProjectUtil.errorResponse(response,"Organization Name already registered",HttpStatus.BAD_REQUEST);
+            ProjectUtil.errorResponse(response, "Organization Name already registered", HttpStatus.BAD_REQUEST);
             return response;
         }
         Optional<ContentPartnerRegistrationEntity> existingByEmail =
                 registrationRepository.findByContentPartnerEmail(email);
         if (existingByEmail.isPresent()) {
-            ProjectUtil.errorResponse(response,"Email already registered", HttpStatus.BAD_REQUEST);
+            ProjectUtil.errorResponse(response, "Email already registered", HttpStatus.BAD_REQUEST);
             return response;
         }
         String id = UUID.randomUUID().toString();
 
         ObjectNode jsonNode = (ObjectNode) registrationDetails;
-        jsonNode.put("id", id);
-        jsonNode.put("createdOn", currentTime.toString());
-        jsonNode.put("updatedOn", currentTime.toString());
-        jsonNode.put("createdBy", userId);
-        jsonNode.put("updatedBy", userId);
-        jsonNode.put("status", Constants.PENDING);
+        jsonNode.put(Constants.ID, id);
+        jsonNode.put(Constants.CREATED_ON, currentTime.toString());
+        jsonNode.put(Constants.UPDATED_ON, currentTime.toString());
+        jsonNode.put(Constants.STATUS, Constants.PENDING);
 
         ContentPartnerRegistrationEntity entity = new ContentPartnerRegistrationEntity();
         entity.setId(id);
         entity.setData(registrationDetails);
         entity.setCreatedOn(currentTime);
         entity.setUpdatedOn(currentTime);
-        entity.setCreatedBy(userId);
-        entity.setUpdatedBy(userId);
         ContentPartnerRegistrationEntity savedEntity = registrationRepository.save(entity);
 
         Map<String, Object> map = objectMapper.convertValue(savedEntity.getData(), Map.class);
@@ -129,15 +103,20 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         log.info("Content Partner Registration Created Successfully");
         response.setResult(result);
         return response;
+
     }
 
-    private ApiResponse updateContentPartner(JsonNode partnerDetails,String token) {
+    @Override
+    public ApiResponse update(JsonNode partnerDetails, String token) {
         log.info("ContentPartnerRegistrationServiceImpl::updateContentPartnerRegistration");
-
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_UPDATE);
         String userId = accessTokenValidator.verifyUserToken(token);
-        String existingId = partnerDetails.path("id").asText(null);
-        String newStatus = partnerDetails.path("status").asText(null);
+        if(userId.equalsIgnoreCase(Constants.UNAUTHORIZED)){
+            ProjectUtil.errorResponse(response, Constants.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
+            return response;
+        }
+        String existingId = partnerDetails.path(Constants.ID).asText(null);
+        String newStatus = partnerDetails.path(Constants.STATUS).asText(null);
 
         if (existingId == null || newStatus == null) {
             ProjectUtil.errorResponse(response, "id and status are required", HttpStatus.BAD_REQUEST);
@@ -156,12 +135,10 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
 
         ContentPartnerRegistrationEntity entity = content.get();
         ObjectNode dataNode = (ObjectNode) entity.getData();
-        dataNode.put("status", newStatus);
+        dataNode.put(Constants.STATUS, newStatus);
         Timestamp now = new Timestamp(System.currentTimeMillis());
         entity.setUpdatedOn(now);
-        entity.setUpdatedBy(userId);
-        dataNode.put("updatedOn", now.toString());
-        dataNode.put("updatedBy", userId);
+        dataNode.put(Constants.UPDATED_ON, now.toString());
         ContentPartnerRegistrationEntity updated = registrationRepository.save(entity);
 
         Map<String, Object> esMap = objectMapper.convertValue(updated.getData(), Map.class);
@@ -180,11 +157,16 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         return response;
     }
 
+
     @Override
     public ApiResponse read(String id,String token) {
         log.info("ContentPartnerRegistrationServiceImpl::read:reading information about the content partner");
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_READ);
-        accessTokenValidator.verifyUserToken(token);
+        String userId = accessTokenValidator.verifyUserToken(token);
+        if(userId.equalsIgnoreCase(Constants.UNAUTHORIZED)){
+            ProjectUtil.errorResponse(response, Constants.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
+            return response;
+        }
         if (StringUtils.isEmpty(id)) {
             ProjectUtil.errorResponse(response, Constants.ID_NOT_FOUND, HttpStatus.INTERNAL_SERVER_ERROR);
             return response;
@@ -219,8 +201,12 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
     public ApiResponse searchEntity(SearchCriteria searchCriteria,String token) {
         log.info("ContentPartnerRegistrationServiceImpl::searchEntity:searching the content partner");
         String searchString = searchCriteria.getSearchString();
-        accessTokenValidator.verifyUserToken(token);
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_SEARCH);
+        String userId = accessTokenValidator.verifyUserToken(token);
+        if(userId.equalsIgnoreCase(Constants.UNAUTHORIZED)){
+            ProjectUtil.errorResponse(response, Constants.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
+            return response;
+        }
         if (searchString != null && searchString.length() < 3) {
             ProjectUtil.errorResponse(response, "Minimum 3 characters are required to search", HttpStatus.BAD_REQUEST);
             return response;
@@ -234,7 +220,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
             response.setResult(jsonMap);
             return response;
         } catch (Exception e) {
-            logger.error("Error while processing to search", e);
+            log.error("Error while processing to search", e);
             ProjectUtil.errorResponse(response, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
         return response;

@@ -53,7 +53,7 @@ class ContentPartnerRegistrationControllerTest {
         ApiResponse mockResponse = new ApiResponse();
         mockResponse.setResponseCode(HttpStatus.OK);
 
-        when(partnerService.upsert(any(), anyString())).thenReturn(mockResponse);
+        when(partnerService.update(any(), anyString())).thenReturn(mockResponse);
 
         mockMvc.perform(post("/contentpartner/register/v1/create")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -72,7 +72,7 @@ class ContentPartnerRegistrationControllerTest {
         mockResponse.setResponseCode(HttpStatus.BAD_REQUEST);
         mockResponse.getParams().setErrMsg("Validation error");
 
-        when(partnerService.upsert(any(), anyString())).thenReturn(mockResponse);
+        when(partnerService.update(any(), anyString())).thenReturn(mockResponse);
 
         mockMvc.perform(post("/contentpartner/register/v1/create")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -93,7 +93,7 @@ class ContentPartnerRegistrationControllerTest {
         ApiResponse mockResponse = new ApiResponse();
         mockResponse.setResponseCode(HttpStatus.OK);
 
-        when(partnerService.upsert(any(), anyString())).thenReturn(mockResponse);
+        when(partnerService.update(any(), anyString())).thenReturn(mockResponse);
 
         mockMvc.perform(post("/contentpartner/register/v1/update")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -111,7 +111,7 @@ class ContentPartnerRegistrationControllerTest {
         ApiResponse mockResponse = new ApiResponse();
         mockResponse.setResponseCode(HttpStatus.BAD_REQUEST);
 
-        when(partnerService.upsert(any(), anyString())).thenReturn(mockResponse);
+        when(partnerService.update(any(), anyString())).thenReturn(mockResponse);
 
         mockMvc.perform(post("/contentpartner/register/v1/update")
                         .contentType(MediaType.APPLICATION_JSON)

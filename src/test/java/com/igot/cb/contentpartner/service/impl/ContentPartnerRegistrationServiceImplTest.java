@@ -79,7 +79,7 @@ class ContentPartnerRegistrationServiceImplTest {
                 .thenReturn(new HashMap<>());
         when(cbServerProperties.getElasticContentPartnerJsonPath()).thenReturn("elastic-path");
 
-        ApiResponse response = service.upsert(request, token);
+        ApiResponse response = service.update(request, token);
 
         assertEquals(HttpStatus.OK, response.getResponseCode());
         verify(registrationRepository).save(any());
@@ -98,7 +98,7 @@ class ContentPartnerRegistrationServiceImplTest {
         when(registrationRepository.findByContentPartnerOrganizationName("ExistingOrg"))
                 .thenReturn(Optional.of(new ContentPartnerRegistrationEntity()));
 
-        ApiResponse response = service.upsert(req, token);
+        ApiResponse response = service.update(req, token);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals("Organization Name already registered", response.getParams().getErrMsg());
@@ -118,7 +118,7 @@ class ContentPartnerRegistrationServiceImplTest {
         when(registrationRepository.findByContentPartnerEmail("existing@gmail.com"))
                 .thenReturn(Optional.of(new ContentPartnerRegistrationEntity()));
 
-        ApiResponse response = service.upsert(req, token);
+        ApiResponse response = service.update(req, token);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals("Email already registered", response.getParams().getErrMsg());
@@ -134,7 +134,7 @@ class ContentPartnerRegistrationServiceImplTest {
         doThrow(new RuntimeException("validation failed"))
                 .when(payloadValidation).validatePayload(anyString(), any());
 
-        ApiResponse response = service.upsert(req, token);
+        ApiResponse response = service.update(req, token);
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
         assertTrue(response.getParams().getErrMsg().contains("validation failed"));
@@ -162,7 +162,7 @@ class ContentPartnerRegistrationServiceImplTest {
                 .thenReturn(new HashMap<>());
         when(cbServerProperties.getElasticContentPartnerJsonPath()).thenReturn("path");
 
-        ApiResponse resp = service.upsert(req, token);
+        ApiResponse resp = service.update(req, token);
 
         assertEquals(HttpStatus.OK, resp.getResponseCode());
         verify(esUtilService).updateDocument(anyString(), anyString(), anyString(), anyMap(), anyString());
@@ -177,7 +177,7 @@ class ContentPartnerRegistrationServiceImplTest {
         req.put("id", "123");
         req.put("status", "INVALID_VALUE");
 
-        ApiResponse resp = service.upsert(req, token);
+        ApiResponse resp = service.update(req, token);
 
         assertEquals(HttpStatus.BAD_REQUEST, resp.getResponseCode());
         assertEquals("Invalid status. Allowed values: APPROVED, REJECTED", resp.getParams().getErrMsg());
@@ -190,7 +190,7 @@ class ContentPartnerRegistrationServiceImplTest {
         ObjectNode req = realMapper.createObjectNode();
         req.put("id", "123");
 
-        ApiResponse resp = service.upsert(req, token);
+        ApiResponse resp = service.update(req, token);
 
         assertEquals(HttpStatus.BAD_REQUEST, resp.getResponseCode());
         assertEquals("id and status are required", resp.getParams().getErrMsg());
@@ -206,7 +206,7 @@ class ContentPartnerRegistrationServiceImplTest {
 
         when(registrationRepository.findById("missing-id")).thenReturn(Optional.empty());
 
-        ApiResponse resp = service.upsert(req, token);
+        ApiResponse resp = service.update(req, token);
 
         assertEquals(HttpStatus.NOT_FOUND, resp.getResponseCode());
         assertEquals("Content Partner Registration not found", resp.getParams().getErrMsg());
@@ -235,11 +235,9 @@ class ContentPartnerRegistrationServiceImplTest {
 
     @Test
     void testRead_Success_FromDatabase() {
-        String id = "123";  // FIXED
-
+        String id = "123";
         ContentPartnerRegistrationEntity entity = new ContentPartnerRegistrationEntity();
         entity.setId(id);
-
         ObjectNode data = realMapper.createObjectNode();
         data.put("id", id);
         data.put("contentPartnerName", "Org2");
