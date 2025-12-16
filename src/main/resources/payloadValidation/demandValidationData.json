@@ -39,11 +39,73 @@
     },
     "demand_id": {
       "type": "string"
+    },
+
+    "proficiencyLevel": {
+      "type": "string",
+      "enum": ["Beginner", "Intermediate", "Advanced"]
+    },
+
+    "estimatedDuration": {
+      "type": "string",
+      "pattern": "^([0-9]{2}):([0-9]{2}):([0-9]{2})$",
+      "description": "hh:mm:ss"
+    },
+
+    "courseLanguage": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+
+    "sectoralSubjectMatterExpertAvailable": {
+      "type": "boolean",
+      "description": "Yes/No - Sectoral Subject Matter Expert available with MDO"
+    },
+
+    "sectoralSubjectMatterExpertDetails": {
+      "type": "array",
+      "description": "Required only if SME available = Yes",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "number": { "type": "string" },
+          "email": { "type": "string", "format": "email" }
+        },
+        "required": ["name", "number", "email"]
+      }
+    },
+
+    "courseDigitisationAgencyRequired": {
+      "type": "boolean",
+      "description": "Yes/No - Digitisation agency required from Karmayogi Bharat"
     }
+
   },
+
   "required": [
     "title",
     "objective",
     "requestType"
+  ],
+
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "sectoralSubjectMatterExpertAvailable": { "const": true }
+        }
+      },
+      "then": {
+        "required": ["sectoralSubjectMatterExpertDetails"],
+        "properties": {
+          "sectoralSubjectMatterExpertDetails": {
+            "minItems": 1
+          }
+        }
+      }
+    }
   ]
 }
