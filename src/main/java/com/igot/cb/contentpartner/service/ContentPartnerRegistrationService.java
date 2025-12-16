@@ -6,7 +6,8 @@ import com.igot.cb.pores.util.ApiResponse;
 
 public interface ContentPartnerRegistrationService {
 
-    ApiResponse upsert(JsonNode partnerDetails,String token);
+    ApiResponse insert(JsonNode partnerDetails);
+    ApiResponse update(JsonNode partnerDetails, String token);
     ApiResponse read(String id,String token);
 
     ApiResponse searchEntity(SearchCriteria searchCriteria,String token);
