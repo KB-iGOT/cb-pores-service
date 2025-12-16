@@ -39,9 +39,6 @@ class ContentPartnerRegistrationControllerTest {
     private final ObjectMapper mapper = new ObjectMapper();
     private final String token = "dummy-token";
 
-    // -------------------------------
-    // CREATE TEST CASES
-    // -------------------------------
     @Test
     void testCreate_Success() throws Exception {
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
@@ -53,7 +50,7 @@ class ContentPartnerRegistrationControllerTest {
         ApiResponse mockResponse = new ApiResponse();
         mockResponse.setResponseCode(HttpStatus.OK);
 
-        when(partnerService.update(any(), anyString())).thenReturn(mockResponse);
+        when(partnerService.insert(any())).thenReturn(mockResponse);
 
         mockMvc.perform(post("/contentpartner/register/v1/create")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -72,7 +69,7 @@ class ContentPartnerRegistrationControllerTest {
         mockResponse.setResponseCode(HttpStatus.BAD_REQUEST);
         mockResponse.getParams().setErrMsg("Validation error");
 
-        when(partnerService.update(any(), anyString())).thenReturn(mockResponse);
+        when(partnerService.insert(any())).thenReturn(mockResponse);
 
         mockMvc.perform(post("/contentpartner/register/v1/create")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -81,9 +78,6 @@ class ContentPartnerRegistrationControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    // -------------------------------
-    // UPDATE TEST CASES
-    // -------------------------------
     @Test
     void testUpdate_Success() throws Exception {
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
@@ -120,9 +114,6 @@ class ContentPartnerRegistrationControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    // -------------------------------
-    // READ TEST CASES
-    // -------------------------------
     @Test
     void testRead_Success() throws Exception {
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
@@ -166,9 +157,6 @@ class ContentPartnerRegistrationControllerTest {
         verify(partnerService, times(1)).read(eq(id), anyString());
     }
 
-    // -------------------------------
-    // SEARCH TEST CASE
-    // -------------------------------
     @Test
     void testSearch_Success() throws Exception {
 
