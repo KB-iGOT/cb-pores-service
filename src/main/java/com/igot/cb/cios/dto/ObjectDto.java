@@ -19,6 +19,6 @@ public class ObjectDto{
     private JsonNode contentPartner;
     private List<String> tags;
     private String status;
-    private String knowledgeLevel;
+    private String difficultyLevel;
     private boolean accessSettingsEnabled;
 }
