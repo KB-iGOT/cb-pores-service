@@ -17,12 +17,15 @@ import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.PayloadValidation;
+import com.igot.cb.producer.Producer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.sql.Timestamp;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -37,6 +40,9 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
     private final CbServerProperties cbServerProperties;
     private final EsUtilService esUtilService;
     private final AccessTokenValidator accessTokenValidator;
+
+    @Autowired
+    private Producer kafkaProducer;
 
     public ContentPartnerRegistrationServiceImpl(
             PayloadValidation payloadValidation,
@@ -97,11 +103,17 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         esUtilService.addDocument(Constants.CONTENT_PARTNER_REGISTRATION_INDEX_NAME, Constants.INDEX_TYPE, id, map, cbServerProperties.getElasticContentPartnerJsonPath());
         Map<String, Object> result = objectMapper.convertValue(savedEntity, Map.class);
         cacheService.putCache(savedEntity.getId(), result);
+        // send mail to content partner about successful registration
+        Map<String, Object> event = new HashMap<>();
+        event.put(Constants.EVENT_STATUS, Constants.PENDING);
+        event.put(Constants.EVENT_EMAIL, email);
+        event.put(Constants.EVENT_PARTNER_NAME, organizationName);
+        event.put(Constants.EVENT_REGISTRATION_ID, id);
+        kafkaProducer.push(cbServerProperties.getContentPartnerRegistrationTopic(), event);
 
         log.info("Content Partner Registration Created Successfully");
         response.setResult(result);
         return response;
-
     }
 
     @Override
@@ -133,6 +145,8 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
 
         ContentPartnerRegistrationEntity entity = content.get();
         ObjectNode dataNode = (ObjectNode) entity.getData();
+        String email = dataNode.path("email").asText("");
+        String organizationName = dataNode.path("contentPartnerName").asText("");
         dataNode.put(Constants.STATUS, newStatus);
         Timestamp now = new Timestamp(System.currentTimeMillis());
         entity.setUpdatedOn(now);
@@ -150,6 +164,13 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
 
         Map<String, Object> resultMap = objectMapper.convertValue(updated, Map.class);
         cacheService.putCache(updated.getId(), resultMap);
+        Map<String, Object> event = new HashMap<>();
+        event.put(Constants.EVENT_STATUS, newStatus);
+        event.put(Constants.EVENT_EMAIL, email);
+        event.put(Constants.EVENT_PARTNER_NAME, organizationName);
+        event.put(Constants.EVENT_REGISTRATION_ID, existingId);
+        log.info("event",event);
+        kafkaProducer.push(cbServerProperties.getContentPartnerRegistrationTopic(), event);
 
         response.setResult(resultMap);
         return response;

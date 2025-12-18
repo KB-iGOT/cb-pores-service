@@ -394,7 +394,19 @@ public class Constants {
     public static final String CONTENT_PARTNER_CACHE_DELETE = "during content partner create Deleting cache for partner code {}";
     public static final String CONTENT_PARTNER_UPDATE_CACHE_DELETE = "during content partner update Deleting cache for partner code {}";
     public static final String KNOWLEDGE_LEVEL = "knowledgeLevel";
-
+    public static final String EVENT_STATUS = "status";
+    public static final String EVENT_EMAIL = "email";
+    public static final String EVENT_PARTNER_NAME = "partnerName";
+    public static final String EVENT_REGISTRATION_ID = "registrationId";
+    public static final String STATUS_MESSAGE ="statusMessage";
+    public static final String PARTNER_NAME="name";
+    public static final String CP_REG_SUCCESS_SUBJECT = "Content Partner Registration Successful";
+    public static final String CP_REG_APPROVED_SUBJECT = "Content Partner Registration Approved";
+    public static final String CP_REG_REJECTED_SUBJECT = "Content Partner Registration Rejected";
+    public static final String CP_REG_SUCCESS_MESSAGE = "Your registration has been successfully completed. " + "You can track your status using the Registration ID below.";
+    public static final String CP_REG_APPROVED_MESSAGE = "Your registration has been approved. " + "Our team will connect with you shortly for the next steps.";
+    public static final String CP_REG_REJECTED_MESSAGE = "Your registration has been reviewed and unfortunately has been rejected.";
+    public static final String CONTENT_PARTNER_REG_TEMPLATE = "content_partner_registration_template";
 
     private Constants() {
     }

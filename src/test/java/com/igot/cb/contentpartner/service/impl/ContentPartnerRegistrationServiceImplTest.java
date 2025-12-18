@@ -14,16 +14,20 @@ import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.PayloadValidation;
+import com.igot.cb.producer.Producer;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.sql.Timestamp;
 import java.util.*;
@@ -45,6 +49,8 @@ class ContentPartnerRegistrationServiceImplTest {
     private EsUtilService esUtilService;
     @Mock
     private AccessTokenValidator accessTokenValidator;
+    @Mock
+    private Producer kafkaProducer;
 
     @InjectMocks
     private ContentPartnerRegistrationServiceImpl service;
@@ -52,6 +58,11 @@ class ContentPartnerRegistrationServiceImplTest {
     private final ObjectMapper realMapper = new ObjectMapper();
     private final String token = "dummy-token";
 
+    @BeforeEach
+    void setUp() {
+        // Manually inject the @Autowired kafkaProducer field
+        ReflectionTestUtils.setField(service, "kafkaProducer", kafkaProducer);
+    }
 
     @Test
     void testCreate_Success() {
@@ -65,7 +76,8 @@ class ContentPartnerRegistrationServiceImplTest {
                 .thenReturn(Optional.empty());
 
         ContentPartnerRegistrationEntity saved = new ContentPartnerRegistrationEntity();
-        saved.setId(UUID.randomUUID().toString());
+        String generatedId = UUID.randomUUID().toString();
+        saved.setId(generatedId);
         saved.setCreatedOn(new Timestamp(System.currentTimeMillis()));
         saved.setUpdatedOn(saved.getCreatedOn());
         saved.setData(request);
@@ -77,6 +89,8 @@ class ContentPartnerRegistrationServiceImplTest {
                 .thenReturn(new HashMap<>());
         when(cbServerProperties.getElasticContentPartnerJsonPath())
                 .thenReturn("elastic-path");
+        when(cbServerProperties.getContentPartnerRegistrationTopic())
+                .thenReturn("content-partner-topic");
 
         ApiResponse response = service.insert(request);
 
@@ -84,6 +98,16 @@ class ContentPartnerRegistrationServiceImplTest {
         verify(registrationRepository).save(any());
         verify(esUtilService).addDocument(anyString(), anyString(), anyString(), anyMap(), anyString());
         verify(cacheService).putCache(anyString(), any());
+        // Capture and verify the Kafka event
+        ArgumentCaptor<Map<String, Object>> eventCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(kafkaProducer).push(eq("content-partner-topic"), eventCaptor.capture());
+
+        Map<String, Object> capturedEvent = eventCaptor.getValue();
+        assertEquals("CONTENT_PARTNER_REGISTRATION", capturedEvent.get("eventType"));
+        assertEquals(Constants.PENDING, capturedEvent.get("status"));
+        assertEquals("org1@gmail.com", capturedEvent.get("email"));
+        assertEquals("Org1", capturedEvent.get("partnerName"));
+        assertNotNull(capturedEvent.get("registrationId"));
     }
 
 
@@ -101,6 +125,9 @@ class ContentPartnerRegistrationServiceImplTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals("Organization Name already registered",
                 response.getParams().getErrMsg());
+
+        // Verify no Kafka message was sent
+        verify(kafkaProducer, never()).push(anyString(), any());
     }
 
 
@@ -120,6 +147,9 @@ class ContentPartnerRegistrationServiceImplTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals("Email already registered",
                 response.getParams().getErrMsg());
+
+        // Verify no Kafka message was sent
+        verify(kafkaProducer, never()).push(anyString(), any());
     }
 
 
@@ -136,6 +166,8 @@ class ContentPartnerRegistrationServiceImplTest {
 
         ObjectNode data = realMapper.createObjectNode();
         data.put("status", Constants.PENDING);
+        data.put("email", "partner@example.com");
+        data.put("contentPartnerName", "Test Partner");
         existing.setData(data);
 
         when(registrationRepository.findById("123")).thenReturn(Optional.of(existing));
@@ -143,12 +175,62 @@ class ContentPartnerRegistrationServiceImplTest {
         when(objectMapper.convertValue(any(), eq(Map.class)))
                 .thenReturn(new HashMap<>());
         when(cbServerProperties.getElasticContentPartnerJsonPath()).thenReturn("path");
+        when(cbServerProperties.getContentPartnerRegistrationTopic()).thenReturn("content-partner-topic");
 
         ApiResponse resp = service.update(req, token);
 
         assertEquals(HttpStatus.OK, resp.getResponseCode());
         verify(esUtilService).updateDocument(anyString(), anyString(), anyString(), anyMap(), anyString());
         verify(cacheService).putCache(eq("123"), any());
+
+        // Capture and verify the Kafka event
+        ArgumentCaptor<Map<String, Object>> eventCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(kafkaProducer).push(eq("content-partner-topic"), eventCaptor.capture());
+
+        Map<String, Object> capturedEvent = eventCaptor.getValue();
+        assertEquals(Constants.APPROVED, capturedEvent.get("status"));
+        assertEquals("partner@example.com", capturedEvent.get("email"));
+        assertEquals("Test Partner", capturedEvent.get("partnerName"));
+        assertEquals("123", capturedEvent.get("registrationId"));
+    }
+
+    @Test
+    void testUpdate_Success_Rejected() {
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn("user-1");
+
+        ObjectNode req = realMapper.createObjectNode();
+        req.put("id", "456");
+        req.put("status", Constants.REJECTED);
+
+        ContentPartnerRegistrationEntity existing = new ContentPartnerRegistrationEntity();
+        existing.setId("456");
+
+        ObjectNode data = realMapper.createObjectNode();
+        data.put("status", Constants.PENDING);
+        data.put("email", "rejected@example.com");
+        data.put("contentPartnerName", "Rejected Partner");
+        existing.setData(data);
+
+        when(registrationRepository.findById("456")).thenReturn(Optional.of(existing));
+        when(registrationRepository.save(any())).thenReturn(existing);
+        when(objectMapper.convertValue(any(), eq(Map.class)))
+                .thenReturn(new HashMap<>());
+        when(cbServerProperties.getElasticContentPartnerJsonPath()).thenReturn("path");
+        when(cbServerProperties.getContentPartnerRegistrationTopic()).thenReturn("content-partner-topic");
+
+        ApiResponse resp = service.update(req, token);
+
+        assertEquals(HttpStatus.OK, resp.getResponseCode());
+
+        // Capture and verify the Kafka event
+        ArgumentCaptor<Map<String, Object>> eventCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(kafkaProducer).push(eq("content-partner-topic"), eventCaptor.capture());
+
+        Map<String, Object> capturedEvent = eventCaptor.getValue();
+        assertEquals(Constants.REJECTED, capturedEvent.get("status"));
+        assertEquals("rejected@example.com", capturedEvent.get("email"));
+        assertEquals("Rejected Partner", capturedEvent.get("partnerName"));
+        assertEquals("456", capturedEvent.get("registrationId"));
     }
 
     @Test
@@ -163,6 +245,9 @@ class ContentPartnerRegistrationServiceImplTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, resp.getResponseCode());
         assertEquals("Invalid status. Allowed values: APPROVED, REJECTED", resp.getParams().getErrMsg());
+
+        // Verify no Kafka message was sent
+        verify(kafkaProducer, never()).push(anyString(), any());
     }
 
     @Test
@@ -176,6 +261,9 @@ class ContentPartnerRegistrationServiceImplTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, resp.getResponseCode());
         assertEquals("id and status are required", resp.getParams().getErrMsg());
+
+        // Verify no Kafka message was sent
+        verify(kafkaProducer, never()).push(anyString(), any());
     }
 
     @Test
@@ -192,6 +280,25 @@ class ContentPartnerRegistrationServiceImplTest {
 
         assertEquals(HttpStatus.NOT_FOUND, resp.getResponseCode());
         assertEquals("Content Partner Registration not found", resp.getParams().getErrMsg());
+
+        // Verify no Kafka message was sent
+        verify(kafkaProducer, never()).push(anyString(), any());
+    }
+
+    @Test
+    void testUpdate_Unauthorized() {
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(Constants.UNAUTHORIZED);
+
+        ObjectNode req = realMapper.createObjectNode();
+        req.put("id", "123");
+        req.put("status", Constants.APPROVED);
+
+        ApiResponse resp = service.update(req, token);
+
+        assertEquals(HttpStatus.UNAUTHORIZED, resp.getResponseCode());
+
+        // Verify no Kafka message was sent
+        verify(kafkaProducer, never()).push(anyString(), any());
     }
 
     // READ TEST CASES
@@ -287,6 +394,15 @@ class ContentPartnerRegistrationServiceImplTest {
         assertTrue(response.getParams().getErrMsg().contains("JSON parsing error"));
     }
 
+    @Test
+    void testRead_Unauthorized() {
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(Constants.UNAUTHORIZED);
+
+        ApiResponse response = service.read("123", token);
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getResponseCode());
+    }
+
     // SEARCH TEST CASES
     @Test
     void testSearch_Success() throws Exception {
@@ -341,6 +457,15 @@ class ContentPartnerRegistrationServiceImplTest {
         assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
 
+    @Test
+    void testSearch_Unauthorized() {
+        when(accessTokenValidator.verifyUserToken(token)).thenReturn(Constants.UNAUTHORIZED);
 
+        SearchCriteria criteria = new SearchCriteria();
+        criteria.setSearchString("Org");
 
+        ApiResponse response = service.searchEntity(criteria, token);
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getResponseCode());
+    }
 }

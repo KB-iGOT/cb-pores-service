@@ -83,6 +83,9 @@ public class CbServerProperties {
   @Value("${kafka.topic.demand.request}")
   private String demandRequestKafkaTopic;
 
+  @Value("${kafka.topic.content.partner.registration}")
+  private String contentPartnerRegistrationTopic;
+
   @Value("${notification.support.mail}")
   private String supportEmail;
 
