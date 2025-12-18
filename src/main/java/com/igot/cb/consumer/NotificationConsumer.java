@@ -70,27 +70,45 @@ public class NotificationConsumer {
 
     public void processContentPartnerNotification(Map<String, Object> event) {
         try {
-            String status = (String) event.get("status");
-            String email = (String) event.get("email");
-            String partnerName = (String) event.get("partnerName");
-            String registrationId = (String) event.get("registrationId");
+            if (event == null || event.isEmpty()) {
+                logger.warn("Content partner notification event is null or empty");
+                return;
+            }
+            Object statusObj = event.get(Constants.EVENT_STATUS);
+            Object emailObj = event.get(Constants.EVENT_EMAIL);
+            Object partnerNameObj = event.get(Constants.EVENT_PARTNER_NAME);
+            Object registrationIdObj = event.get(Constants.EVENT_REGISTRATION_ID);
+
+            if (!(statusObj instanceof String)
+                    || !(emailObj instanceof String)
+                    || !(partnerNameObj instanceof String)
+                    || !(registrationIdObj instanceof String)) {
+
+                logger.error("Invalid content partner registration event payload: {}", event);
+                return;
+            }
+
+            String status = (String) statusObj;
+            String email = (String) emailObj;
+            String partnerName = (String) partnerNameObj;
+            String registrationId = (String) registrationIdObj;
+
             String subject;
             String statusMessage;
             if (Constants.PENDING.equals(status)) {
-                subject = "Content Partner Registration Successful";
-                statusMessage =
-                        "Your registration has been successfully completed. " +
-                                "You can track your status using the Registration ID below.";
+                subject = Constants.CP_REG_SUCCESS_SUBJECT;
+                statusMessage = Constants.CP_REG_SUCCESS_MESSAGE;
+
             } else if (Constants.APPROVED.equals(status)) {
-                subject = "Content Partner Registration Approved";
-                statusMessage =
-                        "Your registration has been approved. " +
-                                "Our team will connect with you shortly for the next steps.";
+                subject = Constants.CP_REG_APPROVED_SUBJECT;
+                statusMessage = Constants.CP_REG_APPROVED_MESSAGE;
+
             } else if (Constants.REJECTED.equals(status)) {
-                subject = "Content Partner Registration Rejected";
-                statusMessage =
-                        "Your registration has been reviewed and unfortunately has been rejected.";
+                subject = Constants.CP_REG_REJECTED_SUBJECT;
+                statusMessage = Constants.CP_REG_REJECTED_MESSAGE;
+
             } else {
+                logger.warn("Unsupported content partner registration status: {}", status);
                 return;
             }
             Map<String, Object> mailNotificationDetails = new HashMap<>();
@@ -98,11 +116,11 @@ public class NotificationConsumer {
             mailNotificationDetails.put(Constants.EMAIL_ID_LIST, Collections.singletonList(email));
             mailNotificationDetails.put(Constants.SUB, subject);
             mailNotificationDetails.put(Constants.CREATED_BY, partnerName);
-            mailNotificationDetails.put(Constants.TEMPLATE, "content_partner_registration_template");
+            mailNotificationDetails.put(Constants.TEMPLATE, Constants.CONTENT_PARTNER_REG_TEMPLATE);
 
-            mailNotificationDetails.put("name", partnerName);
-            mailNotificationDetails.put("registrationId", registrationId);
-            mailNotificationDetails.put("statusMessage", statusMessage);
+            mailNotificationDetails.put(Constants.PARTNER_NAME, partnerName);
+            mailNotificationDetails.put(Constants.EVENT_REGISTRATION_ID, registrationId);
+            mailNotificationDetails.put(Constants.STATUS_MESSAGE, statusMessage);
             mailNotificationDetails.put(Constants.ORG, partnerName);
             mailNotificationDetails.put(Constants.ORG_NAME, partnerName);
             sendContentPartnerNotificationAsync(mailNotificationDetails);
@@ -221,8 +239,8 @@ public class NotificationConsumer {
             // Prepare mail notification details
             mailNotificationDetails.put(Constants.EMAIL_ID_LIST, emails);
             mailNotificationDetails.put(Constants.MDO_NAME, mdoName);
-            mailNotificationDetails.put(Constants.ORG,mdoName);
-            mailNotificationDetails.put(Constants.ORG_NAME,mdoName);
+            mailNotificationDetails.put(Constants.ORG, mdoName);
+            mailNotificationDetails.put(Constants.ORG_NAME, mdoName);
             mailNotificationDetails.put(Constants.COMPETENCY_AREA, allArea);
             mailNotificationDetails.put(Constants.COMPETENCY_THEMES, allThemes);
             mailNotificationDetails.put(Constants.COMPETENCY_SUB_THEMES, allSubThemes);
@@ -235,9 +253,9 @@ public class NotificationConsumer {
 
             // Send notifications
             if (status.equals(Constants.ASSIGNED) || status.equals(Constants.UNASSIGNED)) {
-                if(isSpvRequest){
-                    mailNotificationDetails.put(Constants.ORG,Constants.SPV_ORG_NAME);
-                    mailNotificationDetails.put(Constants.ORG_NAME,Constants.SPV_ORG_NAME);
+                if (isSpvRequest) {
+                    mailNotificationDetails.put(Constants.ORG, Constants.SPV_ORG_NAME);
+                    mailNotificationDetails.put(Constants.ORG_NAME, Constants.SPV_ORG_NAME);
                 }
                 sendNotificationToProvidersAsync(mailNotificationDetails);
             }
@@ -437,8 +455,8 @@ public class NotificationConsumer {
         mailNotificationDetails.put(Constants.EMAIL_ID_LIST, emails);
         mailNotificationDetails.put(Constants.SUB, subjectLine);
         mailNotificationDetails.put(Constants.BODY, body);
-        mailNotificationDetails.put(Constants.ORG,Constants.SPV_ORG_NAME);
-        mailNotificationDetails.put(Constants.ORG_NAME,Constants.SPV_ORG_NAME);
+        mailNotificationDetails.put(Constants.ORG, Constants.SPV_ORG_NAME);
+        mailNotificationDetails.put(Constants.ORG_NAME, Constants.SPV_ORG_NAME);
         sendNotificationToProvidersAsync(mailNotificationDetails);
     }
 

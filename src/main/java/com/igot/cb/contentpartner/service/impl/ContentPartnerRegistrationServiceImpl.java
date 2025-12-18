@@ -105,11 +105,10 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         cacheService.putCache(savedEntity.getId(), result);
         // send mail to content partner about successful registration
         Map<String, Object> event = new HashMap<>();
-        event.put("eventType", "CONTENT_PARTNER_REGISTRATION");
-        event.put("status", Constants.PENDING);
-        event.put("email", email);
-        event.put("partnerName", organizationName);
-        event.put("registrationId", id);
+        event.put(Constants.EVENT_STATUS, Constants.PENDING);
+        event.put(Constants.EVENT_EMAIL, email);
+        event.put(Constants.EVENT_PARTNER_NAME, organizationName);
+        event.put(Constants.EVENT_REGISTRATION_ID, id);
         kafkaProducer.push(cbServerProperties.getContentPartnerRegistrationTopic(), event);
 
         log.info("Content Partner Registration Created Successfully");
@@ -166,10 +165,10 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         Map<String, Object> resultMap = objectMapper.convertValue(updated, Map.class);
         cacheService.putCache(updated.getId(), resultMap);
         Map<String, Object> event = new HashMap<>();
-        event.put("status", newStatus);
-        event.put("email", email);
-        event.put("partnerName", organizationName);
-        event.put("registrationId", existingId);
+        event.put(Constants.EVENT_STATUS, newStatus);
+        event.put(Constants.EVENT_EMAIL, email);
+        event.put(Constants.EVENT_PARTNER_NAME, organizationName);
+        event.put(Constants.EVENT_REGISTRATION_ID, existingId);
         log.info("event",event);
         kafkaProducer.push(cbServerProperties.getContentPartnerRegistrationTopic(), event);
 
