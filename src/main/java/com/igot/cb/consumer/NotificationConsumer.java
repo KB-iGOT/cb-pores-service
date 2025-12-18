@@ -53,6 +53,114 @@ public class NotificationConsumer {
         }
     }
 
+    @KafkaListener(groupId = "${kafka.topic.content.partner.registration.group}", topics = "${kafka.topic.content.partner.registration}")
+    public void contentPartnerRegistrationConsumer(ConsumerRecord<String, String> data) {
+        try {
+            Map<String, Object> event = mapper.readValue(data.value(), HashMap.class);
+            CompletableFuture.runAsync(() -> {
+                processContentPartnerNotification(event);
+            });
+        } catch (Exception e) {
+            logger.error(
+                    "Failed to read content partner registration event. Message: " + data.value(),
+                    e
+            );
+        }
+    }
+
+    public void processContentPartnerNotification(Map<String, Object> event) {
+        try {
+            String status = (String) event.get("status");
+            String email = (String) event.get("email");
+            String partnerName = (String) event.get("partnerName");
+            String registrationId = (String) event.get("registrationId");
+            String subject;
+            String statusMessage;
+            if (Constants.PENDING.equals(status)) {
+                subject = "Content Partner Registration Successful";
+                statusMessage =
+                        "Your registration has been successfully completed. " +
+                                "You can track your status using the Registration ID below.";
+            } else if (Constants.APPROVED.equals(status)) {
+                subject = "Content Partner Registration Approved";
+                statusMessage =
+                        "Your registration has been approved. " +
+                                "Our team will connect with you shortly for the next steps.";
+            } else if (Constants.REJECTED.equals(status)) {
+                subject = "Content Partner Registration Rejected";
+                statusMessage =
+                        "Your registration has been reviewed and unfortunately has been rejected.";
+            } else {
+                return;
+            }
+            Map<String, Object> mailNotificationDetails = new HashMap<>();
+            // Recipients
+            mailNotificationDetails.put(Constants.EMAIL_ID_LIST, Collections.singletonList(email));
+            mailNotificationDetails.put(Constants.SUB, subject);
+            mailNotificationDetails.put(Constants.CREATED_BY, partnerName);
+            mailNotificationDetails.put(Constants.TEMPLATE, "content_partner_registration_template");
+
+            mailNotificationDetails.put("name", partnerName);
+            mailNotificationDetails.put("registrationId", registrationId);
+            mailNotificationDetails.put("statusMessage", statusMessage);
+            mailNotificationDetails.put(Constants.ORG, partnerName);
+            mailNotificationDetails.put(Constants.ORG_NAME, partnerName);
+            sendContentPartnerNotificationAsync(mailNotificationDetails);
+
+        } catch (Exception e) {
+            logger.error("Failed to process content partner registration notification", e);
+        }
+    }
+
+    private void sendContentPartnerNotificationAsync(Map<String, Object> mailNotificationDetails) {
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("name", mailNotificationDetails.get("name"));
+        params.put("registrationId", mailNotificationDetails.get("registrationId"));
+        params.put("statusMessage", mailNotificationDetails.get("statusMessage"));
+        params.put(Constants.ORG_NAME, mailNotificationDetails.get(Constants.ORG_NAME));
+        params.put(Constants.FROM_EMAIL, configuration.getSupportEmail());
+        String templateName = (String) mailNotificationDetails.get(Constants.TEMPLATE);
+
+        Template template = new Template(
+                constructEmailTemplate(templateName, params),
+                templateName,
+                params
+        );
+        Config config = new Config();
+        config.setSubject((String) mailNotificationDetails.get(Constants.SUB));
+        config.setSender(configuration.getSupportEmail());
+
+        Map<String, Object> templateMap = new HashMap<>();
+        templateMap.put(Constants.CONFIG, config);
+        templateMap.put(Constants.TYPE, Constants.EMAIL);
+        templateMap.put(Constants.DATA, template.getData());
+        templateMap.put(Constants.ID, templateName);
+        templateMap.put(Constants.PARAMS, params);
+
+        Map<String, Object> action = new HashMap<>();
+        action.put(Constants.TEMPLATE, templateMap);
+        action.put(Constants.TYPE, Constants.EMAIL);
+        action.put(Constants.CATEGORY, Constants.EMAIL);
+
+        Map<String, Object> createdBy = new HashMap<>();
+        createdBy.put(Constants.ID, "system");
+        createdBy.put(Constants.TYPE, "system");
+        action.put(Constants.CREATED_BY, createdBy);
+
+        NotificationAsyncRequest notificationAsyncRequest = new NotificationAsyncRequest();
+        notificationAsyncRequest.setPriority(1);
+        notificationAsyncRequest.setType(Constants.EMAIL);
+        notificationAsyncRequest.setIds((List<String>) mailNotificationDetails.get(Constants.EMAIL_ID_LIST));
+        notificationAsyncRequest.setAction(action);
+
+        Map<String, Object> req = new HashMap<>();
+        req.put(Constants.REQUEST,
+                Collections.singletonMap(Constants.NOTIFICATIONS,
+                        Collections.singletonList(notificationAsyncRequest)));
+        sendNotification(req, configuration.getNotificationAsyncPath());
+    }
+
     public void processNotification(Map<String, Object> demandRequest) {
         try {
             logger.info("notification process started");
