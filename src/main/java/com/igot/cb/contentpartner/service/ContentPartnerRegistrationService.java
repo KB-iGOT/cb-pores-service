@@ -8,7 +8,7 @@ public interface ContentPartnerRegistrationService {
 
     ApiResponse insert(JsonNode partnerDetails);
     ApiResponse update(JsonNode partnerDetails, String token);
-    ApiResponse read(String id,String token);
+    ApiResponse read(String id);
 
     ApiResponse searchEntity(SearchCriteria searchCriteria,String token);
 }

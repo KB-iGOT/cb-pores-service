@@ -127,7 +127,7 @@ class ContentPartnerRegistrationControllerTest {
         result.put("contentPartnerName", "Org1");
         mockResponse.setResult(result);
 
-        when(partnerService.read(eq(id), anyString())).thenReturn(mockResponse);
+        when(partnerService.read(id)).thenReturn(mockResponse);
 
         mockMvc.perform(get("/contentpartner/register/v1/read/" + id)
                         .header(Constants.X_AUTH_TOKEN, token))
@@ -135,7 +135,7 @@ class ContentPartnerRegistrationControllerTest {
                 .andExpect(jsonPath("$.result.id").value(id))
                 .andExpect(jsonPath("$.responseCode").value("OK"));
 
-        verify(partnerService, times(1)).read(eq(id), anyString());
+        verify(partnerService, times(1)).read(id);
     }
 
     @Test
@@ -148,13 +148,13 @@ class ContentPartnerRegistrationControllerTest {
         mockResponse.setResponseCode(HttpStatus.BAD_REQUEST);
         mockResponse.getParams().setErrMsg("Invalid ID");
 
-        when(partnerService.read(eq(id), anyString())).thenReturn(mockResponse);
+        when(partnerService.read(id)).thenReturn(mockResponse);
 
         mockMvc.perform(get("/contentpartner/register/v1/read/" + id)
                         .header(Constants.X_AUTH_TOKEN, token))
                 .andExpect(status().isOk());
 
-        verify(partnerService, times(1)).read(eq(id), anyString());
+        verify(partnerService, times(1)).read(id);
     }
 
     @Test
