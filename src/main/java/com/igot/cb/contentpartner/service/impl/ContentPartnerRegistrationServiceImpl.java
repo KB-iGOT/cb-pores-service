@@ -157,14 +157,9 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
 
 
     @Override
-    public ApiResponse read(String id,String token) {
+    public ApiResponse read(String id) {
         log.info("ContentPartnerRegistrationServiceImpl::read:reading information about the content partner");
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_READ);
-        String userId = accessTokenValidator.verifyUserToken(token);
-        if(userId.equalsIgnoreCase(Constants.UNAUTHORIZED)){
-            ProjectUtil.errorResponse(response, Constants.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
-            return response;
-        }
         if (StringUtils.isEmpty(id)) {
             ProjectUtil.errorResponse(response, Constants.ID_NOT_FOUND, HttpStatus.INTERNAL_SERVER_ERROR);
             return response;

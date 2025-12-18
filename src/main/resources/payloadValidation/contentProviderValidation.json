@@ -141,10 +141,7 @@
         "required": ["isConcurrentLimitEnabled"]
       },
       "then": {
-        "required": ["concurrentLimit", "userWiseLimit", "isUserWiseLimitEnabled"],
-        "properties": {
-          "isUserWiseLimitEnabled": { "const": true }
-        }
+        "required": ["concurrentLimit"]
       }
     },
     {

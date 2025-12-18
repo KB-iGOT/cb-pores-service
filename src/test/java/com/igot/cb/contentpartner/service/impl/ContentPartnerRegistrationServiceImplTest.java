@@ -194,14 +194,12 @@ class ContentPartnerRegistrationServiceImplTest {
         assertEquals("Content Partner Registration not found", resp.getParams().getErrMsg());
     }
 
-    // READ TEST CASES
     @Test
     void testRead_Success_FromCache() throws Exception {
-        when(accessTokenValidator.verifyUserToken(token)).thenReturn("user-1");
-
         String id = "test-id-123";
 
-        Map<String, Object> cachedData = Map.of("id", id, "contentPartnerName", "Org1");
+        Map<String, Object> cachedData =
+                Map.of("id", id, "contentPartnerName", "Org1");
 
         String cachedJson = realMapper.writeValueAsString(cachedData);
 
@@ -209,17 +207,19 @@ class ContentPartnerRegistrationServiceImplTest {
         when(objectMapper.readValue(eq(cachedJson), any(TypeReference.class)))
                 .thenReturn(cachedData);
 
-        ApiResponse response = service.read(id, token);
+        ApiResponse response = service.read(id);
 
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(cachedData, response.getResult());
     }
 
+
     @Test
     void testRead_Success_FromDatabase() {
         String id = "123";
 
-        ContentPartnerRegistrationEntity entity = new ContentPartnerRegistrationEntity();
+        ContentPartnerRegistrationEntity entity =
+                new ContentPartnerRegistrationEntity();
         entity.setId(id);
 
         ObjectNode data = realMapper.createObjectNode();
@@ -233,9 +233,8 @@ class ContentPartnerRegistrationServiceImplTest {
         entity.setUpdatedOn(new Timestamp(System.currentTimeMillis()));
 
         when(cacheService.getCache(id)).thenReturn(null);
-        when(registrationRepository.findById(id)).thenReturn(Optional.of(entity));
-        when(accessTokenValidator.verifyUserToken("dummy-token"))
-                .thenReturn("user-1");
+        when(registrationRepository.findById(id))
+                .thenReturn(Optional.of(entity));
 
         Map<String, Object> expectedResult = new HashMap<>();
         expectedResult.put("id", id);
@@ -243,49 +242,56 @@ class ContentPartnerRegistrationServiceImplTest {
         when(objectMapper.convertValue(entity, Map.class))
                 .thenReturn(expectedResult);
 
-        ApiResponse response = service.read(id, "dummy-token");
+        ApiResponse response = service.read(id);
 
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(id, response.getResult().get("id"));
     }
 
 
+
     @Test
     void testRead_NotFound() {
-        when(accessTokenValidator.verifyUserToken(token)).thenReturn("user-1");
-
         String id = "unknown";
 
         when(cacheService.getCache(id)).thenReturn(null);
-        when(registrationRepository.findById(id)).thenReturn(Optional.empty());
+        when(registrationRepository.findById(id))
+                .thenReturn(Optional.empty());
 
-        ApiResponse response = service.read(id, token);
+        ApiResponse response = service.read(id);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.INVALID_ID, response.getParams().getErrMsg());
+        assertEquals(Constants.INVALID_ID,
+                response.getParams().getErrMsg());
     }
+
 
     @Test
     void testRead_EmptyId() {
-        when(accessTokenValidator.verifyUserToken(token)).thenReturn("user-1");
+        ApiResponse response = service.read("");
 
-        ApiResponse response = service.read("", token);
-
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-        assertEquals(Constants.ID_NOT_FOUND, response.getParams().getErrMsg());
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR,
+                response.getResponseCode());
+        assertEquals(Constants.ID_NOT_FOUND,
+                response.getParams().getErrMsg());
     }
 
     @Test
     void testRead_CacheException() throws Exception {
-        when(accessTokenValidator.verifyUserToken(token)).thenReturn("user-1");
         String id = "test-id";
+
         when(cacheService.getCache(id)).thenReturn("invalid-json");
         when(objectMapper.readValue(anyString(), any(TypeReference.class)))
                 .thenThrow(new RuntimeException("JSON parsing error"));
-        ApiResponse response = service.read(id, token);
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-        assertTrue(response.getParams().getErrMsg().contains("JSON parsing error"));
+
+        ApiResponse response = service.read(id);
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR,
+                response.getResponseCode());
+        assertTrue(response.getParams().getErrMsg()
+                .contains("JSON parsing error"));
     }
+
 
     // SEARCH TEST CASES
     @Test
