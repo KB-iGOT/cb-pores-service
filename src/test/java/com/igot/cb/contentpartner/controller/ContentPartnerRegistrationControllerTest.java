@@ -39,9 +39,6 @@ class ContentPartnerRegistrationControllerTest {
     private final ObjectMapper mapper = new ObjectMapper();
     private final String token = "dummy-token";
 
-    // -------------------------------
-    // CREATE TEST CASES
-    // -------------------------------
     @Test
     void testCreate_Success() throws Exception {
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
@@ -134,9 +131,6 @@ class ContentPartnerRegistrationControllerTest {
         verify(partnerService, times(1)).insert(any(JsonNode.class));
     }
 
-    // -------------------------------
-    // UPDATE TEST CASES
-    // -------------------------------
     @Test
     void testUpdate_Success() throws Exception {
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
@@ -266,9 +260,6 @@ class ContentPartnerRegistrationControllerTest {
         verify(partnerService, times(1)).update(any(JsonNode.class), eq(token));
     }
 
-    // -------------------------------
-    // READ TEST CASES
-    // -------------------------------
     @Test
     void testRead_Success() throws Exception {
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
@@ -349,9 +340,6 @@ class ContentPartnerRegistrationControllerTest {
         verify(partnerService, never()).read(anyString(), anyString());
     }
 
-    // -------------------------------
-    // SEARCH TEST CASES
-    // -------------------------------
     @Test
     void testSearch_Success() throws Exception {
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
