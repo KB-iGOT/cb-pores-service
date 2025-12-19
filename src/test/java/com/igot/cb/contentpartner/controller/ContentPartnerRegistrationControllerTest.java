@@ -275,16 +275,15 @@ class ContentPartnerRegistrationControllerTest {
         result.put("status", Constants.APPROVED);
         mockResponse.setResult(result);
 
-        when(partnerService.read(eq(id), eq(token))).thenReturn(mockResponse);
+        when(partnerService.read(eq(id))).thenReturn(mockResponse);
 
-        mockMvc.perform(get("/contentpartner/register/v1/read/" + id)
-                        .header(Constants.X_AUTH_TOKEN, token))
+        mockMvc.perform(get("/contentpartner/register/v1/read/" + id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.id").value(id))
                 .andExpect(jsonPath("$.result.contentPartnerName").value("Org1"))
                 .andExpect(jsonPath("$.responseCode").value("OK"));
 
-        verify(partnerService, times(1)).read(eq(id), eq(token));
+        verify(partnerService, times(1)).read(eq(id));
     }
 
     @Test
@@ -297,47 +296,13 @@ class ContentPartnerRegistrationControllerTest {
         mockResponse.setResponseCode(HttpStatus.BAD_REQUEST);
         mockResponse.getParams().setErrMsg(Constants.INVALID_ID);
 
-        when(partnerService.read(eq(id), eq(token))).thenReturn(mockResponse);
+        when(partnerService.read(eq(id))).thenReturn(mockResponse);
 
-        mockMvc.perform(get("/contentpartner/register/v1/read/" + id)
-                        .header(Constants.X_AUTH_TOKEN, token))
+        mockMvc.perform(get("/contentpartner/register/v1/read/" + id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.responseCode").value("BAD_REQUEST"));
 
-        verify(partnerService, times(1)).read(eq(id), eq(token));
-    }
-
-
-    @Test
-    void testRead_Unauthorized() throws Exception {
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
-
-        String id = "test-id-123";
-
-        ApiResponse mockResponse = new ApiResponse();
-        mockResponse.setResponseCode(HttpStatus.UNAUTHORIZED);
-        mockResponse.getParams().setErrMsg(Constants.UNAUTHORIZED);
-
-        when(partnerService.read(eq(id), eq(token))).thenReturn(mockResponse);
-
-        mockMvc.perform(get("/contentpartner/register/v1/read/" + id)
-                        .header(Constants.X_AUTH_TOKEN, token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.responseCode").value("UNAUTHORIZED"));
-
-        verify(partnerService, times(1)).read(eq(id), eq(token));
-    }
-
-    @Test
-    void testRead_MissingToken() throws Exception {
-        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
-
-        String id = "test-id-123";
-
-        mockMvc.perform(get("/contentpartner/register/v1/read/" + id))
-                .andExpect(status().isBadRequest());
-
-        verify(partnerService, never()).read(anyString(), anyString());
+        verify(partnerService, times(1)).read(eq(id));
     }
 
     @Test

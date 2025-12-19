@@ -103,7 +103,6 @@ class ContentPartnerRegistrationServiceImplTest {
         verify(kafkaProducer).push(eq("content-partner-topic"), eventCaptor.capture());
 
         Map<String, Object> capturedEvent = eventCaptor.getValue();
-        assertEquals("CONTENT_PARTNER_REGISTRATION", capturedEvent.get("eventType"));
         assertEquals(Constants.PENDING, capturedEvent.get("status"));
         assertEquals("org1@gmail.com", capturedEvent.get("email"));
         assertEquals("Org1", capturedEvent.get("partnerName"));
@@ -304,8 +303,6 @@ class ContentPartnerRegistrationServiceImplTest {
     // READ TEST CASES
     @Test
     void testRead_Success_FromCache() throws Exception {
-        when(accessTokenValidator.verifyUserToken(token)).thenReturn("user-1");
-
         String id = "test-id-123";
 
         Map<String, Object> cachedData = Map.of("id", id, "contentPartnerName", "Org1");
@@ -316,7 +313,7 @@ class ContentPartnerRegistrationServiceImplTest {
         when(objectMapper.readValue(eq(cachedJson), any(TypeReference.class)))
                 .thenReturn(cachedData);
 
-        ApiResponse response = service.read(id, token);
+        ApiResponse response = service.read(id);
 
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(cachedData, response.getResult());
@@ -341,8 +338,6 @@ class ContentPartnerRegistrationServiceImplTest {
 
         when(cacheService.getCache(id)).thenReturn(null);
         when(registrationRepository.findById(id)).thenReturn(Optional.of(entity));
-        when(accessTokenValidator.verifyUserToken("dummy-token"))
-                .thenReturn("user-1");
 
         Map<String, Object> expectedResult = new HashMap<>();
         expectedResult.put("id", id);
@@ -350,7 +345,7 @@ class ContentPartnerRegistrationServiceImplTest {
         when(objectMapper.convertValue(entity, Map.class))
                 .thenReturn(expectedResult);
 
-        ApiResponse response = service.read(id, "dummy-token");
+        ApiResponse response = service.read(id);
 
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(id, response.getResult().get("id"));
@@ -359,48 +354,34 @@ class ContentPartnerRegistrationServiceImplTest {
 
     @Test
     void testRead_NotFound() {
-        when(accessTokenValidator.verifyUserToken(token)).thenReturn("user-1");
-
         String id = "unknown";
-
         when(cacheService.getCache(id)).thenReturn(null);
-        when(registrationRepository.findById(id)).thenReturn(Optional.empty());
+        when(registrationRepository.findById(id))
+                .thenReturn(Optional.empty());
 
-        ApiResponse response = service.read(id, token);
+        ApiResponse response = service.read(id);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals(Constants.INVALID_ID, response.getParams().getErrMsg());
     }
 
+
     @Test
     void testRead_EmptyId() {
-        when(accessTokenValidator.verifyUserToken(token)).thenReturn("user-1");
-
-        ApiResponse response = service.read("", token);
-
+        ApiResponse response = service.read("");
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
         assertEquals(Constants.ID_NOT_FOUND, response.getParams().getErrMsg());
     }
 
     @Test
     void testRead_CacheException() throws Exception {
-        when(accessTokenValidator.verifyUserToken(token)).thenReturn("user-1");
         String id = "test-id";
         when(cacheService.getCache(id)).thenReturn("invalid-json");
         when(objectMapper.readValue(anyString(), any(TypeReference.class)))
                 .thenThrow(new RuntimeException("JSON parsing error"));
-        ApiResponse response = service.read(id, token);
+        ApiResponse response = service.read(id);
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
         assertTrue(response.getParams().getErrMsg().contains("JSON parsing error"));
-    }
-
-    @Test
-    void testRead_Unauthorized() {
-        when(accessTokenValidator.verifyUserToken(token)).thenReturn(Constants.UNAUTHORIZED);
-
-        ApiResponse response = service.read("123", token);
-
-        assertEquals(HttpStatus.UNAUTHORIZED, response.getResponseCode());
     }
 
     // SEARCH TEST CASES

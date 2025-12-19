@@ -5,9 +5,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.igot.cb.authentication.util.AccessTokenValidator;
+import com.igot.cb.contentpartner.entity.ContentPartnerEntity;
 import com.igot.cb.contentpartner.entity.ContentPartnerRegistrationEntity;
 import com.igot.cb.contentpartner.repository.ContentPartnerRegistrationRepository;
+import com.igot.cb.contentpartner.repository.ContentPartnerRepository;
 import com.igot.cb.contentpartner.service.ContentPartnerRegistrationService;
+import com.igot.cb.contentpartner.service.ContentPartnerService;
 import com.igot.cb.playlist.util.ProjectUtil;
 import com.igot.cb.pores.cache.CacheService;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
@@ -40,6 +43,8 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
     private final CbServerProperties cbServerProperties;
     private final EsUtilService esUtilService;
     private final AccessTokenValidator accessTokenValidator;
+    private final ContentPartnerRepository contentPartnerRepository;
+    private  final ContentPartnerService contentPartnerService;
 
     @Autowired
     private Producer kafkaProducer;
@@ -51,7 +56,9 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
             ObjectMapper objectMapper,
             CbServerProperties cbServerProperties,
             EsUtilService esUtilService,
-            AccessTokenValidator accessTokenValidator
+            AccessTokenValidator accessTokenValidator,
+            ContentPartnerRepository contentPartnerRepository,
+            ContentPartnerService contentPartnerService
     ) {
         this.payloadValidation = payloadValidation;
         this.registrationRepository = registrationRepository;
@@ -60,6 +67,8 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         this.cbServerProperties = cbServerProperties;
         this.esUtilService = esUtilService;
         this.accessTokenValidator=accessTokenValidator;
+        this.contentPartnerRepository = contentPartnerRepository;
+        this.contentPartnerService = contentPartnerService;
     }
 
     @Override
@@ -151,8 +160,9 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         Timestamp now = new Timestamp(System.currentTimeMillis());
         entity.setUpdatedOn(now);
         dataNode.put(Constants.UPDATED_ON, now.toString());
+        dataNode.put(Constants.ID, existingId);
         ContentPartnerRegistrationEntity updated = registrationRepository.save(entity);
-
+        saveContentPartnerIfApproved(updated, newStatus);
         Map<String, Object> esMap = objectMapper.convertValue(updated.getData(), Map.class);
         esUtilService.updateDocument(
                 Constants.CONTENT_PARTNER_REGISTRATION_INDEX_NAME,
@@ -176,16 +186,28 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         return response;
     }
 
+    private void saveContentPartnerIfApproved(ContentPartnerRegistrationEntity registrationEntity, String newStatus) {
+        if (!Constants.APPROVED.equalsIgnoreCase(newStatus)) {
+            return;
+        }
+        try {
+            JsonNode registrationData = registrationEntity.getData();
+            log.info(Constants.CONTENT_PARTNER_CREATE_START, registrationEntity.getId());
+            ApiResponse createResponse = contentPartnerService.createContentPartner(registrationData);
+            if (HttpStatus.OK.equals(createResponse.getResponseCode())) {
+                log.info(Constants.CONTENT_PARTNER_CREATE_SUCCESS, registrationEntity.getId());
+            } else {
+                log.error(Constants.CONTENT_PARTNER_CREATE_FAILED, createResponse.getParams().getErrMsg());
+            }
+        } catch (Exception e) {
+            log.error(Constants.CONTENT_PARTNER_CREATE_EXCEPTION, e);
+        }
+    }
 
     @Override
-    public ApiResponse read(String id,String token) {
+    public ApiResponse read(String id) {
         log.info("ContentPartnerRegistrationServiceImpl::read:reading information about the content partner");
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_READ);
-        String userId = accessTokenValidator.verifyUserToken(token);
-        if(userId.equalsIgnoreCase(Constants.UNAUTHORIZED)){
-            ProjectUtil.errorResponse(response, Constants.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
-            return response;
-        }
         if (StringUtils.isEmpty(id)) {
             ProjectUtil.errorResponse(response, Constants.ID_NOT_FOUND, HttpStatus.INTERNAL_SERVER_ERROR);
             return response;
