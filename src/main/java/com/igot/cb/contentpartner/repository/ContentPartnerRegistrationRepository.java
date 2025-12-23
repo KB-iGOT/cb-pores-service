@@ -13,5 +13,25 @@ public interface ContentPartnerRegistrationRepository extends JpaRepository<Cont
     @Query(value = "SELECT * FROM content_partner_registration WHERE data->>'email' = :email", nativeQuery = true)
     Optional<ContentPartnerRegistrationEntity> findByContentPartnerEmail(@Param("email") String email);
     Optional<ContentPartnerRegistrationEntity> findById(String id);
+    @Query(
+            value = """
+        SELECT * FROM content_partner_registration
+        WHERE data ->> 'email' = :email
+        """,
+            nativeQuery = true
+    )
+    Optional<ContentPartnerRegistrationEntity> findByEmail(@Param("email") String email);
+    @Query(
+            value = """
+        SELECT * FROM content_partner_registration
+        WHERE id = :id
+        AND data ->> 'email' = :email
+        """,
+            nativeQuery = true
+    )
+    Optional<ContentPartnerRegistrationEntity> findByIdAndEmail(
+            @Param("id") String id,
+            @Param("email") String email
+    );
 
 }

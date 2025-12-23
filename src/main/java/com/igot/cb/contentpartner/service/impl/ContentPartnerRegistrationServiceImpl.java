@@ -205,38 +205,73 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
     }
 
     @Override
-    public ApiResponse read(String id) {
-        log.info("ContentPartnerRegistrationServiceImpl::read:reading information about the content partner");
-        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_READ);
-        if (StringUtils.isEmpty(id)) {
-            ProjectUtil.errorResponse(response, Constants.ID_NOT_FOUND, HttpStatus.INTERNAL_SERVER_ERROR);
+    public ApiResponse read(String id, String email) {
+
+        log.info("ContentPartnerRegistrationServiceImpl::read");
+        ApiResponse response =
+                ProjectUtil.createDefaultResponse(Constants.API_PARTNER_READ);
+
+        if (StringUtils.isAllEmpty(id, email)) {
+            ProjectUtil.errorResponse(
+                    response,
+                    "Either id or email must be provided",
+                    HttpStatus.BAD_REQUEST
+            );
             return response;
         }
+
         try {
-            String cachedJson = cacheService.getCache(id);
-            if (StringUtils.isNotEmpty(cachedJson)) {
-                log.info("Record coming from redis cache");
-                response.setResult(objectMapper.readValue(cachedJson, new TypeReference<Map>() {
-                }));
+            Optional<ContentPartnerRegistrationEntity> entityOptional;
+
+            if (StringUtils.isNotEmpty(id) && StringUtils.isNotEmpty(email)) {
+                entityOptional = registrationRepository.findByIdAndEmail(id, email);
+            } else if (StringUtils.isNotEmpty(id)) {
+                entityOptional = registrationRepository.findById(id);
             } else {
-                Optional<ContentPartnerRegistrationEntity> entityOptional = registrationRepository.findById(id);
-                if (entityOptional.isPresent()) {
-                    ContentPartnerRegistrationEntity entity = entityOptional.get();
-                    cacheService.putCache(id, entity);
-                    log.info("Record coming from postgres db");
-                    response.setResult(objectMapper.convertValue(entity, Map.class));
-                } else {
-                    ProjectUtil.errorResponse(response, Constants.INVALID_ID, HttpStatus.BAD_REQUEST);
-                    return response;
-                }
+                entityOptional = registrationRepository.findByEmail(email);
             }
+
+            if (entityOptional.isEmpty()) {
+
+                // ✅ input-specific error message
+                if (StringUtils.isNotEmpty(id) && StringUtils.isNotEmpty(email)) {
+                    ProjectUtil.errorResponse(
+                            response,
+                            Constants.INVALID_ID_OR_EMAIL,
+                            HttpStatus.BAD_REQUEST
+                    );
+                } else if (StringUtils.isNotEmpty(email)) {
+                    ProjectUtil.errorResponse(
+                            response,
+                            Constants.INVALID_EMAIL,
+                            HttpStatus.BAD_REQUEST
+                    );
+                } else {
+                    ProjectUtil.errorResponse(
+                            response,
+                            Constants.INVALID_ID,
+                            HttpStatus.BAD_REQUEST
+                    );
+                }
+                return response;
+            }
+
+            response.setResult(
+                    objectMapper.convertValue(entityOptional.get(), Map.class)
+            );
+
         } catch (Exception e) {
-            log.error("error while processing", e);
-            ProjectUtil.errorResponse(response, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
-            return response;
+            log.error("Error while reading content partner", e);
+            ProjectUtil.errorResponse(
+                    response,
+                    e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR
+            );
         }
+
         return response;
     }
+
 
     @Override
     public ApiResponse searchEntity(SearchCriteria searchCriteria,String token) {

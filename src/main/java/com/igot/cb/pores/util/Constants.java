@@ -412,6 +412,8 @@ public class Constants {
     public static final String CONTENT_PARTNER_CREATE_SUCCESS = "Successfully created entry in content partner table for ID: {}";
     public static final String CONTENT_PARTNER_CREATE_FAILED = "Failed to create entry in content partner table. Error: {}";
     public static final String CONTENT_PARTNER_CREATE_EXCEPTION = "Error while creating entry in content partner table";
+    public static final String INVALID_EMAIL = "Invalid email";
+    public static final String INVALID_ID_OR_EMAIL = "Invalid id or email";
 
     private Constants() {
     }
