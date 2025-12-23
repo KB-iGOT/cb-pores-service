@@ -206,7 +206,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         log.info("ContentPartnerRegistrationServiceImpl::read");
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_READ);
         if (StringUtils.isAllEmpty(id, email)) {
-            ProjectUtil.errorResponse(response, "Either id or email must be provided", HttpStatus.BAD_REQUEST);
+            ProjectUtil.errorResponse(response, Constants.ERR_ID_OR_EMAIL_REQUIRED, HttpStatus.BAD_REQUEST);
             return response;
         }
         try {

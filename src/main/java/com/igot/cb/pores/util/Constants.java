@@ -416,11 +416,11 @@ public class Constants {
     public static final String INVALID_EMAIL = "Invalid email";
     public static final String INVALID_ID_OR_EMAIL = "Invalid id or email";
     public static final String DIFFICULTY_LEVEL = "difficultyLevel";
-
     public static final String CHANNEL = "channel";
     public static final String ASCENDING = "ASC";
     public static final String ORDER_BY = "orderBy";
     public static final String ORDER_DIRECTION = "orderDirection";
+    public static final String ERR_ID_OR_EMAIL_REQUIRED = "Either id or email must be provided";
 
     private Constants() {
     }
