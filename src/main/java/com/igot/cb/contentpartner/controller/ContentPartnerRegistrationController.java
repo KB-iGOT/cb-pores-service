@@ -31,8 +31,8 @@ public class ContentPartnerRegistrationController {
     }
 
     @GetMapping("/v1/read/{id}")
-    public ResponseEntity<ApiResponse> read(@PathVariable String id, @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
-        ApiResponse response = partnerService.read(id,token);
+    public ResponseEntity<ApiResponse> read(@PathVariable String id ) {
+        ApiResponse response = partnerService.read(id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
