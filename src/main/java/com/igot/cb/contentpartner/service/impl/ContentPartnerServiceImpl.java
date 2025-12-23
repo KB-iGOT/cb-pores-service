@@ -174,7 +174,10 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
             response.setResponseCode(HttpStatus.BAD_REQUEST);
             return response;
         }
-        String id = partnerDetails.path(Constants.ID).asText();
+        String id = null;
+        if (partnerDetails != null && partnerDetails.hasNonNull(Constants.ID)) {
+            id = partnerDetails.path(Constants.ID).asText();
+        }
         ((ObjectNode) partnerDetails).set(Constants.PARTNERCODE, partnerDetails.get("partnerCode"));
         ((ObjectNode) partnerDetails).put(Constants.ID, id);
         ((ObjectNode) partnerDetails).put(Constants.IS_ACTIVE, Constants.ACTIVE_STATUS);

@@ -137,7 +137,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         String existingId = partnerDetails.path(Constants.ID).asText(null);
         String newStatus = partnerDetails.path(Constants.STATUS).asText(null);
 
-        if (existingId == null || newStatus == null) {
+        if (StringUtils.isBlank(existingId) || StringUtils.isBlank(newStatus)) {
             ProjectUtil.errorResponse(response, "id and status are required", HttpStatus.BAD_REQUEST);
             return response;
         }
