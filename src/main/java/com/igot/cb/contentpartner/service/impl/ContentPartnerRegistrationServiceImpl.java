@@ -28,10 +28,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.sql.Timestamp;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @Slf4j
@@ -162,6 +159,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         dataNode.put(Constants.UPDATED_ON, now.toString());
         dataNode.put(Constants.ID, existingId);
         ContentPartnerRegistrationEntity updated = registrationRepository.save(entity);
+// updated will pass to create content partner api
         saveContentPartnerIfApproved(updated, newStatus);
         Map<String, Object> esMap = objectMapper.convertValue(updated.getData(), Map.class);
         esUtilService.updateDocument(
@@ -191,7 +189,8 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
             return;
         }
         try {
-            JsonNode registrationData = registrationEntity.getData();
+            ObjectNode registrationData = registrationEntity.getData().deepCopy();
+            registrationData.remove(List.of(Constants.CREATED_ON, Constants.UPDATED_ON, Constants.STATUS,Constants.EMAIL,Constants.PHONE_NUMBER));
             log.info(Constants.CONTENT_PARTNER_CREATE_START, registrationEntity.getId());
             ApiResponse createResponse = contentPartnerService.createContentPartner(registrationData);
             if (HttpStatus.OK.equals(createResponse.getResponseCode())) {

@@ -8,25 +8,32 @@
     "contentPartnerName": {
       "type": "string"
     },
-    "link": {
+    "contactName": {
       "type": "string"
     },
-    "providerTips": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
+    "email": {
+      "type": "string",
+      "format": "email"
     },
-    "partnerCode": {
+    "phone": {
       "type": "string"
+    },
+    "websiteUrl": {
+      "type": "string",
+      "format": "uri"
+    },
+    "description": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["PENDING", "APPROVED", "REJECTED"]
     }
   },
   "required": [
-    "id",
     "contentPartnerName",
-    "providerTips",
-    "partnerCode",
-    "link"
+    "websiteUrl",
+    "description"
   ],
   "additionalProperties": false
 }
