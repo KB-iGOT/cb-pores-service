@@ -302,53 +302,19 @@ class ContentPartnerRegistrationServiceImplTest {
 
     // READ TEST CASES
     @Test
-    void testRead_Success_FromCache() throws Exception {
-
-        String id = "test-id-123";
-
-        Map<String, Object> cachedData =
-                Map.of("id", id, "contentPartnerName", "Org1");
-
-        String cachedJson = realMapper.writeValueAsString(cachedData);
-
-        when(cacheService.getCache(id)).thenReturn(cachedJson);
-        when(objectMapper.readValue(eq(cachedJson), any(TypeReference.class)))
-                .thenReturn(cachedData);
-
-        ApiResponse response = service.read(id, null);
-
-        assertEquals(HttpStatus.OK, response.getResponseCode());
-        assertEquals(cachedData, response.getResult());
-    }
-
-
-    @Test
     void testRead_Success_FromDatabase() {
 
-        String id = "123";
+        String id = "test-id-123";
 
         ContentPartnerRegistrationEntity entity =
                 new ContentPartnerRegistrationEntity();
         entity.setId(id);
 
-        ObjectNode data = realMapper.createObjectNode();
-        data.put("id", id);
-        data.put("contentPartnerName", "Org2");
-        data.put("email", "org2@gmail.com");
-        data.put("status", Constants.APPROVED);
-
-        entity.setData(data);
-        entity.setCreatedOn(new Timestamp(System.currentTimeMillis()));
-        entity.setUpdatedOn(new Timestamp(System.currentTimeMillis()));
-
         when(registrationRepository.findById(id))
                 .thenReturn(Optional.of(entity));
 
-        Map<String, Object> expectedResult = new HashMap<>();
-        expectedResult.put("id", id);
-
         when(objectMapper.convertValue(entity, Map.class))
-                .thenReturn(expectedResult);
+                .thenReturn(Map.of("id", id));
 
         ApiResponse response = service.read(id, null);
 
@@ -356,16 +322,13 @@ class ContentPartnerRegistrationServiceImplTest {
         assertEquals(id, response.getResult().get("id"));
     }
 
+
     @Test
     void testRead_NotFound() {
 
         String id = "unknown";
-
-        when(registrationRepository.findById(id))
-                .thenReturn(Optional.empty());
-
+        when(registrationRepository.findById(id)).thenReturn(Optional.empty());
         ApiResponse response = service.read(id, null);
-
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals(Constants.INVALID_ID, response.getParams().getErrMsg());
     }

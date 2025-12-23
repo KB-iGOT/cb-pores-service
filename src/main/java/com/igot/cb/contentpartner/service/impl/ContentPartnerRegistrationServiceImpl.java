@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.igot.cb.authentication.util.AccessTokenValidator;
-import com.igot.cb.contentpartner.entity.ContentPartnerEntity;
 import com.igot.cb.contentpartner.entity.ContentPartnerRegistrationEntity;
 import com.igot.cb.contentpartner.repository.ContentPartnerRegistrationRepository;
 import com.igot.cb.contentpartner.repository.ContentPartnerRepository;
@@ -204,23 +203,14 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
 
     @Override
     public ApiResponse read(String id, String email) {
-
         log.info("ContentPartnerRegistrationServiceImpl::read");
-        ApiResponse response =
-                ProjectUtil.createDefaultResponse(Constants.API_PARTNER_READ);
-
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_READ);
         if (StringUtils.isAllEmpty(id, email)) {
-            ProjectUtil.errorResponse(
-                    response,
-                    "Either id or email must be provided",
-                    HttpStatus.BAD_REQUEST
-            );
+            ProjectUtil.errorResponse(response, "Either id or email must be provided", HttpStatus.BAD_REQUEST);
             return response;
         }
-
         try {
             Optional<ContentPartnerRegistrationEntity> entityOptional;
-
             if (StringUtils.isNotEmpty(id) && StringUtils.isNotEmpty(email)) {
                 entityOptional = registrationRepository.findByIdAndEmail(id, email);
             } else if (StringUtils.isNotEmpty(id)) {
@@ -228,48 +218,23 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
             } else {
                 entityOptional = registrationRepository.findByEmail(email);
             }
-
             if (entityOptional.isEmpty()) {
-
-                // ✅ input-specific error message
                 if (StringUtils.isNotEmpty(id) && StringUtils.isNotEmpty(email)) {
-                    ProjectUtil.errorResponse(
-                            response,
-                            Constants.INVALID_ID_OR_EMAIL,
-                            HttpStatus.BAD_REQUEST
-                    );
+                    ProjectUtil.errorResponse(response, Constants.INVALID_ID_OR_EMAIL, HttpStatus.BAD_REQUEST);
                 } else if (StringUtils.isNotEmpty(email)) {
-                    ProjectUtil.errorResponse(
-                            response,
-                            Constants.INVALID_EMAIL,
-                            HttpStatus.BAD_REQUEST
-                    );
+                    ProjectUtil.errorResponse(response, Constants.INVALID_EMAIL, HttpStatus.BAD_REQUEST);
                 } else {
-                    ProjectUtil.errorResponse(
-                            response,
-                            Constants.INVALID_ID,
-                            HttpStatus.BAD_REQUEST
-                    );
+                    ProjectUtil.errorResponse(response, Constants.INVALID_ID, HttpStatus.BAD_REQUEST);
                 }
                 return response;
             }
-
-            response.setResult(
-                    objectMapper.convertValue(entityOptional.get(), Map.class)
-            );
-
+            response.setResult(objectMapper.convertValue(entityOptional.get(), Map.class));
         } catch (Exception e) {
             log.error("Error while reading content partner", e);
-            ProjectUtil.errorResponse(
-                    response,
-                    e.getMessage(),
-                    HttpStatus.INTERNAL_SERVER_ERROR
-            );
+            ProjectUtil.errorResponse(response, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
-
         return response;
     }
-
 
     @Override
     public ApiResponse searchEntity(SearchCriteria searchCriteria,String token) {
