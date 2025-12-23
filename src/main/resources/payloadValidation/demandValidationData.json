@@ -9,7 +9,8 @@
       "type": "string"
     },
     "typeOfUser": {
-      "type": "string"
+      "type": "string",
+      "enum": ["Initiator", "Reviewer", "Decision Maker", "Strategic", "Policy Maker"]
     },
     "learningMode": {
       "type": "string",
