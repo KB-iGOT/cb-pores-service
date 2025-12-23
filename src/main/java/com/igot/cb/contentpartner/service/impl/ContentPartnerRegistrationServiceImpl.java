@@ -159,7 +159,6 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         dataNode.put(Constants.UPDATED_ON, now.toString());
         dataNode.put(Constants.ID, existingId);
         ContentPartnerRegistrationEntity updated = registrationRepository.save(entity);
-// updated will pass to create content partner api
         saveContentPartnerIfApproved(updated, newStatus);
         Map<String, Object> esMap = objectMapper.convertValue(updated.getData(), Map.class);
         esUtilService.updateDocument(
