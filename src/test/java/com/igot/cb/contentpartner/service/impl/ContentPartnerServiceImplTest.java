@@ -710,7 +710,6 @@ class ContentPartnerServiceImplTest {
         assertEquals(HttpStatus.OK, resp.getResponseCode());
         verify(entityRepository).save(any(ContentPartnerEntity.class));
         verify(esUtilService).updateDocument(eq(Constants.CONTENT_PROVIDER_INDEX_NAME), eq(Constants.INDEX_TYPE), eq("id-123"), anyMap(), anyString());
-        verify(cacheService).putCache(eq("id-123"), any());
     }
     @Test
     void testUpdateContentPartner_NotFound_ReturnsBadRequest() {

@@ -152,5 +152,41 @@
   },
   "searchTags": {
     "type": "keyword"
+  },
+
+  "proficiencyLevel": {
+    "type": "keyword"
+  },
+
+  "estimatedDuration": {
+    "type": "keyword",
+    "description": "Stored as hh:mm:ss"
+  },
+
+  "courseLanguage": {
+    "type": "keyword"
+  },
+
+  "sectoralSubjectMatterExpertAvailable": {
+    "type": "boolean"
+  },
+
+  "sectoralSubjectMatterExpertDetails": {
+    "type": "nested",
+    "properties": {
+      "name": {
+        "type": "keyword"
+      },
+      "number": {
+        "type": "keyword"
+      },
+      "email": {
+        "type": "keyword"
+      }
+    }
+  },
+
+  "courseDigitisationAgencyRequired": {
+    "type": "boolean"
   }
 }

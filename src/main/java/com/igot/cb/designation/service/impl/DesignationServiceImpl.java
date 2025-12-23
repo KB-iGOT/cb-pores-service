@@ -589,6 +589,10 @@ public class DesignationServiceImpl implements DesignationService {
           Constants.FAILED_CONST);
       return response;
     }
+      if (searchString != null && searchString.length() > 200) {
+          String trimmed = searchString.substring(0, 200);
+          searchCriteria.setSearchString(trimmed);
+      }
     try {
       if (searchCriteria.getStartsWith() != null && StringUtils.isNotBlank(searchCriteria.getStartsWith())) {
         searchCriteria.setStartsWithField(Constants.DESIGNATION);

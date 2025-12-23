@@ -67,6 +67,17 @@ public class AnnouncementServiceImpl implements AnnouncementService {
   @Value("${search.result.redis.ttl}")
   private long searchResultRedisTtl;
 
+  @Value("${search.criteria.default.page.number}")
+  private int defaultPageNumber;
+
+  @Value("${search.criteria.default.page.size}")
+  private int defaultPageSize;
+
+  @Value("${search.criteria.default.facets}")
+  private String facetsConfig;
+
+  @Value("${search.criteria.default.requested.fields}")
+  private String requestedFieldsConfig;
 
   @Override
   public CustomResponse createAnnouncement(JsonNode announcementEntity) {
@@ -315,12 +326,15 @@ public class AnnouncementServiceImpl implements AnnouncementService {
       ObjectNode jsonNode = objectMapper.createObjectNode();
       jsonNode.set(Constants.ANNOUNCEMENT_ID, new TextNode(fetchedEntity.getAnnouncementId()));
       jsonNode.setAll((ObjectNode) fetchedJsonData);
-
       Map<String, Object> map = objectMapper.convertValue(jsonNode, Map.class);
       esUtilService.addDocument(Constants.ANNOUNCEMENT_INDEX, Constants.INDEX_TYPE,
           id, map, requiredJsonFilePath);
-
       cacheService.putCache(fetchedEntity.getAnnouncementId(), jsonNode);
+      try {
+          buildDefaultRequest(fetchedJsonData.get(Constants.CHANNEL).asText());
+      } catch (Exception e) {
+          throw new CustomException(Constants.ERROR, Constants.NO_DATA_FOUND, HttpStatus.INTERNAL_SERVER_ERROR);
+      }
       log.info("deleted announcement");
       map.put(Constants.ANNOUNCEMENT_ID, fetchedEntity.getAnnouncementId());
       response.setResult(map);
@@ -332,4 +346,27 @@ public class AnnouncementServiceImpl implements AnnouncementService {
       throw new CustomException(Constants.ERROR, Constants.NO_DATA_FOUND, HttpStatus.NOT_FOUND);
     }
   }
+
+  public void buildDefaultRequest(String channelId) throws Exception {
+      SearchCriteria criteria = new SearchCriteria();
+
+      HashMap<String, Object> filterCriteriaMap = new HashMap<>();
+      filterCriteriaMap.put(Constants.CHANNEL, Collections.singletonList(channelId));
+      filterCriteriaMap.put(Constants.STATUS, Constants.ACTIVE);
+      criteria.setFilterCriteriaMap(filterCriteriaMap);
+      List<String> requestedFields = Arrays.stream(requestedFieldsConfig.split(","))
+              .map(String::trim)
+              .toList();
+
+      criteria.setRequestedFields(requestedFields);
+      criteria.setOrderBy(Constants.CREATED_ON);
+      criteria.setOrderDirection(Constants.ASCENDING);
+      List<String> defaultFacets = Arrays.stream(facetsConfig.split(","))
+              .map(String::trim)
+              .toList();
+      criteria.setFacets(defaultFacets);
+      criteria.setPageNumber(defaultPageNumber);
+      criteria.setPageSize(defaultPageSize);
+      redisTemplate.delete(generateRedisJwtTokenKey(criteria));
+    }
 }

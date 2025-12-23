@@ -93,10 +93,11 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                         });
                 esUtilService.updateDocument(Constants.CONTENT_PROVIDER_INDEX_NAME, Constants.INDEX_TYPE, existingId, jsonMap, cbServerProperties.getElasticContentJsonPath());
                 Map<String, Object> result = objectMapper.convertValue(updateJsonEntity, Map.class);
-                cacheService.putCache(updateJsonEntity.getId(), result);
-                if (!partnerDetails.path(Constants.PARTNERCODE).isMissingNode()) {
+
+                if (jsonMap != null && StringUtils.isNotBlank((String) jsonMap.get(Constants.PARTNERCODE))) {
                     log.info(Constants.CONTENT_PARTNER_UPDATE_CACHE_DELETE, partnerDetails.path(Constants.PARTNERCODE).asText());
-                    cacheService.deleteCache(partnerDetails.get(Constants.PARTNERCODE).asText());
+                    cacheService.deleteCache((String) jsonMap.get(Constants.PARTNERCODE));
+                    cacheService.deleteCache(updateJsonEntity.getId());
                 }
                 log.info(Constants.UPDATED_CONTENT_PARTNER);
                 response.setResult(result);
@@ -223,7 +224,27 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
 
     private JsonNode addSearchTags(JsonNode formattedData) {
         List<String> searchTags = new ArrayList<>();
-        searchTags.add(formattedData.get("contentPartnerName").textValue().toLowerCase());
+
+        // Preserve existing searchTags if present
+        if (formattedData.has("searchTags") && formattedData.get("searchTags").isArray()) {
+            ArrayNode existingSearchTags = (ArrayNode) formattedData.get("searchTags");
+            existingSearchTags.forEach(tag -> {
+                if (tag.isTextual() && !tag.asText().isEmpty()) {
+                    searchTags.add(tag.asText());
+                }
+            });
+        }
+
+        // Add contentPartnerName to searchTags
+        if (formattedData.has("contentPartnerName")) {
+            String partnerName = formattedData.get("contentPartnerName").textValue();
+            if (StringUtils.isNotBlank(partnerName)) {
+                if (!searchTags.contains(partnerName.toLowerCase())) {
+                    searchTags.add(partnerName.toLowerCase());
+                }
+            }
+        }
+
         ArrayNode searchTagsArray = objectMapper.valueToTree(searchTags);
         ((ObjectNode) formattedData).put("searchTags", searchTagsArray);
         return formattedData;
@@ -313,6 +334,7 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                     Map<String, Object> map = objectMapper.convertValue(josnEntity.getData(), Map.class);
                     esUtilService.addDocument(Constants.CONTENT_PROVIDER_INDEX_NAME, Constants.INDEX_TYPE, id, map, cbServerProperties.getElasticContentJsonPath());
                     cacheService.deleteCache(id);
+                    cacheService.deleteCache((String) map.get(Constants.PARTNERCODE));
                     Map<String,Object> map1=new HashMap<>();
                     map1.put(id,Constants.DELETED_SUCCESSFULLY);
                     response.setResponseCode(HttpStatus.OK);

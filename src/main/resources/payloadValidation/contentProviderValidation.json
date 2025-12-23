@@ -8,7 +8,7 @@
     "contentPartnerName": {
       "minLength": 3,
       "maxLength": 70,
-      "pattern": "^[a-zA-Z][a-zA-Z0-9\\.\\-_\\$/:\\[\\]'!\\s]*$",
+      "pattern": "^[a-zA-Z][a-zA-Z0-9\\.\\-_\\$/:\\[\\]'!\\s\\(\\)]*$",
       "type": "string"
     },
     "description": {
@@ -110,6 +110,16 @@
     "karmaPoints": {
       "type": "number",
       "minimum": 0
+    },
+    "internalOrgId": {
+      "type": "string"
+    },
+    "providerType": {
+      "type": "string",
+      "enum": ["external", "internal"]
+    },
+    "isTrainingInstitution": {
+      "type": "boolean"
     }
   },
   "required": [
@@ -141,10 +151,7 @@
         "required": ["isConcurrentLimitEnabled"]
       },
       "then": {
-        "required": ["concurrentLimit", "userWiseLimit", "isUserWiseLimitEnabled"],
-        "properties": {
-          "isUserWiseLimitEnabled": { "const": true }
-        }
+        "required": ["concurrentLimit"]
       }
     },
     {

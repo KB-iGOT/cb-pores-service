@@ -312,8 +312,8 @@ public class Constants {
     public static final String FRAMEWORK = "framework";
     public static final String CHANNELS = "channels";
     public static final String MASTER = "master";
-    public static final String CONTENT_PROVIDER_INDEX_NAME = "content_provider";
     public static final String CONTENT_PARTNER_REGISTRATION_INDEX_NAME = "content_provider_registration";
+    public static final String CONTENT_PROVIDER_INDEX_NAME = "content_provider_alias";
     public static final String CONTENT_PARTNER = "contentPartner";
     public static final String PENDING = "PENDING";
     public static final String APPROVED = "APPROVED";
@@ -415,6 +415,13 @@ public class Constants {
     public static final String CONTENT_PARTNER_CREATE_EXCEPTION = "Error while creating entry in content partner table";
     public static final String INVALID_EMAIL = "Invalid email";
     public static final String INVALID_ID_OR_EMAIL = "Invalid id or email";
+    public static final String DIFFICULTY_LEVEL = "difficultyLevel";
+
+    public static final String CHANNEL = "channel";
+    public static final String ASCENDING = "ASC";
+    public static final String ORDER_BY = "orderBy";
+    public static final String ORDER_DIRECTION = "orderDirection";
+
     private Constants() {
     }
 }

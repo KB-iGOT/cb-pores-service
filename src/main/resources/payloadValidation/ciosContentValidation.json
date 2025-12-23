@@ -50,6 +50,9 @@
         },
         "isActive": {
           "type": "boolean"
+        },
+        "programId": {
+          "type": "string"
         }
       },
       "required": [
