@@ -210,23 +210,33 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
             return response;
         }
         try {
-            Optional<ContentPartnerRegistrationEntity> entityOptional;
+            Optional<ContentPartnerRegistrationEntity> entityOptional = Optional.empty();
             if (StringUtils.isNotEmpty(id) && StringUtils.isNotEmpty(email)) {
-                entityOptional = registrationRepository.findByIdAndEmail(id, email);
-            } else if (StringUtils.isNotEmpty(id)) {
-                entityOptional = registrationRepository.findById(id);
-            } else {
-                entityOptional = registrationRepository.findByEmail(email);
-            }
-            if (entityOptional.isEmpty()) {
-                if (StringUtils.isNotEmpty(id) && StringUtils.isNotEmpty(email)) {
-                    ProjectUtil.errorResponse(response, Constants.INVALID_ID_OR_EMAIL, HttpStatus.BAD_REQUEST);
-                } else if (StringUtils.isNotEmpty(email)) {
-                    ProjectUtil.errorResponse(response, Constants.INVALID_EMAIL, HttpStatus.BAD_REQUEST);
-                } else {
-                    ProjectUtil.errorResponse(response, Constants.INVALID_ID, HttpStatus.BAD_REQUEST);
+                String fetchedId = fetchIdFromElasticsearch(email);
+                if (fetchedId != null && fetchedId.equals(id)) {
+                    entityOptional = registrationRepository.findById(id);
                 }
-                return response;
+                if (entityOptional.isEmpty()) {
+                    ProjectUtil.errorResponse(response, Constants.INVALID_ID_OR_EMAIL, HttpStatus.BAD_REQUEST);
+                    return response;
+                }
+            }
+            else if (StringUtils.isNotEmpty(id)) {
+                entityOptional = registrationRepository.findById(id);
+                if (entityOptional.isEmpty()) {
+                    ProjectUtil.errorResponse(response, Constants.INVALID_ID, HttpStatus.BAD_REQUEST);
+                    return response;
+                }
+            }
+            else {
+                String fetchedId = fetchIdFromElasticsearch(email);
+                if (fetchedId != null) {
+                    entityOptional = registrationRepository.findById(fetchedId);
+                }
+                if (entityOptional.isEmpty()) {
+                    ProjectUtil.errorResponse(response, Constants.INVALID_EMAIL, HttpStatus.BAD_REQUEST);
+                    return response;
+                }
             }
             response.setResult(objectMapper.convertValue(entityOptional.get(), Map.class));
         } catch (Exception e) {
@@ -234,6 +244,36 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
             ProjectUtil.errorResponse(response, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
         return response;
+    }
+    private String fetchIdFromElasticsearch(String email) {
+        try {
+            log.info("Fetching ID from Elasticsearch for email: {}", email);
+            SearchCriteria searchCriteria = new SearchCriteria();
+            HashMap<String, Object> filterCriteriaMap = new HashMap<>();
+            filterCriteriaMap.put("email", email);
+            searchCriteria.setFilterCriteriaMap(filterCriteriaMap);
+            searchCriteria.setRequestedFields(Arrays.asList("id"));
+            log.info("Search criteria for email lookup: filterCriteriaMap={}", filterCriteriaMap);
+            SearchResult searchResult = esUtilService.searchDocuments(Constants.CONTENT_PARTNER_REGISTRATION_INDEX_NAME, searchCriteria);
+            if (searchResult != null && searchResult.getData() != null) {
+                JsonNode dataNode = searchResult.getData();
+                log.info("Elasticsearch response for email {}: totalCount={}, data={}",
+                        email, searchResult.getTotalCount(), dataNode);
+                if (dataNode.isArray() && dataNode.size() > 0) {
+                    JsonNode firstResult = dataNode.get(0);
+                    if (firstResult.has("id")) {
+                        String fetchedId = firstResult.get("id").asText();
+                        log.info("Found ID in Elasticsearch for email {}: {}", email, fetchedId);
+                        return fetchedId;
+                    }
+                }
+            }
+            log.warn("No record found in Elasticsearch for email: {}", email);
+            return null;
+        } catch (Exception e) {
+            log.error("Error fetching ID from Elasticsearch for email: {}", email, e);
+            return null;
+        }
     }
 
     @Override
