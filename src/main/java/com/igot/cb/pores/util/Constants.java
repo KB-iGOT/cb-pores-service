@@ -421,6 +421,9 @@ public class Constants {
     public static final String ORDER_BY = "orderBy";
     public static final String ORDER_DIRECTION = "orderDirection";
     public static final String ERR_ID_OR_EMAIL_REQUIRED = "Either id or email must be provided";
+    public static final String ES_ID_FOUND_FOR_EMAIL = "Found ID in Elasticsearch for email {}: {}";
+    public static final String ES_NO_RECORD_FOR_EMAIL = "No record found in Elasticsearch for email: {}";
+    public static final String ES_ERROR_FETCHING_ID_FOR_EMAIL = "Error fetching ID from Elasticsearch for email: {}";
 
     private Constants() {
     }

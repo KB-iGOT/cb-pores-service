@@ -253,25 +253,22 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
             filterCriteriaMap.put("email", email);
             searchCriteria.setFilterCriteriaMap(filterCriteriaMap);
             searchCriteria.setRequestedFields(Arrays.asList("id"));
-            log.info("Search criteria for email lookup: filterCriteriaMap={}", filterCriteriaMap);
             SearchResult searchResult = esUtilService.searchDocuments(Constants.CONTENT_PARTNER_REGISTRATION_INDEX_NAME, searchCriteria);
             if (searchResult != null && searchResult.getData() != null) {
                 JsonNode dataNode = searchResult.getData();
-                log.info("Elasticsearch response for email {}: totalCount={}, data={}",
-                        email, searchResult.getTotalCount(), dataNode);
                 if (dataNode.isArray() && dataNode.size() > 0) {
                     JsonNode firstResult = dataNode.get(0);
                     if (firstResult.has("id")) {
                         String fetchedId = firstResult.get("id").asText();
-                        log.info("Found ID in Elasticsearch for email {}: {}", email, fetchedId);
+                        log.info(Constants.ES_ID_FOUND_FOR_EMAIL, email, fetchedId);
                         return fetchedId;
                     }
                 }
             }
-            log.warn("No record found in Elasticsearch for email: {}", email);
+            log.warn(Constants.ES_NO_RECORD_FOR_EMAIL, email);
             return null;
         } catch (Exception e) {
-            log.error("Error fetching ID from Elasticsearch for email: {}", email, e);
+            log.error(Constants.ES_ERROR_FETCHING_ID_FOR_EMAIL, email, e);
             return null;
         }
     }
