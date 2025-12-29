@@ -349,21 +349,48 @@ class ContentPartnerRegistrationServiceImplTest {
         );
     }
     @Test
-    void testRead_ByEmail_Success() {
+    void testRead_ByEmail_Success() throws Exception {
         String email = "org1@gmail.com";
+        String id = "id-1";
         ContentPartnerRegistrationEntity entity = new ContentPartnerRegistrationEntity();
-        entity.setId("id-1");
-        when(registrationRepository.findByEmail(email)).thenReturn(Optional.of(entity));
-        when(objectMapper.convertValue(entity, Map.class)).thenReturn(Map.of("email", email));
+        entity.setId(id);
+        SearchResult searchResult = new SearchResult();
+        searchResult.setData(realMapper.valueToTree(List.of(Map.of(Constants.ID, id))));
+        when(esUtilService.searchDocuments(eq(Constants.CONTENT_PARTNER_REGISTRATION_INDEX_NAME), any(SearchCriteria.class))).thenReturn(searchResult);
+        when(registrationRepository.findById(id))
+                .thenReturn(Optional.of(entity));
+        when(objectMapper.convertValue(entity, Map.class))
+                .thenReturn(Map.of("email", email));
         ApiResponse response = service.read(null, email);
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(email, response.getResult().get("email"));
     }
 
     @Test
-    void testRead_ByIdAndEmail_NotFound() {
-        when(registrationRepository.findByIdAndEmail("1", "a@b.com")).thenReturn(Optional.empty());
-        ApiResponse response = service.read("1", "a@b.com");
+    void testRead_ByEmail_NotFoundInES() throws Exception {
+        SearchResult searchResult = new SearchResult();
+        searchResult.setData(realMapper.createArrayNode());
+        when(esUtilService.searchDocuments(
+                eq(Constants.CONTENT_PARTNER_REGISTRATION_INDEX_NAME),
+                any(SearchCriteria.class)
+        )).thenReturn(searchResult);
+        ApiResponse response = service.read(null, "noone@gmail.com");
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(Constants.INVALID_EMAIL, response.getParams().getErrMsg());
+    }
+
+    @Test
+    void testRead_ByIdAndEmail_NotFound() throws Exception {
+        String email = "a@b.com";
+        String providedId = "1";
+        String esId = "2";
+        SearchResult searchResult = new SearchResult();
+        searchResult.setData(realMapper.valueToTree(List.of(Map.of(Constants.ID, esId))));
+        when(esUtilService.searchDocuments(
+                eq(Constants.CONTENT_PARTNER_REGISTRATION_INDEX_NAME),
+                any(SearchCriteria.class)
+        )).thenReturn(searchResult);
+        ApiResponse response = service.read(providedId, email);
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals(Constants.INVALID_ID_OR_EMAIL, response.getParams().getErrMsg());
     }
