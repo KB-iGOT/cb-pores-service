@@ -335,9 +335,9 @@ class ContentPartnerRegistrationServiceImplTest {
 
     @Test
     void testRead_EmptyId() {
-        ApiResponse response = service.read("");
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-        assertEquals(Constants.ID_NOT_FOUND, response.getParams().getErrMsg());
+        ApiResponse response = service.read("", null);
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(Constants.ERR_ID_OR_EMAIL_REQUIRED, response.getParams().getErrMsg());
     }
     @Test
     void testRead_CacheException() throws Exception {
