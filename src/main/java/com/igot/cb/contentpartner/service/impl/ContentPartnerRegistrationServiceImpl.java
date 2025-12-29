@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.igot.cb.authentication.util.AccessTokenValidator;
-import com.igot.cb.contentpartner.entity.ContentPartnerEntity;
 import com.igot.cb.contentpartner.entity.ContentPartnerRegistrationEntity;
 import com.igot.cb.contentpartner.repository.ContentPartnerRegistrationRepository;
 import com.igot.cb.contentpartner.repository.ContentPartnerRepository;
@@ -203,37 +202,75 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
     }
 
     @Override
-    public ApiResponse read(String id) {
-        log.info("ContentPartnerRegistrationServiceImpl::read:reading information about the content partner");
+    public ApiResponse read(String id, String email) {
+        log.info("ContentPartnerRegistrationServiceImpl::read");
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_READ);
-        if (StringUtils.isEmpty(id)) {
-            ProjectUtil.errorResponse(response, Constants.ID_NOT_FOUND, HttpStatus.INTERNAL_SERVER_ERROR);
+        if (StringUtils.isAllEmpty(id, email)) {
+            ProjectUtil.errorResponse(response, Constants.ERR_ID_OR_EMAIL_REQUIRED, HttpStatus.BAD_REQUEST);
             return response;
         }
         try {
-            String cachedJson = cacheService.getCache(id);
-            if (StringUtils.isNotEmpty(cachedJson)) {
-                log.info("Record coming from redis cache");
-                response.setResult(objectMapper.readValue(cachedJson, new TypeReference<Map>() {
-                }));
-            } else {
-                Optional<ContentPartnerRegistrationEntity> entityOptional = registrationRepository.findById(id);
-                if (entityOptional.isPresent()) {
-                    ContentPartnerRegistrationEntity entity = entityOptional.get();
-                    cacheService.putCache(id, entity);
-                    log.info("Record coming from postgres db");
-                    response.setResult(objectMapper.convertValue(entity, Map.class));
-                } else {
+            Optional<ContentPartnerRegistrationEntity> entityOptional = Optional.empty();
+            if (StringUtils.isNotEmpty(id) && StringUtils.isNotEmpty(email)) {
+                String fetchedId = fetchIdFromElasticsearch(email);
+                if (StringUtils.isNotBlank(fetchedId) && StringUtils.equals(fetchedId, id)) {
+                    entityOptional = registrationRepository.findById(id);
+                }
+                if (entityOptional.isEmpty()) {
+                    ProjectUtil.errorResponse(response, Constants.INVALID_ID_OR_EMAIL, HttpStatus.BAD_REQUEST);
+                    return response;
+                }
+            }
+            else if (StringUtils.isNotEmpty(id)) {
+                entityOptional = registrationRepository.findById(id);
+                if (entityOptional.isEmpty()) {
                     ProjectUtil.errorResponse(response, Constants.INVALID_ID, HttpStatus.BAD_REQUEST);
                     return response;
                 }
             }
+            else {
+                String fetchedId = fetchIdFromElasticsearch(email);
+                if (StringUtils.isNotBlank(fetchedId)) {
+                    entityOptional = registrationRepository.findById(fetchedId);
+                }
+                if (entityOptional.isEmpty()) {
+                    ProjectUtil.errorResponse(response, Constants.INVALID_EMAIL, HttpStatus.BAD_REQUEST);
+                    return response;
+                }
+            }
+            response.setResult(objectMapper.convertValue(entityOptional.get(), Map.class));
         } catch (Exception e) {
-            log.error("error while processing", e);
+            log.error("Error while reading content partner", e);
             ProjectUtil.errorResponse(response, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
-            return response;
         }
         return response;
+    }
+    private String fetchIdFromElasticsearch(String email) {
+        try {
+            log.info("Fetching ID from Elasticsearch for email: {}", email);
+            SearchCriteria searchCriteria = new SearchCriteria();
+            HashMap<String, Object> filterCriteriaMap = new HashMap<>();
+            filterCriteriaMap.put(Constants.EMAIL, email);
+            searchCriteria.setFilterCriteriaMap(filterCriteriaMap);
+            searchCriteria.setRequestedFields(Arrays.asList(Constants.ID));
+            SearchResult searchResult = esUtilService.searchDocuments(Constants.CONTENT_PARTNER_REGISTRATION_INDEX_NAME, searchCriteria);
+            if (searchResult != null && searchResult.getData() != null) {
+                JsonNode dataNode = searchResult.getData();
+                if (dataNode.isArray() && dataNode.size() > 0) {
+                    JsonNode firstResult = dataNode.get(0);
+                    if (firstResult.has(Constants.ID)) {
+                        String fetchedId = firstResult.get(Constants.ID).asText();
+                        log.info(Constants.ES_ID_FOUND_FOR_EMAIL, email, fetchedId);
+                        return fetchedId;
+                    }
+                }
+            }
+            log.warn(Constants.ES_NO_RECORD_FOR_EMAIL, email);
+            return null;
+        } catch (Exception e) {
+            log.error(Constants.ES_ERROR_FETCHING_ID_FOR_EMAIL, email, e);
+            return null;
+        }
     }
 
     @Override

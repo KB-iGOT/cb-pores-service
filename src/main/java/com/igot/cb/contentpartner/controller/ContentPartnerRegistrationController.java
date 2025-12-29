@@ -30,9 +30,12 @@ public class ContentPartnerRegistrationController {
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 
-    @GetMapping("/v1/read/{id}")
-    public ResponseEntity<ApiResponse> read(@PathVariable String id ) {
-        ApiResponse response = partnerService.read(id);
+    @GetMapping("/v1/read")
+    public ResponseEntity<ApiResponse> read(
+            @RequestParam(required = false) String id,
+            @RequestParam(required = false) String email) {
+
+        ApiResponse response = partnerService.read(id, email);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 

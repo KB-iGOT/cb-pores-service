@@ -261,11 +261,10 @@ class ContentPartnerRegistrationControllerTest {
     }
 
     @Test
-    void testRead_Success() throws Exception {
+    void testReadById_Success() throws Exception {
+
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
-
         String id = "test-id-123";
-
         ApiResponse mockResponse = new ApiResponse();
         mockResponse.setResponseCode(HttpStatus.OK);
         Map<String, Object> result = new HashMap<>();
@@ -274,35 +273,63 @@ class ContentPartnerRegistrationControllerTest {
         result.put("email", "org1@gmail.com");
         result.put("status", Constants.APPROVED);
         mockResponse.setResult(result);
-
-        when(partnerService.read(eq(id))).thenReturn(mockResponse);
-
-        mockMvc.perform(get("/contentpartner/register/v1/read/" + id))
+        when(partnerService.read(eq(id), isNull())).thenReturn(mockResponse);
+        mockMvc.perform(get("/contentpartner/register/v1/read").param("id", id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.result.id").value(id))
                 .andExpect(jsonPath("$.result.contentPartnerName").value("Org1"))
                 .andExpect(jsonPath("$.responseCode").value("OK"));
-
-        verify(partnerService, times(1)).read(eq(id));
+        verify(partnerService, times(1)).read(eq(id), isNull());
     }
 
     @Test
-    void testRead_NotFound() throws Exception {
+    void testReadById_NotFound() throws Exception {
+
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
-
         String id = "non-existent-id";
-
         ApiResponse mockResponse = new ApiResponse();
         mockResponse.setResponseCode(HttpStatus.BAD_REQUEST);
         mockResponse.getParams().setErrMsg(Constants.INVALID_ID);
+        when(partnerService.read(eq(id), isNull())).thenReturn(mockResponse);
+        mockMvc.perform(get("/contentpartner/register/v1/read").param("id", id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.responseCode").value("BAD_REQUEST"))
+                .andExpect(jsonPath("$.params.errMsg").value(Constants.INVALID_ID));
+        verify(partnerService, times(1)).read(eq(id), isNull());
+    }
+    @Test
+    void testReadByEmail_Success() throws Exception {
 
-        when(partnerService.read(eq(id))).thenReturn(mockResponse);
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        String email = "org1@gmail.com";
+        ApiResponse mockResponse = new ApiResponse();
+        mockResponse.setResponseCode(HttpStatus.OK);
+        Map<String, Object> result = new HashMap<>();
+        result.put("email", email);
+        result.put("contentPartnerName", "Org1");
+        mockResponse.setResult(result);
+        when(partnerService.read(isNull(), eq(email))).thenReturn(mockResponse);
+        mockMvc.perform(get("/contentpartner/register/v1/read").param("email", email))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.email").value(email))
+                .andExpect(jsonPath("$.responseCode").value("OK"));
 
-        mockMvc.perform(get("/contentpartner/register/v1/read/" + id))
+        verify(partnerService, times(1)).read(isNull(), eq(email));
+    }
+
+    @Test
+    void testRead_NoParams_BadRequest() throws Exception {
+
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        ApiResponse mockResponse = new ApiResponse();
+        mockResponse.setResponseCode(HttpStatus.BAD_REQUEST);
+        mockResponse.getParams().setErrMsg("Either id or email must be provided");
+        when(partnerService.read(isNull(), isNull())).thenReturn(mockResponse);
+        mockMvc.perform(get("/contentpartner/register/v1/read"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.responseCode").value("BAD_REQUEST"));
 
-        verify(partnerService, times(1)).read(eq(id));
+        verify(partnerService, times(1)).read(isNull(), isNull());
     }
 
     @Test

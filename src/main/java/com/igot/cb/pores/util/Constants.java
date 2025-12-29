@@ -413,12 +413,17 @@ public class Constants {
     public static final String CONTENT_PARTNER_CREATE_SUCCESS = "Successfully created entry in content partner table for ID: {}";
     public static final String CONTENT_PARTNER_CREATE_FAILED = "Failed to create entry in content partner table. Error: {}";
     public static final String CONTENT_PARTNER_CREATE_EXCEPTION = "Error while creating entry in content partner table";
+    public static final String INVALID_EMAIL = "Invalid email";
+    public static final String INVALID_ID_OR_EMAIL = "Invalid id or email";
     public static final String DIFFICULTY_LEVEL = "difficultyLevel";
-
     public static final String CHANNEL = "channel";
     public static final String ASCENDING = "ASC";
     public static final String ORDER_BY = "orderBy";
     public static final String ORDER_DIRECTION = "orderDirection";
+    public static final String ERR_ID_OR_EMAIL_REQUIRED = "Either id or email must be provided";
+    public static final String ES_ID_FOUND_FOR_EMAIL = "Found ID in Elasticsearch for email {}: {}";
+    public static final String ES_NO_RECORD_FOR_EMAIL = "No record found in Elasticsearch for email: {}";
+    public static final String ES_ERROR_FETCHING_ID_FOR_EMAIL = "Error fetching ID from Elasticsearch for email: {}";
 
     private Constants() {
     }
