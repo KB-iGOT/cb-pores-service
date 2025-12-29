@@ -213,7 +213,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
             Optional<ContentPartnerRegistrationEntity> entityOptional = Optional.empty();
             if (StringUtils.isNotEmpty(id) && StringUtils.isNotEmpty(email)) {
                 String fetchedId = fetchIdFromElasticsearch(email);
-                if (fetchedId != null && fetchedId.equals(id)) {
+                if (StringUtils.isNotBlank(fetchedId) && StringUtils.equals(fetchedId, id)) {
                     entityOptional = registrationRepository.findById(id);
                 }
                 if (entityOptional.isEmpty()) {
@@ -230,7 +230,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
             }
             else {
                 String fetchedId = fetchIdFromElasticsearch(email);
-                if (fetchedId != null) {
+                if (StringUtils.isNotBlank(fetchedId)) {
                     entityOptional = registrationRepository.findById(fetchedId);
                 }
                 if (entityOptional.isEmpty()) {
@@ -250,16 +250,16 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
             log.info("Fetching ID from Elasticsearch for email: {}", email);
             SearchCriteria searchCriteria = new SearchCriteria();
             HashMap<String, Object> filterCriteriaMap = new HashMap<>();
-            filterCriteriaMap.put("email", email);
+            filterCriteriaMap.put(Constants.EMAIL, email);
             searchCriteria.setFilterCriteriaMap(filterCriteriaMap);
-            searchCriteria.setRequestedFields(Arrays.asList("id"));
+            searchCriteria.setRequestedFields(Arrays.asList(Constants.ID));
             SearchResult searchResult = esUtilService.searchDocuments(Constants.CONTENT_PARTNER_REGISTRATION_INDEX_NAME, searchCriteria);
             if (searchResult != null && searchResult.getData() != null) {
                 JsonNode dataNode = searchResult.getData();
                 if (dataNode.isArray() && dataNode.size() > 0) {
                     JsonNode firstResult = dataNode.get(0);
-                    if (firstResult.has("id")) {
-                        String fetchedId = firstResult.get("id").asText();
+                    if (firstResult.has(Constants.ID)) {
+                        String fetchedId = firstResult.get(Constants.ID).asText();
                         log.info(Constants.ES_ID_FOUND_FOR_EMAIL, email, fetchedId);
                         return fetchedId;
                     }
