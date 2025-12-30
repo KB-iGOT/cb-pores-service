@@ -268,7 +268,7 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                 response.setResult(objectMapper.readValue(cachedJson, new TypeReference<Map>() {
                 }));
             } else {
-                Optional<ContentPartnerEntity> entityOptional = entityRepository.findByIdAndIsActive(id, true);
+                Optional<ContentPartnerEntity> entityOptional = entityRepository.findById(id);
                 if (entityOptional.isPresent()) {
                     ContentPartnerEntity entity = entityOptional.get();
                     cacheService.putCache(id, entity);

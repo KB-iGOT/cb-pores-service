@@ -53,6 +53,17 @@
         },
         "programId": {
           "type": "string"
+        },
+        "courseProvider": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": "string",
+              "logoUrl": "string"
+            },
+            "additionalProperties": false
+          }
         }
       },
       "required": [

@@ -633,7 +633,7 @@ class ContentPartnerServiceImplTest {
         mockEntity.setId(ID);
         // Arrange
         when(cacheService.getCache(ID)).thenReturn(null);
-        when(entityRepository.findByIdAndIsActive(ID, true)).thenReturn(Optional.of(mockEntity));
+        when(entityRepository.findById(ID)).thenReturn(Optional.of(mockEntity));
         Map<String, Object> dbMap = Map.of("id", mockEntity.getId(), "partnerCode", "");
         when(objectMapper.convertValue(mockEntity, Map.class)).thenReturn(dbMap);
 
@@ -645,7 +645,7 @@ class ContentPartnerServiceImplTest {
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(dbMap, response.getResult());
 
-        verify(entityRepository).findByIdAndIsActive(ID, true);
+        verify(entityRepository).findById(ID);
         verify(cacheService).putCache(ID, mockEntity);
         verify(objectMapper).convertValue(mockEntity, Map.class);
     }
