@@ -220,7 +220,6 @@ public class EsUtilServiceImpl implements EsUtilService {
         // Add startsWith logic if present
         String startsWith = searchCriteria.getStartsWith();
         String startsWithField = searchCriteria.getStartsWithField();
-        addQueryStringToFilter(searchCriteria.getSearchString(), boolQueryBuilder);
         if (startsWith != null && !startsWith.trim().isEmpty() &&
                 startsWithField != null && !startsWithField.trim().isEmpty()) {
             Query prefixQuery = Query.of(q -> q.prefix(p -> p
@@ -339,36 +338,16 @@ public class EsUtilServiceImpl implements EsUtilService {
         }
     }
 
-    private void addQueryStringToFilter(String searchString,
-                                        BoolQuery.Builder boolQueryBuilder) {
-
+    private void addQueryStringToFilter(String searchString, BoolQuery.Builder boolQueryBuilder) {
         if (isNotBlank(searchString)) {
-
-            String value = "*" + searchString.toLowerCase() + "*";
-
-            BoolQuery.Builder searchBool = new BoolQuery.Builder();
-
-            searchBool.should(q -> q.wildcard(w -> w
-                    .field("searchTags.keyword")
-                    .value(value)
+            Query wildcardQuery = Query.of(q -> q.wildcard(
+                    WildcardQuery.of(w -> w
+                            .field("searchTags.keyword")
+                            .value("*" + searchString.toLowerCase() + "*"))
             ));
-
-            searchBool.should(q -> q.wildcard(w -> w
-                    .field("contentPartnerName.keyword")
-                    .value(value)
-            ));
-
-            searchBool.should(q -> q.wildcard(w -> w
-                    .field("email.keyword")
-                    .value(value)
-            ));
-
-            searchBool.minimumShouldMatch("1");
-
-            boolQueryBuilder.must(q -> q.bool(searchBool.build()));
+            boolQueryBuilder.must(wildcardQuery);
         }
     }
-
 
     private void addFacetsToSearchSourceBuilder(
             List<String> facets, SearchRequest.Builder searchRequestBuilder) {
