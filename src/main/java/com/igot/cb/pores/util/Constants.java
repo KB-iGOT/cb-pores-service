@@ -409,6 +409,7 @@ public class Constants {
     public static final String CONTENT_PARTNER_REG_TEMPLATE = "content_partner_registration_template";
     public static final String WEBSITE_URL = "websiteUrl";
     public static final String PHONE_NUMBER ="phone";
+    public static final String CONTACT_NAME ="contactName";
     public static final String CONTENT_PARTNER_CREATE_START = "Creating entry in content partner table for approved registration: {}";
     public static final String CONTENT_PARTNER_CREATE_SUCCESS = "Successfully created entry in content partner table for ID: {}";
     public static final String CONTENT_PARTNER_CREATE_FAILED = "Failed to create entry in content partner table. Error: {}";
