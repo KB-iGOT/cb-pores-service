@@ -147,7 +147,6 @@ public class NotificationConsumer {
         params.put(Constants.EVENT_CONTACT_NAME, mailNotificationDetails.get(Constants.EVENT_CONTACT_NAME));
         params.put(Constants.APPLICATION_ID_TAG, mailNotificationDetails.get(Constants.EVENT_REGISTRATION_ID));
         params.put(Constants.ORGANISATION_NAME, mailNotificationDetails.get(Constants.ORG_NAME));
-        params.put(Constants.ORG_NAME, mailNotificationDetails.get(Constants.ORG_NAME));
         params.put(Constants.FROM_EMAIL, configuration.getSupportEmail());
         String templateName = (String) mailNotificationDetails.get(Constants.TEMPLATE);
 
