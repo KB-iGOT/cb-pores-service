@@ -74,6 +74,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         Timestamp currentTime = new Timestamp(System.currentTimeMillis());
         payloadValidation.validatePayload(Constants.PAYLOAD_VALIDATION_FILE_CONTENT_PARTNER_REGISTRATION, registrationDetails);
         String organizationName = registrationDetails.path("contentPartnerName").asText("");
+        String contactName = registrationDetails.path(Constants.EVENT_CONTACT_NAME).asText("");
         String email = registrationDetails.path("email").asText("");
 
         Optional<ContentPartnerRegistrationEntity> existingByOrgName =
@@ -114,6 +115,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         event.put(Constants.EVENT_EMAIL, email);
         event.put(Constants.EVENT_PARTNER_NAME, organizationName);
         event.put(Constants.EVENT_REGISTRATION_ID, id);
+        event.put(Constants.EVENT_CONTACT_NAME,contactName);
         kafkaProducer.push(cbServerProperties.getContentPartnerRegistrationTopic(), event);
 
         log.info("Content Partner Registration Created Successfully");
@@ -152,6 +154,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         ObjectNode dataNode = (ObjectNode) entity.getData();
         String email = dataNode.path("email").asText("");
         String organizationName = dataNode.path("contentPartnerName").asText("");
+        String contactName = dataNode.path(Constants.EVENT_CONTACT_NAME).asText("");
         dataNode.put(Constants.STATUS, newStatus);
         Timestamp now = new Timestamp(System.currentTimeMillis());
         entity.setUpdatedOn(now);
@@ -175,6 +178,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         event.put(Constants.EVENT_EMAIL, email);
         event.put(Constants.EVENT_PARTNER_NAME, organizationName);
         event.put(Constants.EVENT_REGISTRATION_ID, existingId);
+        event.put(Constants.EVENT_CONTACT_NAME,contactName);
         log.info("event",event);
         kafkaProducer.push(cbServerProperties.getContentPartnerRegistrationTopic(), event);
 
