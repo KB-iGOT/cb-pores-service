@@ -142,9 +142,8 @@ public class NotificationConsumer {
     private void sendContentPartnerNotificationAsync(Map<String, Object> mailNotificationDetails) {
 
         Map<String, Object> params = new HashMap<>();
-        params.put("name", mailNotificationDetails.get("name"));
-        params.put("registrationId", mailNotificationDetails.get("registrationId"));
-        params.put("statusMessage", mailNotificationDetails.get("statusMessage"));
+        params.put(Constants.EVENT_REGISTRATION_ID, mailNotificationDetails.get(Constants.EVENT_REGISTRATION_ID));
+        params.put(Constants.STATUS_MESSAGE, mailNotificationDetails.get(Constants.STATUS_MESSAGE));
         params.put(Constants.EVENT_CONTACT_NAME, mailNotificationDetails.get(Constants.EVENT_CONTACT_NAME));
         params.put(Constants.APPLICATION_ID_TAG, mailNotificationDetails.get(Constants.EVENT_REGISTRATION_ID));
         params.put(Constants.ORGANISATION_NAME, mailNotificationDetails.get(Constants.ORG_NAME));
