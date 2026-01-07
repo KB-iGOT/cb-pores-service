@@ -95,12 +95,10 @@ public class NotificationConsumer {
             String partnerName = (String) partnerNameObj;
             String registrationId = (String) registrationIdObj;
             String contactName = (String) contactNameObj;
-
             String subject;
             if (Constants.PENDING.equals(status)) {
                 subject = Constants.CP_REG_SUCCESS_SUBJECT.replace(Constants.APPLICATION_ID_TAG, registrationId);
-            }
-            else if (Constants.APPROVED.equals(status)) {
+            } else if (Constants.APPROVED.equals(status)) {
                 subject = Constants.CP_REG_APPROVED_SUBJECT;
             } else if (Constants.REJECTED.equals(status)) {
                 subject = Constants.CP_REG_REJECTED_SUBJECT;
@@ -115,12 +113,11 @@ public class NotificationConsumer {
             mailNotificationDetails.put(Constants.CREATED_BY, partnerName);
             if (Constants.PENDING.equals(status)) {
                 mailNotificationDetails.put(Constants.TEMPLATE, Constants.CONTENT_PARTNER_REG_SUCCESS_TEMPLATE);
-            }else if(Constants.APPROVED.equals(status)){
+            } else if (Constants.APPROVED.equals(status)) {
                 mailNotificationDetails.put(Constants.TEMPLATE, Constants.CONTENT_PARTNER_REG_APPROVED_TEMPLATE);
             } else {
                 mailNotificationDetails.put(Constants.TEMPLATE, Constants.CONTENT_PARTNER_REG_REJECTION_TEMPLATE);
             }
-
             mailNotificationDetails.put(Constants.PARTNER_NAME, partnerName);
             mailNotificationDetails.put(Constants.EVENT_REGISTRATION_ID, registrationId);
             mailNotificationDetails.put(Constants.ORG, partnerName);
