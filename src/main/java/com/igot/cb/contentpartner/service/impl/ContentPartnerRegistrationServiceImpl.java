@@ -91,13 +91,13 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
             return response;
         }
         String id = UUID.randomUUID().toString();
-
+        String applicationId = "IGOT-PARTNER-" + id.replace("-", "").substring(0, 10).toUpperCase();
         ObjectNode jsonNode = (ObjectNode) registrationDetails;
         jsonNode.put(Constants.ID, id);
         jsonNode.put(Constants.CREATED_ON, currentTime.toString());
         jsonNode.put(Constants.UPDATED_ON, currentTime.toString());
         jsonNode.put(Constants.STATUS, Constants.PENDING);
-
+        jsonNode.put(Constants.APPLICATION_ID, applicationId);
         ContentPartnerRegistrationEntity entity = new ContentPartnerRegistrationEntity();
         entity.setId(id);
         entity.setData(registrationDetails);
@@ -114,7 +114,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         event.put(Constants.EVENT_STATUS, Constants.PENDING);
         event.put(Constants.EVENT_EMAIL, email);
         event.put(Constants.EVENT_PARTNER_NAME, organizationName);
-        event.put(Constants.EVENT_REGISTRATION_ID, id);
+        event.put(Constants.EVENT_REGISTRATION_ID, applicationId);
         event.put(Constants.EVENT_CONTACT_NAME,contactName);
         kafkaProducer.push(cbServerProperties.getContentPartnerRegistrationTopic(), event);
 
@@ -155,6 +155,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         String email = dataNode.path("email").asText("");
         String organizationName = dataNode.path("contentPartnerName").asText("");
         String contactName = dataNode.path(Constants.EVENT_CONTACT_NAME).asText("");
+        String applicationId = dataNode.path(Constants.APPLICATION_ID).asText("");
         dataNode.put(Constants.STATUS, newStatus);
         Timestamp now = new Timestamp(System.currentTimeMillis());
         entity.setUpdatedOn(now);
@@ -177,7 +178,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         event.put(Constants.EVENT_STATUS, newStatus);
         event.put(Constants.EVENT_EMAIL, email);
         event.put(Constants.EVENT_PARTNER_NAME, organizationName);
-        event.put(Constants.EVENT_REGISTRATION_ID, existingId);
+        event.put(Constants.EVENT_REGISTRATION_ID, applicationId);
         event.put(Constants.EVENT_CONTACT_NAME,contactName);
         log.info("event",event);
         kafkaProducer.push(cbServerProperties.getContentPartnerRegistrationTopic(), event);
@@ -206,39 +207,22 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
     }
 
     @Override
-    public ApiResponse read(String id, String email) {
+    public ApiResponse read(String applicationId, String email) {
         log.info("ContentPartnerRegistrationServiceImpl::read");
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_READ);
-        if (StringUtils.isAllEmpty(id, email)) {
+        if (StringUtils.isAllEmpty(applicationId, email)) {
             ProjectUtil.errorResponse(response, Constants.ERR_ID_OR_EMAIL_REQUIRED, HttpStatus.BAD_REQUEST);
             return response;
         }
         try {
             Optional<ContentPartnerRegistrationEntity> entityOptional = Optional.empty();
-            if (StringUtils.isNotEmpty(id) && StringUtils.isNotEmpty(email)) {
-                String fetchedId = fetchIdFromElasticsearch(email);
-                if (StringUtils.isNotBlank(fetchedId) && StringUtils.equals(fetchedId, id)) {
-                    entityOptional = registrationRepository.findById(id);
-                }
-                if (entityOptional.isEmpty()) {
-                    ProjectUtil.errorResponse(response, Constants.INVALID_ID_OR_EMAIL, HttpStatus.BAD_REQUEST);
-                    return response;
-                }
-            }
-            else if (StringUtils.isNotEmpty(id)) {
-                entityOptional = registrationRepository.findById(id);
-                if (entityOptional.isEmpty()) {
-                    ProjectUtil.errorResponse(response, Constants.INVALID_ID, HttpStatus.BAD_REQUEST);
-                    return response;
-                }
-            }
-            else {
-                String fetchedId = fetchIdFromElasticsearch(email);
+            if (StringUtils.isNotEmpty(applicationId) && StringUtils.isNotEmpty(email)) {
+                String fetchedId = fetchIdFromElasticsearch(email, applicationId);
                 if (StringUtils.isNotBlank(fetchedId)) {
                     entityOptional = registrationRepository.findById(fetchedId);
                 }
                 if (entityOptional.isEmpty()) {
-                    ProjectUtil.errorResponse(response, Constants.INVALID_EMAIL, HttpStatus.BAD_REQUEST);
+                    ProjectUtil.errorResponse(response, Constants.INVALID_ID_OR_EMAIL, HttpStatus.BAD_REQUEST);
                     return response;
                 }
             }
@@ -249,12 +233,14 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         }
         return response;
     }
-    private String fetchIdFromElasticsearch(String email) {
+
+    private String fetchIdFromElasticsearch(String email, String applicationId) {
         try {
-            log.info("Fetching ID from Elasticsearch for email: {}", email);
+            log.info("Fetching ID from Elasticsearch for email: {} and applicationId: {}", email, applicationId);
             SearchCriteria searchCriteria = new SearchCriteria();
             HashMap<String, Object> filterCriteriaMap = new HashMap<>();
             filterCriteriaMap.put(Constants.EMAIL, email);
+            filterCriteriaMap.put(Constants.APPLICATION_ID, applicationId);
             searchCriteria.setFilterCriteriaMap(filterCriteriaMap);
             searchCriteria.setRequestedFields(Arrays.asList(Constants.ID));
             SearchResult searchResult = esUtilService.searchDocuments(Constants.CONTENT_PARTNER_REGISTRATION_INDEX_NAME, searchCriteria);
@@ -264,15 +250,15 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
                     JsonNode firstResult = dataNode.get(0);
                     if (firstResult.has(Constants.ID)) {
                         String fetchedId = firstResult.get(Constants.ID).asText();
-                        log.info(Constants.ES_ID_FOUND_FOR_EMAIL, email, fetchedId);
+                        log.info(Constants.ES_ID_FOUND_FOR_EMAIL_AND_APP_ID, email, applicationId, fetchedId);
                         return fetchedId;
                     }
                 }
             }
-            log.warn(Constants.ES_NO_RECORD_FOR_EMAIL, email);
+            log.warn(Constants.ES_NO_RECORD_FOR_EMAIL_AND_APP_ID, email, applicationId);
             return null;
         } catch (Exception e) {
-            log.error(Constants.ES_ERROR_FETCHING_ID_FOR_EMAIL, email, e);
+            log.error(Constants.ES_ERROR_FETCHING_ID_FOR_EMAIL_AND_APP_ID, email, applicationId, e);
             return null;
         }
     }

@@ -37,6 +37,7 @@ public class Constants {
     public static final String INTEREST_FLAG_RQST = "interestFlag";
     public static final String CREATED_ON = "createdOn";
     public static final String UPDATED_ON = "updatedOn";
+    public static final String APPLICATION_ID = "applicationId";
     public static final String DATA = "data";
     public static final String DATABASE = "sunbird";
     public static final String TABLE = "interest_capture";
@@ -419,7 +420,7 @@ public class Constants {
     public static final String CONTENT_PARTNER_CREATE_FAILED = "Failed to create entry in content partner table. Error: {}";
     public static final String CONTENT_PARTNER_CREATE_EXCEPTION = "Error while creating entry in content partner table";
     public static final String INVALID_EMAIL = "Invalid email";
-    public static final String INVALID_ID_OR_EMAIL = "Invalid id or email";
+    public static final String INVALID_ID_OR_EMAIL = "Invalid Application ID/Email. Please check the ID shared in your confirmation email and try again";
     public static final String DIFFICULTY_LEVEL = "difficultyLevel";
     public static final String CHANNEL = "channel";
     public static final String ASCENDING = "ASC";
@@ -429,6 +430,10 @@ public class Constants {
     public static final String ES_ID_FOUND_FOR_EMAIL = "Found ID in Elasticsearch for email {}: {}";
     public static final String ES_NO_RECORD_FOR_EMAIL = "No record found in Elasticsearch for email: {}";
     public static final String ES_ERROR_FETCHING_ID_FOR_EMAIL = "Error fetching ID from Elasticsearch for email: {}";
+    public static final String ES_ID_FOUND_FOR_EMAIL_AND_APP_ID = "Elasticsearch ID found for email: {} and applicationId: {} → id: {}";
+    public static final String ES_NO_RECORD_FOR_EMAIL_AND_APP_ID = "No Elasticsearch record found for email: {} and applicationId: {}";
+    public static final String ES_ERROR_FETCHING_ID_FOR_EMAIL_AND_APP_ID = "Error while fetching Elasticsearch ID for email: {} and applicationId: {}";
+
 
     private Constants() {
     }

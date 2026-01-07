@@ -120,7 +120,6 @@ class ContentPartnerRegistrationServiceImplTest {
                 .thenReturn(Optional.of(new ContentPartnerRegistrationEntity()));
 
         ApiResponse response = service.insert(req);
-
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals("Organization Name already registered",
                 response.getParams().getErrMsg());
@@ -302,95 +301,53 @@ class ContentPartnerRegistrationServiceImplTest {
 
     // READ TEST CASES
     @Test
-    void testRead_Success_FromDatabase() {
-
-        String id = "test-id-123";
-
-        ContentPartnerRegistrationEntity entity =
-                new ContentPartnerRegistrationEntity();
-        entity.setId(id);
-
-        when(registrationRepository.findById(id))
-                .thenReturn(Optional.of(entity));
-
-        when(objectMapper.convertValue(entity, Map.class))
-                .thenReturn(Map.of("id", id));
-
-        ApiResponse response = service.read(id, null);
-
-        assertEquals(HttpStatus.OK, response.getResponseCode());
-        assertEquals(id, response.getResult().get("id"));
-    }
-
-
-    @Test
-    void testRead_NotFound() {
-
-        String id = "unknown";
-        when(registrationRepository.findById(id)).thenReturn(Optional.empty());
-        ApiResponse response = service.read(id, null);
-        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.INVALID_ID, response.getParams().getErrMsg());
-    }
-
-    @Test
-    void testRead_EmptyId() {
-        ApiResponse response = service.read("", null);
-        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.ERR_ID_OR_EMAIL_REQUIRED, response.getParams().getErrMsg());
-    }
-    @Test
-    void testRead_CacheException() throws Exception {
-        String id = "test-id";
-        when(registrationRepository.findById(id)).thenThrow(new RuntimeException("DB error"));
-        ApiResponse response = service.read(id, null);
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-        assertTrue(response.getParams().getErrMsg().contains("DB error")
-        );
-    }
-    @Test
-    void testRead_ByEmail_Success() throws Exception {
-        String email = "org1@gmail.com";
-        String id = "id-1";
+    void testRead_Success_ByEmailAndApplicationId() throws Exception {
+        String email = "a@b.com";
+        String applicationId = "app-1";
+        String esId = "test-id-123";
         ContentPartnerRegistrationEntity entity = new ContentPartnerRegistrationEntity();
-        entity.setId(id);
-        SearchResult searchResult = new SearchResult();
-        searchResult.setData(realMapper.valueToTree(List.of(Map.of(Constants.ID, id))));
-        when(esUtilService.searchDocuments(eq(Constants.CONTENT_PARTNER_REGISTRATION_INDEX_NAME), any(SearchCriteria.class))).thenReturn(searchResult);
-        when(registrationRepository.findById(id))
-                .thenReturn(Optional.of(entity));
-        when(objectMapper.convertValue(entity, Map.class))
-                .thenReturn(Map.of("email", email));
-        ApiResponse response = service.read(null, email);
-        assertEquals(HttpStatus.OK, response.getResponseCode());
-        assertEquals(email, response.getResult().get("email"));
-    }
+        entity.setId(esId);
 
-    @Test
-    void testRead_ByEmail_NotFoundInES() throws Exception {
         SearchResult searchResult = new SearchResult();
-        searchResult.setData(realMapper.createArrayNode());
+        searchResult.setData(realMapper.valueToTree(
+                List.of(Map.of(Constants.ID, esId))
+        ));
         when(esUtilService.searchDocuments(
                 eq(Constants.CONTENT_PARTNER_REGISTRATION_INDEX_NAME),
                 any(SearchCriteria.class)
         )).thenReturn(searchResult);
-        ApiResponse response = service.read(null, "noone@gmail.com");
+        when(registrationRepository.findById(esId))
+                .thenReturn(Optional.of(entity));
+        when(objectMapper.convertValue(entity, Map.class))
+                .thenReturn(Map.of("id", esId));
+        ApiResponse response = service.read(applicationId, email);
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(esId, response.getResult().get("id"));
+    }
+
+    @Test
+    void testRead_EmptyIdAndEmail() {
+        ApiResponse response = service.read("", "");
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.INVALID_EMAIL, response.getParams().getErrMsg());
+        assertEquals(Constants.ERR_ID_OR_EMAIL_REQUIRED, response.getParams().getErrMsg());
     }
 
     @Test
     void testRead_ByIdAndEmail_NotFound() throws Exception {
         String email = "a@b.com";
-        String providedId = "1";
+        String applicationId = "1";
         String esId = "2";
         SearchResult searchResult = new SearchResult();
-        searchResult.setData(realMapper.valueToTree(List.of(Map.of(Constants.ID, esId))));
+        searchResult.setData(realMapper.valueToTree(
+                List.of(Map.of(Constants.ID, esId))
+        ));
         when(esUtilService.searchDocuments(
                 eq(Constants.CONTENT_PARTNER_REGISTRATION_INDEX_NAME),
                 any(SearchCriteria.class)
         )).thenReturn(searchResult);
-        ApiResponse response = service.read(providedId, email);
+        when(registrationRepository.findById(esId))
+                .thenReturn(Optional.empty());
+        ApiResponse response = service.read(applicationId, email);
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals(Constants.INVALID_ID_OR_EMAIL, response.getParams().getErrMsg());
     }
