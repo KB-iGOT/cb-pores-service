@@ -97,19 +97,13 @@ public class NotificationConsumer {
             String contactName = (String) contactNameObj;
 
             String subject;
-            String statusMessage;
             if (Constants.PENDING.equals(status)) {
                 subject = Constants.CP_REG_SUCCESS_SUBJECT.replace(Constants.APPLICATION_ID_TAG, registrationId);
-                statusMessage=null;
             }
             else if (Constants.APPROVED.equals(status)) {
-                subject = Constants.CP_REG_APPROVED_SUBJECT.replace(Constants.APPLICATION_ID_TAG, registrationId);
-                statusMessage = Constants.CP_REG_APPROVED_MESSAGE;
-
+                subject = Constants.CP_REG_APPROVED_SUBJECT;
             } else if (Constants.REJECTED.equals(status)) {
-                subject = Constants.CP_REG_REJECTED_SUBJECT.replace(Constants.APPLICATION_ID_TAG, registrationId);
-                statusMessage = Constants.CP_REG_REJECTED_MESSAGE;
-
+                subject = Constants.CP_REG_REJECTED_SUBJECT;
             } else {
                 logger.warn("Unsupported content partner registration status: {}", status);
                 return;
@@ -121,14 +115,14 @@ public class NotificationConsumer {
             mailNotificationDetails.put(Constants.CREATED_BY, partnerName);
             if (Constants.PENDING.equals(status)) {
                 mailNotificationDetails.put(Constants.TEMPLATE, Constants.CONTENT_PARTNER_REG_SUCCESS_TEMPLATE);
-            }else {
-                mailNotificationDetails.put(Constants.TEMPLATE, Constants.CONTENT_PARTNER_REG_STATUS_TEMPLATE);
-
+            }else if(Constants.APPROVED.equals(status)){
+                mailNotificationDetails.put(Constants.TEMPLATE, Constants.CONTENT_PARTNER_REG_APPROVED_TEMPLATE);
+            } else {
+                mailNotificationDetails.put(Constants.TEMPLATE, Constants.CONTENT_PARTNER_REG_REJECTION_TEMPLATE);
             }
 
             mailNotificationDetails.put(Constants.PARTNER_NAME, partnerName);
             mailNotificationDetails.put(Constants.EVENT_REGISTRATION_ID, registrationId);
-            mailNotificationDetails.put(Constants.STATUS_MESSAGE, statusMessage);
             mailNotificationDetails.put(Constants.ORG, partnerName);
             mailNotificationDetails.put(Constants.ORG_NAME, partnerName);
             mailNotificationDetails.put(Constants.EVENT_CONTACT_NAME, contactName);

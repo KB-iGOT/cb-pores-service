@@ -401,11 +401,12 @@ public class Constants {
     public static final String EVENT_CONTACT_NAME = "contactName";
     public static final String STATUS_MESSAGE ="statusMessage";
     public static final String PARTNER_NAME="name";
-    public static final String CP_REG_APPROVED_SUBJECT = "Your iGOT Marketplace Application Has Been Approved – #applicationId";
-    public static final String CP_REG_REJECTED_SUBJECT = "Update on Your iGOT Marketplace Application – #applicationId";
+    public static final String CP_REG_APPROVED_SUBJECT = "Congratulations! You are now an approved iGOT Content Partner";
+    public static final String CP_REG_REJECTED_SUBJECT = " Update on your iGOT Content Partner Application";
     public static final String CP_REG_APPROVED_MESSAGE = "Your registration has been approved. " + "Our team will connect with you shortly for the next steps.";
     public static final String CP_REG_REJECTED_MESSAGE = "Your registration has been reviewed and unfortunately has been rejected.";
-    public static final String CONTENT_PARTNER_REG_STATUS_TEMPLATE = "content_partner_reg_approval_rejection_template";
+    public static final String CONTENT_PARTNER_REG_REJECTION_TEMPLATE = "content_partner_reg_rejection_template";
+    public static final String CONTENT_PARTNER_REG_APPROVED_TEMPLATE = "content_partner_reg_approval_template";
     public static final String CP_REG_SUCCESS_SUBJECT = "Your iGOT Marketplace Application ID – #applicationId";
     public static final String CONTENT_PARTNER_REG_SUCCESS_TEMPLATE = "content_partner_registration_success_template";
     public static final String APPLICATION_ID_TAG = "applicationId";
