@@ -87,6 +87,7 @@ public class Constants {
     public static final String CONTENT = "content";
     public static final String LIVE = "Live";
     public static final String STATUS = "status";
+    public static final String COMMENT= "comment";
     public static final String NAME = "name";
     public static final String COMPETENCIES_V5 = "competencies_v5";
     public static final String AVG_RATING = "avgRating";
@@ -427,6 +428,7 @@ public class Constants {
     public static final String ORDER_BY = "orderBy";
     public static final String ORDER_DIRECTION = "orderDirection";
     public static final String ERR_ID_OR_EMAIL_REQUIRED = "Either id or email must be provided";
+    public static final String ERR_COMMENT_REQUIRED="comment is required when status is REJECTED";
     public static final String ES_ID_FOUND_FOR_EMAIL = "Found ID in Elasticsearch for email {}: {}";
     public static final String ES_NO_RECORD_FOR_EMAIL = "No record found in Elasticsearch for email: {}";
     public static final String ES_ERROR_FETCHING_ID_FOR_EMAIL = "Error fetching ID from Elasticsearch for email: {}";

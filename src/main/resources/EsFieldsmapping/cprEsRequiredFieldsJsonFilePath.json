@@ -26,6 +26,9 @@
   "status": {
     "type": "text"
   },
+  "comment": {
+    "type": "text"
+  },
   "searchTags": {
     "type": "keyword"
   },

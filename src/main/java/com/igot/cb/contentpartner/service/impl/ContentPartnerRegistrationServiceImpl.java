@@ -8,11 +8,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.igot.cb.authentication.util.AccessTokenValidator;
 import com.igot.cb.contentpartner.entity.ContentPartnerRegistrationEntity;
 import com.igot.cb.contentpartner.repository.ContentPartnerRegistrationRepository;
-import com.igot.cb.contentpartner.repository.ContentPartnerRepository;
 import com.igot.cb.contentpartner.service.ContentPartnerRegistrationService;
 import com.igot.cb.contentpartner.service.ContentPartnerService;
 import com.igot.cb.playlist.util.ProjectUtil;
-import com.igot.cb.pores.cache.CacheService;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
@@ -111,6 +109,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         event.put(Constants.EVENT_PARTNER_NAME, organizationName);
         event.put(Constants.EVENT_REGISTRATION_ID, applicationId);
         event.put(Constants.EVENT_CONTACT_NAME,contactName);
+        event.put(Constants.COMMENT,"");
         kafkaProducer.push(cbServerProperties.getContentPartnerRegistrationTopic(), event);
 
         log.info("Content Partner Registration Created Successfully");
@@ -129,7 +128,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         }
         String existingId = partnerDetails.path(Constants.ID).asText(null);
         String newStatus = partnerDetails.path(Constants.STATUS).asText(null);
-
+        String comment = partnerDetails.path(Constants.COMMENT).asText("");
         if (StringUtils.isBlank(existingId) || StringUtils.isBlank(newStatus)) {
             ProjectUtil.errorResponse(response, "id and status are required", HttpStatus.BAD_REQUEST);
             return response;
@@ -137,6 +136,10 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         if (!Constants.APPROVED.equalsIgnoreCase(newStatus) &&
                 !Constants.REJECTED.equalsIgnoreCase(newStatus)) {
             ProjectUtil.errorResponse(response, "Invalid status. Allowed values: APPROVED, REJECTED", HttpStatus.BAD_REQUEST);
+            return response;
+        }
+        if (Constants.REJECTED.equalsIgnoreCase(newStatus) && StringUtils.isBlank(comment)) {
+            ProjectUtil.errorResponse(response, Constants.ERR_COMMENT_REQUIRED, HttpStatus.BAD_REQUEST);
             return response;
         }
         Optional<ContentPartnerRegistrationEntity> content = registrationRepository.findById(existingId);
@@ -152,6 +155,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         String contactName = dataNode.path(Constants.EVENT_CONTACT_NAME).asText("");
         String applicationId = dataNode.path(Constants.APPLICATION_ID).asText("");
         dataNode.put(Constants.STATUS, newStatus);
+        dataNode.put(Constants.COMMENT, comment);
         Timestamp now = new Timestamp(System.currentTimeMillis());
         entity.setUpdatedOn(now);
         dataNode.put(Constants.UPDATED_ON, now.toString());
@@ -174,6 +178,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         event.put(Constants.EVENT_PARTNER_NAME, organizationName);
         event.put(Constants.EVENT_REGISTRATION_ID, applicationId);
         event.put(Constants.EVENT_CONTACT_NAME,contactName);
+        event.put(Constants.COMMENT,comment);
         log.info("event",event);
         kafkaProducer.push(cbServerProperties.getContentPartnerRegistrationTopic(), event);
 
@@ -255,6 +260,33 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
             log.error(Constants.ES_ERROR_FETCHING_ID_FOR_EMAIL_AND_APP_ID, email, applicationId, e);
             return null;
         }
+    }
+
+    @Override
+    public ApiResponse readById(String id, String token) {
+        log.info("ContentPartnerRegistrationServiceImpl::readById");
+        String userId = accessTokenValidator.verifyUserToken(token);
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_READ);
+        if (userId.equalsIgnoreCase(Constants.UNAUTHORIZED)) {
+            ProjectUtil.errorResponse(response, Constants.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
+            return response;
+        }
+        if (StringUtils.isAllEmpty(id)) {
+            ProjectUtil.errorResponse(response, Constants.ID_MISSING, HttpStatus.BAD_REQUEST);
+            return response;
+        }
+        try {
+            Optional<ContentPartnerRegistrationEntity> entityOptional = registrationRepository.findById(id);
+            if (entityOptional.isEmpty()) {
+                ProjectUtil.errorResponse(response, Constants.ID_NOT_FOUND, HttpStatus.NOT_FOUND);
+                return response;
+            }
+            response.setResult(objectMapper.convertValue(entityOptional.get(), Map.class));
+        } catch (Exception e) {
+            log.error("Error while reading content partner", e);
+            ProjectUtil.errorResponse(response, e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        return response;
     }
 
     @Override

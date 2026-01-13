@@ -39,6 +39,12 @@ public class ContentPartnerRegistrationController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
+    @GetMapping("/v1/readbyid")
+    public ResponseEntity<ApiResponse> readById(@RequestParam(required = false) String id,@RequestHeader(Constants.X_AUTH_TOKEN) String token) {
+        ApiResponse response = partnerService.readById(id,token);
+        return new ResponseEntity<>(response, response.getResponseCode());
+    }
+
     @PostMapping("/v1/search")
     public ResponseEntity<ApiResponse> search(@RequestBody SearchCriteria searchCriteria,@RequestHeader(Constants.X_AUTH_TOKEN) String token) {
         ApiResponse response = partnerService.searchEntity(searchCriteria,token);

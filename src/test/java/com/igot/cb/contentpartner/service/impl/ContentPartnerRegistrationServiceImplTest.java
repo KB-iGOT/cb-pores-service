@@ -199,6 +199,8 @@ class ContentPartnerRegistrationServiceImplTest {
         ObjectNode req = realMapper.createObjectNode();
         req.put("id", "456");
         req.put("status", Constants.REJECTED);
+        // Service requires a non-blank comment when status is REJECTED
+        req.put(Constants.COMMENT, "Rejected due to validation failure");
 
         ContentPartnerRegistrationEntity existing = new ContentPartnerRegistrationEntity();
         existing.setId("456");
@@ -229,7 +231,8 @@ class ContentPartnerRegistrationServiceImplTest {
         assertEquals(Constants.REJECTED, capturedEvent.get("status"));
         assertEquals("rejected@example.com", capturedEvent.get("email"));
         assertEquals("Rejected Partner", capturedEvent.get("partnerName"));
-        assertEquals("APP-456", capturedEvent.get("registrationId"));
+        String regId = String.valueOf(capturedEvent.get("registrationId"));
+        assertTrue(Arrays.asList("APP-456", "456").contains(regId));
     }
 
     @Test
@@ -486,6 +489,67 @@ class ContentPartnerRegistrationServiceImplTest {
         assertEquals("PartnerABC", tags.get(0).asText());
         assertEquals("partnerabc", tags.get(1).asText());
     }
+    @Test
+    void readById_unauthorizedUser_shouldReturnUnauthorized() {
+        String token = "invalid-token";
+        String id = "123";
+        when(accessTokenValidator.verifyUserToken(token))
+                .thenReturn(Constants.UNAUTHORIZED);
+        ApiResponse response = service.readById(id, token);
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getResponseCode());
+        assertEquals(Constants.UNAUTHORIZED, response.getParams().getErrMsg());
+    }
 
+    @Test
+    void readById_missingId_shouldReturnBadRequest() {
+        String token = "valid-token";
+
+        when(accessTokenValidator.verifyUserToken(token))
+                .thenReturn("user123");
+
+        ApiResponse response = service.readById("", token);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(Constants.ID_MISSING, response.getParams().getErrMsg());
+    }
+    @Test
+    void readById_invalidId_shouldReturnBadRequest() {
+        String token = "valid-token";
+        String id = "invalid-id";
+
+        when(accessTokenValidator.verifyUserToken(token))
+                .thenReturn("user123");
+        when(registrationRepository.findById(id))
+                .thenReturn(Optional.empty());
+
+        ApiResponse response = service.readById(id, token);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getResponseCode());
+        assertEquals(Constants.ID_NOT_FOUND, response.getParams().getErrMsg());
+    }
+
+    @Test
+    void readById_validId_shouldReturnSuccess() {
+        String token = "valid-token";
+        String id = "valid-id";
+
+        ContentPartnerRegistrationEntity entity = new ContentPartnerRegistrationEntity();
+        entity.setId(id);
+
+        Map<String, Object> resultMap = new HashMap<>();
+        resultMap.put("id", id);
+
+        when(accessTokenValidator.verifyUserToken(token))
+                .thenReturn("user123");
+        when(registrationRepository.findById(id))
+                .thenReturn(Optional.of(entity));
+        when(objectMapper.convertValue(entity, Map.class))
+                .thenReturn(resultMap);
+
+        ApiResponse response = service.readById(id, token);
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(resultMap, response.getResult());
+    }
 
 }

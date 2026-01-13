@@ -12,5 +12,7 @@ public interface ContentPartnerRegistrationService {
 
     ApiResponse read(String id, String email);
 
+    ApiResponse readById(String id, String token);
+
     ApiResponse searchEntity(SearchCriteria searchCriteria, String token);
 }

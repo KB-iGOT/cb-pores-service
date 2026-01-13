@@ -416,4 +416,78 @@ class ContentPartnerRegistrationControllerTest {
 
         verify(partnerService, never()).searchEntity(any(SearchCriteria.class), anyString());
     }
+
+    @Test
+    void testReadById_MissingToken() throws Exception {
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+
+        String id = "test-id-123";
+
+        mockMvc.perform(get("/contentpartner/register/v1/readbyid")
+                        .param("id", id))
+                .andExpect(status().isBadRequest());
+
+        verify(partnerService, never()).readById(anyString(), anyString());
+    }
+
+    @Test
+    void testReadById_MissingId() throws Exception {
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+
+        ApiResponse mockResponse = new ApiResponse();
+        mockResponse.setResponseCode(HttpStatus.BAD_REQUEST);
+        mockResponse.getParams().setErrMsg("Id is required");
+
+        when(partnerService.readById(isNull(), eq(token))).thenReturn(mockResponse);
+
+        mockMvc.perform(get("/contentpartner/register/v1/readbyid")
+                        .header(Constants.X_AUTH_TOKEN, token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.responseCode").value("BAD_REQUEST"))
+                .andExpect(jsonPath("$.params.errMsg").value("Id is required"));
+
+        verify(partnerService, times(1)).readById(isNull(), eq(token));
+    }
+
+    @Test
+    void testReadById_Unauthorized() throws Exception {
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+
+        String id = "test-id-123";
+        ApiResponse mockResponse = new ApiResponse();
+        mockResponse.setResponseCode(HttpStatus.UNAUTHORIZED);
+        mockResponse.getParams().setErrMsg(Constants.UNAUTHORIZED);
+
+        when(partnerService.readById(eq(id), eq(token))).thenReturn(mockResponse);
+
+        mockMvc.perform(get("/contentpartner/register/v1/readbyid")
+                        .param("id", id)
+                        .header(Constants.X_AUTH_TOKEN, token))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.responseCode").value("UNAUTHORIZED"))
+                .andExpect(jsonPath("$.params.errMsg").value(Constants.UNAUTHORIZED));
+
+        verify(partnerService, times(1)).readById(eq(id), eq(token));
+    }
+
+    @Test
+    void testReadById_EmptyId() throws Exception {
+        MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+
+        String id = "";
+        ApiResponse mockResponse = new ApiResponse();
+        mockResponse.setResponseCode(HttpStatus.BAD_REQUEST);
+        mockResponse.getParams().setErrMsg("Id cannot be empty");
+
+        when(partnerService.readById(eq(id), eq(token))).thenReturn(mockResponse);
+
+        mockMvc.perform(get("/contentpartner/register/v1/readbyid")
+                        .param("id", id)
+                        .header(Constants.X_AUTH_TOKEN, token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.responseCode").value("BAD_REQUEST"))
+                .andExpect(jsonPath("$.params.errMsg").value("Id cannot be empty"));
+
+        verify(partnerService, times(1)).readById(eq(id), eq(token));
+    }
 }
