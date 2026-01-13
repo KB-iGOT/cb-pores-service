@@ -11,7 +11,6 @@ import com.igot.cb.contentpartner.repository.ContentPartnerRegistrationRepositor
 import com.igot.cb.contentpartner.service.ContentPartnerRegistrationService;
 import com.igot.cb.contentpartner.service.ContentPartnerService;
 import com.igot.cb.playlist.util.ProjectUtil;
-import com.igot.cb.pores.cache.CacheService;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
@@ -85,10 +84,9 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
             return response;
         }
         String id = UUID.randomUUID().toString();
-//        String applicationId = "IGOT-PARTNER-" + id.replaceAll("-", "").substring(0, 5).toUpperCase();
         String applicationId;
         do {
-            applicationId = "IGOT-PARTNER-" +
+            applicationId = Constants.APPLICATION_ID_PREFIX +
                     UUID.randomUUID()
                             .toString()
                             .replace("-", "")
