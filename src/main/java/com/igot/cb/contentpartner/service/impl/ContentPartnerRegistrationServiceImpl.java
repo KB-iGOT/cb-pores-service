@@ -276,12 +276,9 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
             return response;
         }
         try {
-            Optional<ContentPartnerRegistrationEntity> entityOptional = Optional.empty();
-            if (StringUtils.isNotBlank(id)) {
-                entityOptional = registrationRepository.findById(id);
-            }
+            Optional<ContentPartnerRegistrationEntity> entityOptional = registrationRepository.findById(id);
             if (entityOptional.isEmpty()) {
-                ProjectUtil.errorResponse(response, Constants.INVALID_ID, HttpStatus.BAD_REQUEST);
+                ProjectUtil.errorResponse(response, Constants.ID_NOT_FOUND, HttpStatus.NOT_FOUND);
                 return response;
             }
             response.setResult(objectMapper.convertValue(entityOptional.get(), Map.class));

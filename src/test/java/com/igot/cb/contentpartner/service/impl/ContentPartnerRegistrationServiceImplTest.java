@@ -524,8 +524,8 @@ class ContentPartnerRegistrationServiceImplTest {
 
         ApiResponse response = service.readById(id, token);
 
-        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.INVALID_ID, response.getParams().getErrMsg());
+        assertEquals(HttpStatus.NOT_FOUND, response.getResponseCode());
+        assertEquals(Constants.ID_NOT_FOUND, response.getParams().getErrMsg());
     }
 
     @Test

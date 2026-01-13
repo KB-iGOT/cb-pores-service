@@ -423,7 +423,7 @@ class ContentPartnerRegistrationControllerTest {
 
         String id = "test-id-123";
 
-        mockMvc.perform(get("/contentpartner/register/v1/readById")
+        mockMvc.perform(get("/contentpartner/register/v1/readbyid")
                         .param("id", id))
                 .andExpect(status().isBadRequest());
 
@@ -440,9 +440,9 @@ class ContentPartnerRegistrationControllerTest {
 
         when(partnerService.readById(isNull(), eq(token))).thenReturn(mockResponse);
 
-        mockMvc.perform(get("/contentpartner/register/v1/readById")
+        mockMvc.perform(get("/contentpartner/register/v1/readbyid")
                         .header(Constants.X_AUTH_TOKEN, token))
-                .andExpect(status().isOk())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.responseCode").value("BAD_REQUEST"))
                 .andExpect(jsonPath("$.params.errMsg").value("Id is required"));
 
@@ -460,10 +460,10 @@ class ContentPartnerRegistrationControllerTest {
 
         when(partnerService.readById(eq(id), eq(token))).thenReturn(mockResponse);
 
-        mockMvc.perform(get("/contentpartner/register/v1/readById")
+        mockMvc.perform(get("/contentpartner/register/v1/readbyid")
                         .param("id", id)
                         .header(Constants.X_AUTH_TOKEN, token))
-                .andExpect(status().isOk())
+                .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.responseCode").value("UNAUTHORIZED"))
                 .andExpect(jsonPath("$.params.errMsg").value(Constants.UNAUTHORIZED));
 
@@ -481,10 +481,10 @@ class ContentPartnerRegistrationControllerTest {
 
         when(partnerService.readById(eq(id), eq(token))).thenReturn(mockResponse);
 
-        mockMvc.perform(get("/contentpartner/register/v1/readById")
+        mockMvc.perform(get("/contentpartner/register/v1/readbyid")
                         .param("id", id)
                         .header(Constants.X_AUTH_TOKEN, token))
-                .andExpect(status().isOk())
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.responseCode").value("BAD_REQUEST"))
                 .andExpect(jsonPath("$.params.errMsg").value("Id cannot be empty"));
 
