@@ -11,6 +11,7 @@ import com.igot.cb.contentpartner.repository.ContentPartnerRegistrationRepositor
 import com.igot.cb.contentpartner.service.ContentPartnerRegistrationService;
 import com.igot.cb.contentpartner.service.ContentPartnerService;
 import com.igot.cb.playlist.util.ProjectUtil;
+import com.igot.cb.pores.cache.CacheService;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
@@ -37,7 +38,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
     private final CbServerProperties cbServerProperties;
     private final EsUtilService esUtilService;
     private final AccessTokenValidator accessTokenValidator;
-    private  final ContentPartnerService contentPartnerService;
+    private final ContentPartnerService contentPartnerService;
 
     @Autowired
     private Producer kafkaProducer;
@@ -84,7 +85,17 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
             return response;
         }
         String id = UUID.randomUUID().toString();
-        String applicationId = "IGOT-PARTNER-" + id.replace("-", "").substring(0, 10).toUpperCase();
+//        String applicationId = "IGOT-PARTNER-" + id.replaceAll("-", "").substring(0, 5).toUpperCase();
+        String applicationId;
+        do {
+            applicationId = "IGOT-PARTNER-" +
+                    UUID.randomUUID()
+                            .toString()
+                            .replace("-", "")
+                            .substring(0, 5)
+                            .toUpperCase();
+        } while (registrationRepository.existsByApplicationId(applicationId));
+
         ObjectNode jsonNode = (ObjectNode) registrationDetails;
         jsonNode.put(Constants.ID, id);
         jsonNode.put(Constants.CREATED_ON, currentTime.toString());
@@ -97,6 +108,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         entity.setData(registrationDetails);
         entity.setCreatedOn(currentTime);
         entity.setUpdatedOn(currentTime);
+        entity.setApplicationId(applicationId);
         ContentPartnerRegistrationEntity savedEntity = registrationRepository.save(entity);
 
         Map<String, Object> map = objectMapper.convertValue(savedEntity.getData(), Map.class);
@@ -192,7 +204,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         }
         try {
             ObjectNode registrationData = registrationEntity.getData().deepCopy();
-            registrationData.remove(List.of(Constants.CREATED_ON, Constants.UPDATED_ON, Constants.STATUS, Constants.EMAIL, Constants.PHONE_NUMBER, Constants.CONTACT_NAME, Constants.APPLICATION_ID));
+            registrationData.remove(List.of(Constants.CREATED_ON, Constants.UPDATED_ON, Constants.STATUS, Constants.EMAIL, Constants.PHONE_NUMBER, Constants.CONTACT_NAME, Constants.APPLICATION_ID,Constants.COMMENT,Constants.SEARCHTAGS));
             log.info(Constants.CONTENT_PARTNER_CREATE_START, registrationEntity.getId());
             ApiResponse createResponse = contentPartnerService.createContentPartner(registrationData);
             if (HttpStatus.OK.equals(createResponse.getResponseCode())) {

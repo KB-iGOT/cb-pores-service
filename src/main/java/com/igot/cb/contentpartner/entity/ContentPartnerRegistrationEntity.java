@@ -29,6 +29,8 @@ public class ContentPartnerRegistrationEntity {
     @Type(JsonType.class)
     @Column(columnDefinition = "jsonb")
     private JsonNode data;
+    @Column(name = "application_id", nullable = false, unique = true)
+    private String applicationId;
     private Timestamp createdOn;
     private Timestamp updatedOn;
 }
