@@ -19,6 +19,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -58,6 +60,13 @@ class ContentPartnerServiceImplTest {
 
     @Mock
     private PayloadValidation payloadValidation;
+    
+    @Mock
+    private RedisTemplate<String, SearchResult> redisTemplate;
+    
+    @Mock
+    private ValueOperations<String, SearchResult> valueOperations;
+    
     private ObjectMapper realObjectMapper = new ObjectMapper();
 
     private ContentPartnerEntity mockEntity;
@@ -324,12 +333,10 @@ class ContentPartnerServiceImplTest {
      */
     @Test
     void test_delete_emptyOrNullId() {
-        when(contentPartnerService.delete("")).thenCallRealMethod();
-
         ApiResponse response = contentPartnerService.delete("");
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals("Invalid Id", response.getParams().getErrMsg());
+        assertEquals(Constants.INVALID_ID, response.getParams().getErrMsg());
     }
 
     /**
@@ -455,30 +462,31 @@ class ContentPartnerServiceImplTest {
         searchCriteria.setSearchString("validSearchString");
 
         SearchResult mockSearchResult = new SearchResult();
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(null); // Cache miss
+        
         when(esUtilService.searchDocuments(eq(Constants.CONTENT_PROVIDER_INDEX_NAME), any(SearchCriteria.class)))
                 .thenReturn(mockSearchResult);
 
-        // Act
         ApiResponse response = contentPartnerService.searchEntity(searchCriteria);
 
-        // Assert
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+        
+
+        verify(valueOperations).get(anyString());
+        verify(valueOperations).set(anyString(), eq(mockSearchResult), anyLong(), any());
     }
 
-    /**
-     * Test case for searchEntity method when search string is too short.
-     * This test verifies that the method returns a BAD_REQUEST response
-     * when the search string is less than 2 characters long.
-     */
     @Test
     void test_searchEntity_shortSearchString() {
-        SearchCriteria searchCriteria = mock(SearchCriteria.class);
-        when(searchCriteria.getSearchString()).thenReturn("a");
+        SearchCriteria searchCriteria = new SearchCriteria();
+        searchCriteria.setSearchString("a");
 
         ApiResponse response = contentPartnerService.searchEntity(searchCriteria);
 
-        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals("Minimum 3 characters are required to search", response.getParams().getErrMsg());
     }
 
@@ -493,8 +501,28 @@ class ContentPartnerServiceImplTest {
 
         ApiResponse response = contentPartnerService.searchEntity(searchCriteria);
 
-        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals("Minimum 3 characters are required to search", response.getParams().getErrMsg());
+    }
+
+    @Test
+    void test_searchEntity_CacheHit() throws Exception {
+        SearchCriteria searchCriteria = new SearchCriteria();
+        searchCriteria.setSearchString("validSearchString");
+
+        SearchResult cachedResult = new SearchResult();
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(cachedResult);
+
+        ApiResponse response = contentPartnerService.searchEntity(searchCriteria);
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(Constants.SUCCESS, response.getParams().getStatus());
+
+        verify(valueOperations).get(anyString());
+        verify(esUtilService, never()).searchDocuments(any(), any());
+        verify(valueOperations, never()).set(anyString(), any(), anyLong(), any());
     }
 
     @Test

@@ -1,5 +1,8 @@
 package com.igot.cb.contentpartner.service.impl;
 
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.algorithms.Algorithm;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,12 +25,15 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import java.sql.Timestamp;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
@@ -47,6 +53,12 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
 
     @Autowired
     private PayloadValidation payloadValidation;
+
+    @Autowired
+    private RedisTemplate<String, SearchResult> redisTemplate;
+
+    @Value("${search.result.redis.ttl}")
+    private long searchResultRedisTtl;
 
     private Logger logger = LoggerFactory.getLogger(ContentPartnerServiceImpl.class);
 
@@ -231,8 +243,8 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
         List<String> searchTags = new ArrayList<>();
 
         // Preserve existing searchTags if present
-        if (formattedData.has("searchTags") && formattedData.get("searchTags").isArray()) {
-            ArrayNode existingSearchTags = (ArrayNode) formattedData.get("searchTags");
+        if (formattedData.has(Constants.SEARCHTAGS) && formattedData.get(Constants.SEARCHTAGS).isArray()) {
+            ArrayNode existingSearchTags = (ArrayNode) formattedData.get(Constants.SEARCHTAGS);
             existingSearchTags.forEach(tag -> {
                 if (tag.isTextual() && !tag.asText().isEmpty()) {
                     searchTags.add(tag.asText());
@@ -304,10 +316,23 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
             response.getParams().setErrMsg("Minimum 3 characters are required to search");
             response.getParams().setStatus(Constants.FAILED);
             response.setResponseCode(HttpStatus.BAD_REQUEST);
+            return response;
         }
         try {
-            SearchResult searchResult =
-                    esUtilService.searchDocuments(Constants.CONTENT_PROVIDER_INDEX_NAME, searchCriteria);
+            SearchResult cachedResult = redisTemplate.opsForValue()
+                    .get(generateRedisJwtTokenKey(searchCriteria));
+            
+            SearchResult searchResult;
+            if (cachedResult != null) {
+                log.info("ContentPartnerServiceImpl::searchEntity: search result fetched from redis cache");
+                searchResult = cachedResult;
+            } else {
+                log.info("ContentPartnerServiceImpl::searchEntity: executing elasticsearch query");
+                searchResult = esUtilService.searchDocuments(Constants.CONTENT_PROVIDER_INDEX_NAME, searchCriteria);
+                redisTemplate.opsForValue()
+                        .set(generateRedisJwtTokenKey(searchCriteria), searchResult, searchResultRedisTtl, TimeUnit.SECONDS);
+                log.info("ContentPartnerServiceImpl::searchEntity: search result stored in redis cache");
+            }
             Map<String, Object> jsonMap =
                     objectMapper.convertValue(searchResult, new TypeReference<Map<String, Object>>() {
                     });
@@ -390,5 +415,19 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
             log.error("error while processing", e);
         }
         return null;
+    }
+
+    private String generateRedisJwtTokenKey(Object requestPayload) {
+        if (requestPayload != null) {
+            try {
+                String reqJsonString = objectMapper.writeValueAsString(requestPayload);
+                return JWT.create()
+                        .withClaim(Constants.REQUEST_PAYLOAD, reqJsonString)
+                        .sign(Algorithm.HMAC256(Constants.JWT_SECRET_KEY));
+            } catch (JsonProcessingException e) {
+                log.error("Error occurred while converting json object to json string", e);
+            }
+        }
+        return "";
     }
 }
