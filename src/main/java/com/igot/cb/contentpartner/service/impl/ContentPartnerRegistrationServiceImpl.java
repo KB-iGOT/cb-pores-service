@@ -202,7 +202,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         }
         try {
             ObjectNode registrationData = registrationEntity.getData().deepCopy();
-            registrationData.remove(List.of(Constants.CREATED_ON, Constants.UPDATED_ON, Constants.STATUS, Constants.EMAIL, Constants.PHONE_NUMBER, Constants.CONTACT_NAME, Constants.APPLICATION_ID,Constants.COMMENT,Constants.SEARCHTAGS));
+            registrationData.remove(List.of(Constants.CREATED_ON, Constants.UPDATED_ON, Constants.STATUS, Constants.EMAIL, Constants.PHONE_NUMBER, Constants.CONTACT_NAME, Constants.APPLICATION_ID, Constants.COMMENT, Constants.SEARCHTAGS));
             log.info(Constants.CONTENT_PARTNER_CREATE_START, registrationEntity.getId());
             ApiResponse createResponse = contentPartnerService.createContentPartner(registrationData);
             if (HttpStatus.OK.equals(createResponse.getResponseCode())) {
