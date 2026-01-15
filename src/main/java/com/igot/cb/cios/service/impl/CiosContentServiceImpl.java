@@ -32,6 +32,7 @@ import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.ValidationMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -381,17 +382,21 @@ public class CiosContentServiceImpl implements CiosContentService {
         }
         
         try {
-            HashMap<String, Object> filterCriteriaMap =
-                    Optional.ofNullable(searchCriteria.getFilterCriteriaMap())
-                            .orElseGet(HashMap::new);
+            if (MapUtils.isEmpty(searchCriteria.getFilterCriteriaMap())) {
+                HashMap<String, Object> filterCriteriaMap =
+                        Optional.ofNullable(searchCriteria.getFilterCriteriaMap())
+                                .orElseGet(HashMap::new);
 
-            filterCriteriaMap.putIfAbsent(Constants.IS_ACTIVE, true);
+                filterCriteriaMap.putIfAbsent(Constants.IS_ACTIVE, true);
 
-            List<String> activePartnerIds = getActiveContentPartnerIds();
-            if (CollectionUtils.isNotEmpty(activePartnerIds)) {
-                filterCriteriaMap.put("contentPartner.id", activePartnerIds);
+                List<String> activePartnerIds = getActiveContentPartnerIds();
+                if (CollectionUtils.isNotEmpty(activePartnerIds)) {
+                    filterCriteriaMap.put("contentPartner.id", new ArrayList<String>(activePartnerIds));
+                }
+                searchCriteria.setFilterCriteriaMap(filterCriteriaMap);
             }
-            searchCriteria.setFilterCriteriaMap(filterCriteriaMap);
+            HashMap<String, Object> filterCriteriaMap = searchCriteria.getFilterCriteriaMap();
+            filterCriteriaMap.put(Constants.IS_ACTIVE, true);
             SearchResult searchResult = redisTemplate.opsForValue()
                     .get(generateRedisJwtTokenKey(searchCriteria));
             if (searchResult != null) {
