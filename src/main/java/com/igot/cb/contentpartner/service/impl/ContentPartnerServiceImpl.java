@@ -168,30 +168,25 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_CREATE);
         Timestamp currentTime = new Timestamp(System.currentTimeMillis());
         log.info("Payload for validation: {}", partnerDetails);
+        String partnerName = partnerDetails.path(Constants.CONTENT_PARTNER_NAME).asText();
         String id = null;
+        String partnerCode = null;
         if (partnerDetails != null && partnerDetails.hasNonNull(Constants.ID)) {
             id = partnerDetails.path(Constants.ID).asText();
+            partnerCode = partnerDetails.path(Constants.APPLICATION_ID).asText("");
             payloadValidation.validatePayload(Constants.CONTENT_PARTNER_FILE_JSON, partnerDetails);
-        }else {
+        } else {
             id = UUID.randomUUID().toString();
+            String firstWord = partnerName.trim().split("\\s+")[0].toUpperCase().replaceAll("[^A-Z]", "");
+            do {
+                String randomCode = id.replace("-", "").substring(0, 5).toUpperCase();
+                partnerCode = Constants.APPLICATION_ID_PREFIX + firstWord + "-" + randomCode;
+            } while (entityRepository.findByPartnerCode(partnerCode).isPresent());
             payloadValidation.validatePayload(Constants.PAYLOAD_VALIDATION_FILE_CONTENT_PROVIDER, partnerDetails);
         }
-        String partnerName = partnerDetails.path(Constants.CONTENT_PARTNER_NAME).asText();
-        String partnerCode = partnerDetails.path(Constants.PARTNERCODE).asText("");
-        boolean hasPartnerCode = partnerCode != null && !partnerCode.isEmpty();
         Optional<ContentPartnerEntity> existingByName = entityRepository.findByContentPartnerName(partnerName);
         if (existingByName.isPresent()) {
-            if (hasPartnerCode && entityRepository.findByPartnerCode(partnerCode).isPresent()) {
-                response.getParams().setErrMsg(Constants.CONTENT_PARTNER_CODE_AND_NAME_ALREADY_PRESENT);
-            } else {
-                response.getParams().setErrMsg(Constants.CONTENT_PARTNER_NAME_ALREADY_PRESENT);
-            }
-            response.getParams().setStatus(Constants.FAILED);
-            response.setResponseCode(HttpStatus.BAD_REQUEST);
-            return response;
-        }
-        if (hasPartnerCode && entityRepository.findByPartnerCode(partnerCode).isPresent()) {
-            response.getParams().setErrMsg(Constants.CONTENT_PARTNER_CODE_ALREADY_PRESENT);
+            response.getParams().setErrMsg(Constants.CONTENT_PARTNER_NAME_ALREADY_PRESENT);
             response.getParams().setStatus(Constants.FAILED);
             response.setResponseCode(HttpStatus.BAD_REQUEST);
             return response;
@@ -229,10 +224,6 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
         esUtilService.addDocument(Constants.CONTENT_PROVIDER_INDEX_NAME, Constants.INDEX_TYPE, id, map, cbServerProperties.getElasticContentJsonPath());
         Map<String, Object> result = objectMapper.convertValue(saveJsonEntity, Map.class);
         cacheService.putCache(saveJsonEntity.getId(), result);
-        if (!partnerDetails.path(Constants.PARTNERCODE).isMissingNode()) {
-            log.info(Constants.CONTENT_PARTNER_CACHE_DELETE, partnerDetails.path(Constants.PARTNERCODE).asText());
-            cacheService.deleteCache(partnerDetails.get(Constants.PARTNERCODE).asText());
-        }
         log.info(Constants.CONTENT_PARTNER_CREATED);
         response.setResult(result);
         response.setResponseCode(HttpStatus.OK);

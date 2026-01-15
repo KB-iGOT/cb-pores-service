@@ -35,7 +35,7 @@ public class Constants {
     public static final String USER_ID_RQST = "userId";
     public static final String INTEREST_FLAG = "interest_flag";
     public static final String INTEREST_FLAG_RQST = "interestFlag";
-    public static final String APPLICATION_ID_PREFIX = "IGOT-PARTNER-";
+    public static final String APPLICATION_ID_PREFIX = "IGOT-";
     public static final String CREATED_ON = "createdOn";
     public static final String UPDATED_ON = "updatedOn";
     public static final String APPLICATION_ID = "applicationId";
