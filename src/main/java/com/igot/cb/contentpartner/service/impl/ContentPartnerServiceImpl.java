@@ -97,7 +97,15 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                 return response;
             }
             ContentPartnerEntity jsonEntity = content.get();
-            createContentPartnerEntity(jsonEntity,partnerDetails);
+            String oldPartnerCode = jsonEntity.getData().path(Constants.PARTNERCODE).asText();
+            String oldPartnerName = jsonEntity.getData().path(Constants.CONTENT_PARTNER_NAME).asText();
+            String newPartnerName = partnerDetails.path(Constants.DATA).path(Constants.CONTENT_PARTNER_NAME).asText();
+            String newPartnerCode = null;
+            if (!oldPartnerName.equalsIgnoreCase(newPartnerName)) {
+                newPartnerCode = generatePartnerCode(newPartnerName, jsonEntity.getId());
+                ((ObjectNode) partnerDetails.path(Constants.DATA)).put(Constants.PARTNERCODE, newPartnerCode);
+            }
+            createContentPartnerEntity(jsonEntity, partnerDetails);
             ContentPartnerEntity updateJsonEntity = entityRepository.save(jsonEntity);
             if (!ObjectUtils.isEmpty(updateJsonEntity)) {
                 Map<String, Object> jsonMap =
@@ -107,8 +115,15 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                 Map<String, Object> result = objectMapper.convertValue(updateJsonEntity, Map.class);
 
                 if (jsonMap != null && StringUtils.isNotBlank((String) jsonMap.get(Constants.PARTNERCODE))) {
-                    log.info(Constants.CONTENT_PARTNER_UPDATE_CACHE_DELETE, partnerDetails.path(Constants.PARTNERCODE).asText());
-                    cacheService.deleteCache((String) jsonMap.get(Constants.PARTNERCODE));
+                    log.info(Constants.CONTENT_PARTNER_UPDATE_CACHE_DELETE, jsonMap.get(Constants.PARTNERCODE));
+                    //  delete OLD partnerCode cache
+                    if (StringUtils.isNotBlank(oldPartnerCode)) {
+                        cacheService.deleteCache(oldPartnerCode);
+                    }
+                    // delete NEW partnerCode cache
+                    if (StringUtils.isNotBlank(newPartnerCode)) {
+                        cacheService.deleteCache(newPartnerCode);
+                    }
                     cacheService.deleteCache(updateJsonEntity.getId());
                 }
                 log.info(Constants.UPDATED_CONTENT_PARTNER);
@@ -177,11 +192,7 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
             payloadValidation.validatePayload(Constants.CONTENT_PARTNER_FILE_JSON, partnerDetails);
         } else {
             id = UUID.randomUUID().toString();
-            String firstWord = partnerName.trim().split("\\s+")[0].toUpperCase().replaceAll("[^A-Z]", "");
-            do {
-                String randomCode = id.replace("-", "").substring(0, 5).toUpperCase();
-                partnerCode = Constants.APPLICATION_ID_PREFIX + firstWord + "-" + randomCode;
-            } while (entityRepository.findByPartnerCode(partnerCode).isPresent());
+            partnerCode = generatePartnerCode(partnerName,id);
             payloadValidation.validatePayload(Constants.PAYLOAD_VALIDATION_FILE_CONTENT_PROVIDER, partnerDetails);
         }
         Optional<ContentPartnerEntity> existingByName = entityRepository.findByContentPartnerName(partnerName);
@@ -211,6 +222,7 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
         ((ObjectNode) partnerDetails).put(Constants.DOCUMENT_UPLOADED_DATE, partnerDetails.path(Constants.DOCUMENT_UPLOADED_DATE).asText(""));
         ((ObjectNode) partnerDetails).put(Constants.PROVIDER_TYPE, Constants.EXTERNAL);
         ((ObjectNode) partnerDetails).put(Constants.IS_TRAINING_INSTITUTE, Constants.ACTIVE_STATUS_FALSE);
+        ((ObjectNode) partnerDetails).remove(Constants.APPLICATION_ID);
         ContentPartnerEntity contentPartnerEntity = new ContentPartnerEntity();
         contentPartnerEntity.setId(id);
         contentPartnerEntity.setCreatedOn(currentTime);
@@ -228,6 +240,15 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
         response.setResult(result);
         response.setResponseCode(HttpStatus.OK);
         return response;
+    }
+    private String generatePartnerCode(String partnerName, String id) {
+        String firstWord = partnerName.trim().split("\\s+")[0].toUpperCase().replaceAll("[^A-Z]", "");
+        String partnerCode;
+        do {
+            String randomCode = id.replace("-", "").substring(0, 5).toUpperCase();
+            partnerCode = Constants.APPLICATION_ID_PREFIX + firstWord + "-" + randomCode;
+        } while (entityRepository.findByPartnerCode(partnerCode).isPresent());
+        return partnerCode;
     }
 
     private JsonNode addSearchTags(JsonNode formattedData) {
