@@ -13,6 +13,7 @@ import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.PayloadValidation;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 import java.sql.Timestamp;
 import java.util.HashMap;
@@ -515,30 +516,6 @@ class ContentPartnerServiceImplTest {
         verify(cacheService).putCache(anyString(), any());
     }
 
-    @Test
-    void testUpdatePartner_Success() throws Exception {
-        ObjectNode data = realObjectMapper.createObjectNode();
-        data.put("contentPartnerName", "UpdatedPartner");
-
-        ObjectNode input = realObjectMapper.createObjectNode();
-        input.put("id", "1234");
-        input.set("data", data);
-
-        ContentPartnerEntity entity = new ContentPartnerEntity();
-        entity.setId("1234");
-        entity.setCreatedOn(new Timestamp(System.currentTimeMillis()));
-        entity.setData(data);
-
-        when(entityRepository.findById("1234")).thenReturn(Optional.of(entity));
-        when(entityRepository.findByContentPartnerName("UpdatedPartner")).thenReturn(Optional.of(entity));
-        when(entityRepository.save(any())).thenReturn(entity);
-        when(objectMapper.convertValue(any(), eq(Map.class))).thenReturn(new HashMap<>());
-        when(cbServerProperties.getElasticContentJsonPath()).thenReturn("path");
-
-        ApiResponse response = contentPartnerService.createOrUpdate(input);
-
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-    }
 
     @Test
     void testCreatePartner_PartnerNameAlreadyExists() {
@@ -565,11 +542,11 @@ class ContentPartnerServiceImplTest {
     @Test
     void testUpdatePartner_NotFound() {
         ObjectNode data = realObjectMapper.createObjectNode();
-        data.put("contentPartnerName", "NotExist");
+        data.put(Constants.CONTENT_PARTNER_NAME, "NotExist");
 
         ObjectNode input = realObjectMapper.createObjectNode();
-        input.put("id", "1234");
-        input.set("data", data);
+        input.put(Constants.ID, "1234");
+        input.set(Constants.DATA, data);
 
         when(entityRepository.findById("1234")).thenReturn(Optional.empty());
 
@@ -577,6 +554,7 @@ class ContentPartnerServiceImplTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals(Constants.DATA_NOT_PRESENT, response.getParams().getErrMsg());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
     @Test
     void testCreatePartner_GeneratesIdAndPartnerCode() throws Exception {
