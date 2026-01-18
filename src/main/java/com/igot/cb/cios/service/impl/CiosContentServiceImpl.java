@@ -395,8 +395,6 @@ public class CiosContentServiceImpl implements CiosContentService {
                 }
                 searchCriteria.setFilterCriteriaMap(filterCriteriaMap);
             }
-            HashMap<String, Object> filterCriteriaMap = searchCriteria.getFilterCriteriaMap();
-            filterCriteriaMap.put(Constants.IS_ACTIVE, true);
             SearchResult searchResult = redisTemplate.opsForValue()
                     .get(generateRedisJwtTokenKey(searchCriteria));
             if (searchResult != null) {
