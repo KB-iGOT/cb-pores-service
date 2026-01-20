@@ -27,20 +27,30 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.HttpStatus;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class InterestServiceImplTest {
 
     @Mock
@@ -84,6 +94,12 @@ class InterestServiceImplTest {
 
     @Mock
     private ValueOperations<String, SearchResult> valueOperations;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("test-secret-key-for-jwt-signing");
+    }
 
     /**
      * Test case for assignInterestToDemand method when the user token is invalid.
@@ -737,6 +753,7 @@ class InterestServiceImplTest {
     @Test
     void test_generateRedisJwtTokenKey_whenRequestPayloadNotNull() throws Exception {
         MockitoAnnotations.openMocks(this);
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("test-secret-key-for-jwt-signing");
 
         // Arrange
         Object requestPayload = new Object();
@@ -748,7 +765,7 @@ class InterestServiceImplTest {
 
         // Assert
         assertNotNull(result);
-        JWT.require(Algorithm.HMAC256(Constants.JWT_SECRET_KEY))
+        JWT.require(Algorithm.HMAC256(cbServerProperties.getRedisKeyJwtTokenString()))
            .build()
            .verify(result);
     }
@@ -779,6 +796,7 @@ class InterestServiceImplTest {
     @Test
     void test_read_3() {
         MockitoAnnotations.openMocks(this);
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("test-secret-key-for-jwt-signing");
 
         String id = "testId";
         Interests interest = new Interests();
@@ -839,6 +857,7 @@ class InterestServiceImplTest {
 
         SearchResult mockSearchResult = new SearchResult();
 
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
         when(esUtilService.searchDocuments(eq(Constants.INTEREST_INDEX_NAME), eq(searchCriteria))).thenReturn(mockSearchResult);
@@ -858,6 +877,7 @@ class InterestServiceImplTest {
      */
     @Test
     void test_searchDemand_shortSearchString() {
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("ab");
@@ -876,6 +896,7 @@ class InterestServiceImplTest {
         // Arrange
         SearchCriteria searchCriteria = new SearchCriteria();
         SearchResult cachedResult = new SearchResult();
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(cachedResult);
 

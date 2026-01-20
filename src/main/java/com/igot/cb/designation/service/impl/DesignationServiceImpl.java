@@ -9,15 +9,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
-import com.igot.cb.competencies.subtheme.repository.CompetencySubThemeRepository;
-import com.igot.cb.competencies.theme.repository.CompetencyThemeRepository;
 import com.igot.cb.authentication.util.AccessTokenValidator;
-import com.igot.cb.competencies.subtheme.entity.CompetencySubThemeEntity;
 import com.igot.cb.designation.entity.DesignationEntity;
 import com.igot.cb.designation.repository.DesignationRepository;
 import com.igot.cb.designation.service.DesignationService;
-import com.igot.cb.org.service.OrgService;
-import com.igot.cb.org.service.impl.OrgServiceImpl;
 import com.igot.cb.playlist.util.ProjectUtil;
 import com.igot.cb.pores.Service.OutboundRequestHandlerServiceImpl;
 import com.igot.cb.pores.cache.CacheService;
@@ -25,17 +20,10 @@ import com.igot.cb.pores.dto.CustomResponse;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
 import com.igot.cb.pores.exceptions.CustomException;
 import com.igot.cb.pores.util.*;
-import com.igot.cb.interest.service.impl.InterestServiceImpl;
-import com.igot.cb.pores.cache.CacheService;
-import com.igot.cb.pores.dto.CustomResponse;
 import com.igot.cb.pores.dto.RespParam;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
-import com.igot.cb.pores.elasticsearch.service.EsUtilService;
-import com.igot.cb.pores.exceptions.CustomException;
-import com.igot.cb.pores.util.CbServerProperties;
-import com.igot.cb.pores.util.Constants;
-import com.igot.cb.pores.util.PayloadValidation;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -47,14 +35,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
@@ -885,7 +866,7 @@ public class DesignationServiceImpl implements DesignationService {
         String reqJsonString = objectMapper.writeValueAsString(requestPayload);
         return JWT.create()
             .withClaim(Constants.REQUEST_PAYLOAD, reqJsonString)
-            .sign(Algorithm.HMAC256(Constants.JWT_SECRET_KEY));
+            .sign(Algorithm.HMAC256(cbServerProperties.getRedisKeyJwtTokenString()));
       } catch (JsonProcessingException e) {
         logger.error("Error occurred while converting json object to json string", e);
       }

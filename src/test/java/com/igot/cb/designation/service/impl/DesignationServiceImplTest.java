@@ -111,6 +111,7 @@ class DesignationServiceImplTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.initMocks(this);
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("test-secret-key-for-jwt-signing");
     }
 
     /**
@@ -671,6 +672,7 @@ class DesignationServiceImplTest {
     @Test
     void test_generateRedisJwtTokenKey_whenRequestPayloadNotNull() {
         // Arrange
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         Object requestPayload = new Object();
         String mockJsonString = "{\"key\":\"value\"}";
         try {
@@ -879,6 +881,7 @@ class DesignationServiceImplTest {
     @Test
     void test_searchDesignation_1() {
         // Arrange
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         SearchCriteria searchCriteria = new SearchCriteria();
         SearchResult cachedResult = new SearchResult();
 
@@ -902,6 +905,7 @@ class DesignationServiceImplTest {
     @Test
     void test_searchDesignation_2() {
         // Arrange
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         SearchCriteria searchCriteria = mock(SearchCriteria.class);
         when(searchCriteria.getSearchString()).thenReturn("a");
@@ -921,6 +925,7 @@ class DesignationServiceImplTest {
     @Test
     void test_searchDesignation_3() throws Exception {
         // Arrange
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("Valid Search");
 
@@ -945,6 +950,7 @@ class DesignationServiceImplTest {
      */
     @Test
     void test_searchDesignation_shortSearchString() {
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("a");
@@ -1560,6 +1566,7 @@ class DesignationServiceImplTest {
     @Test
     void searchDesignation_shouldHandleEsException() throws Exception {
         // Arrange
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("developer");
 

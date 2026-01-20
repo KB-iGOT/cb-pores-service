@@ -256,14 +256,14 @@
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
-            <artifactId>mockito-inline</artifactId>
-            <version>4.11.0</version> <!-- or latest version -->
+            <artifactId>mockito-core</artifactId>
+            <version>5.14.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.objenesis</groupId>
             <artifactId>objenesis</artifactId>
-            <version>3.2</version>
+            <version>3.4</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -287,14 +287,19 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.1.2</version>
                 <configuration>
-                    <forkCount>1</forkCount> <!-- Enable forked JVM -->
+                    <forkCount>1</forkCount>
                     <reuseForks>true</reuseForks>
+                    <!-- Use @{argLine} to allow Jacoco to inject its agent -->
+                    <!-- Add JVM module opens to prevent module system crashes -->
+                    <argLine>@{argLine} -Xmx1024m --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED -Druntime.log.logsystem.class=org.apache.velocity.runtime.log.NullLogChute</argLine>
+                    <!-- Allow JVM to exit gracefully even if there's a crash during shutdown -->
+                    <shutdown>kill</shutdown>
                 </configuration>
             </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.8</version>
+                <version>0.8.12</version>
                 <configuration>
                     <includes>
                         <include>com/igot/cb/*</include>
@@ -341,5 +346,15 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Profile for building without running tests -->
+        <profile>
+            <id>quick-build</id>
+            <properties>
+                <maven.test.skip>true</maven.test.skip>
+            </properties>
+        </profile>
+    </profiles>
 
 </project>

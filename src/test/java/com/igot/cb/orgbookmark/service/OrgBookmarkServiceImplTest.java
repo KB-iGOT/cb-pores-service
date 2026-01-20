@@ -105,6 +105,7 @@ class OrgBookmarkServiceImplTest {
 
     @Test
     void testCreateOrgBookmark_duplicateBookmarkFailure() {
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         when(cbServerProperties.getBookmarkDuplicateNotAllowedCategory())
                 .thenReturn(List.of("testCategory"));
         when(cbServerProperties.getElasticBookmarkJsonPath()).thenReturn("dummyPath");
@@ -155,6 +156,7 @@ class OrgBookmarkServiceImplTest {
 
     @Test
     void testSearch_resultFromRedis() {
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         SearchCriteria criteria = new SearchCriteria();
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(new SearchResult());
@@ -166,6 +168,7 @@ class OrgBookmarkServiceImplTest {
 
     @Test
     void testSearch_shortSearchString() {
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         SearchCriteria criteria = new SearchCriteria();
         criteria.setSearchString("a");
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
@@ -177,6 +180,7 @@ class OrgBookmarkServiceImplTest {
 
     @Test
     void testSearch_elasticsearchThrowsException() throws Exception {
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         SearchCriteria criteria = new SearchCriteria();
         criteria.setSearchString("valid");
 

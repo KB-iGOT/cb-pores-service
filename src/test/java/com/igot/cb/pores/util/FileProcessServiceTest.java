@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
@@ -12,14 +13,13 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -34,7 +34,8 @@ class FileProcessServiceTest {
     private MultipartFile multipartFile;
 
     private Workbook createTestWorkbook(String[][] data) {
-        Workbook workbook = new XSSFWorkbook();
+        // Use HSSFWorkbook instead of XSSFWorkbook to avoid ServiceLoader issues in tests
+        Workbook workbook = new HSSFWorkbook();
         Sheet sheet = workbook.createSheet("TestSheet");
 
         for (int i = 0; i < data.length; i++) {
@@ -45,6 +46,12 @@ class FileProcessServiceTest {
             }
         }
         return workbook;
+    }
+
+    private InputStream workbookToInputStream(Workbook workbook) throws IOException {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        workbook.write(bos);
+        return new ByteArrayInputStream(bos.toByteArray());
     }
 
     private String createCsvContent(String[][] data) {
@@ -76,28 +83,23 @@ class FileProcessServiceTest {
         };
 
         Workbook workbook = createTestWorkbook(testData);
-        InputStream inputStream = new ByteArrayInputStream(new byte[0]);
+        InputStream inputStream = workbookToInputStream(workbook);
 
         when(multipartFile.getOriginalFilename()).thenReturn("test.xlsx");
         when(multipartFile.getInputStream()).thenReturn(inputStream);
 
-        try (MockedStatic<WorkbookFactory> mockedFactory = mockStatic(WorkbookFactory.class)) {
-            mockedFactory.when(() -> WorkbookFactory.create(any(InputStream.class)))
-                    .thenReturn(workbook);
+        // When
+        List<Map<String, String>> result = fileProcessService.processExcelFile(multipartFile);
 
-            // When
-            List<Map<String, String>> result = fileProcessService.processExcelFile(multipartFile);
-
-            // Then
-            assertNotNull(result);
-            assertEquals(2, result.size());
-            assertEquals("John", result.get(0).get("Name"));
-            assertEquals("25", result.get(0).get("Age"));
-            assertEquals("New York", result.get(0).get("City"));
-            assertEquals("Jane", result.get(1).get("Name"));
-            assertEquals("30", result.get(1).get("Age"));
-            assertEquals("Los Angeles", result.get(1).get("City"));
-        }
+        // Then
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        assertEquals("John", result.get(0).get("Name"));
+        assertEquals("25", result.get(0).get("Age"));
+        assertEquals("New York", result.get(0).get("City"));
+        assertEquals("Jane", result.get(1).get("Name"));
+        assertEquals("30", result.get(1).get("Age"));
+        assertEquals("Los Angeles", result.get(1).get("City"));
     }
 
     @Test
@@ -185,30 +187,25 @@ class FileProcessServiceTest {
         };
 
         Workbook workbook = createTestWorkbook(testData);
-        InputStream inputStream = new ByteArrayInputStream(new byte[0]);
+        InputStream inputStream = workbookToInputStream(workbook);
 
         when(multipartFile.getOriginalFilename()).thenReturn("test.xlsx");
         when(multipartFile.getInputStream()).thenReturn(inputStream);
 
-        try (MockedStatic<WorkbookFactory> mockedFactory = mockStatic(WorkbookFactory.class)) {
-            mockedFactory.when(() -> WorkbookFactory.create(any(InputStream.class)))
-                    .thenReturn(workbook);
+        // When
+        List<Map<String, String>> result = fileProcessService.processExcelFile(multipartFile);
 
-            // When
-            List<Map<String, String>> result = fileProcessService.processExcelFile(multipartFile);
-
-            // Then
-            assertNotNull(result);
-            assertEquals(3, result.size()); // Should stop at blank row
-            assertEquals("John", result.get(0).get("Name"));
-            assertEquals("25", result.get(0).get("Age"));
-        }
+        // Then
+        assertNotNull(result);
+        assertEquals(3, result.size()); // Should stop at blank row
+        assertEquals("John", result.get(0).get("Name"));
+        assertEquals("25", result.get(0).get("Age"));
     }
 
     @Test
     void testExcelProcessingWithDateCells() throws IOException {
         // Given
-        Workbook workbook = new XSSFWorkbook();
+        Workbook workbook = new HSSFWorkbook();
         Sheet sheet = workbook.createSheet("TestSheet");
 
         // Create header row
@@ -228,30 +225,25 @@ class FileProcessServiceTest {
         dateStyle.setDataFormat(createHelper.createDataFormat().getFormat("yyyy-MM-dd"));
         dateCell.setCellStyle(dateStyle);
 
-        InputStream inputStream = new ByteArrayInputStream(new byte[0]);
+        InputStream inputStream = workbookToInputStream(workbook);
 
         when(multipartFile.getOriginalFilename()).thenReturn("test.xlsx");
         when(multipartFile.getInputStream()).thenReturn(inputStream);
 
-        try (MockedStatic<WorkbookFactory> mockedFactory = mockStatic(WorkbookFactory.class)) {
-            mockedFactory.when(() -> WorkbookFactory.create(any(InputStream.class)))
-                    .thenReturn(workbook);
+        // When
+        List<Map<String, String>> result = fileProcessService.processExcelFile(multipartFile);
 
-            // When
-            List<Map<String, String>> result = fileProcessService.processExcelFile(multipartFile);
-
-            // Then
-            assertNotNull(result);
-            assertEquals(1, result.size());
-            assertEquals("John", result.get(0).get("Name"));
-            assertTrue(result.get(0).get("Date").contains("T")); // Should contain ISO format
-        }
+        // Then
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("John", result.get(0).get("Name"));
+        assertTrue(result.get(0).get("Date").contains("T")); // Should contain ISO format
     }
 
     @Test
     void testExcelProcessingWithNullDataRow() throws IOException {
         // Given
-        Workbook workbook = new XSSFWorkbook();
+        Workbook workbook = new HSSFWorkbook();
         Sheet sheet = workbook.createSheet("TestSheet");
 
         // Create header row
@@ -261,28 +253,23 @@ class FileProcessServiceTest {
         // Skip row 1 (it will be null)
         // Row 2 will exist but row 1 will be null
 
-        InputStream inputStream = new ByteArrayInputStream(new byte[0]);
+        InputStream inputStream = workbookToInputStream(workbook);
 
         when(multipartFile.getOriginalFilename()).thenReturn("test.xlsx");
         when(multipartFile.getInputStream()).thenReturn(inputStream);
 
-        try (MockedStatic<WorkbookFactory> mockedFactory = mockStatic(WorkbookFactory.class)) {
-            mockedFactory.when(() -> WorkbookFactory.create(any(InputStream.class)))
-                    .thenReturn(workbook);
+        // When
+        List<Map<String, String>> result = fileProcessService.processExcelFile(multipartFile);
 
-            // When
-            List<Map<String, String>> result = fileProcessService.processExcelFile(multipartFile);
-
-            // Then
-            assertNotNull(result);
-            assertEquals(0, result.size()); // Should stop at null row
-        }
+        // Then
+        assertNotNull(result);
+        assertEquals(0, result.size()); // Should stop at null row
     }
 
     @Test
     void testExcelProcessingWithBlankHeaderCells() throws IOException {
         // Given
-        Workbook workbook = new XSSFWorkbook();
+        Workbook workbook = new HSSFWorkbook();
         Sheet sheet = workbook.createSheet("TestSheet");
 
         // Create header row with blank cell
@@ -298,31 +285,26 @@ class FileProcessServiceTest {
         dataRow.createCell(1).setCellValue("Ignored");
         dataRow.createCell(2).setCellValue("25");
 
-        InputStream inputStream = new ByteArrayInputStream(new byte[0]);
+        InputStream inputStream = workbookToInputStream(workbook);
 
         when(multipartFile.getOriginalFilename()).thenReturn("test.xlsx");
         when(multipartFile.getInputStream()).thenReturn(inputStream);
 
-        try (MockedStatic<WorkbookFactory> mockedFactory = mockStatic(WorkbookFactory.class)) {
-            mockedFactory.when(() -> WorkbookFactory.create(any(InputStream.class)))
-                    .thenReturn(workbook);
+        // When
+        List<Map<String, String>> result = fileProcessService.processExcelFile(multipartFile);
 
-            // When
-            List<Map<String, String>> result = fileProcessService.processExcelFile(multipartFile);
-
-            // Then
-            assertNotNull(result);
-            assertEquals(1, result.size());
-            assertEquals("John", result.get(0).get("Name"));
-            assertEquals("25", result.get(0).get("Age"));
-            assertFalse(result.get(0).containsKey("")); // Blank header should be ignored
-        }
+        // Then
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("John", result.get(0).get("Name"));
+        assertEquals("25", result.get(0).get("Age"));
+        assertFalse(result.get(0).containsKey("")); // Blank header should be ignored
     }
 
     @Test
     void testExcelProcessingWithNewlines() throws IOException {
         // Given
-        Workbook workbook = new XSSFWorkbook();
+        Workbook workbook = new HSSFWorkbook();
         Sheet sheet = workbook.createSheet("TestSheet");
 
         // Create header row with newlines
@@ -335,24 +317,19 @@ class FileProcessServiceTest {
         dataRow.createCell(0).setCellValue("John");
         dataRow.createCell(1).setCellValue("Line1\nLine2");
 
-        InputStream inputStream = new ByteArrayInputStream(new byte[0]);
+        InputStream inputStream = workbookToInputStream(workbook);
 
         when(multipartFile.getOriginalFilename()).thenReturn("test.xlsx");
         when(multipartFile.getInputStream()).thenReturn(inputStream);
 
-        try (MockedStatic<WorkbookFactory> mockedFactory = mockStatic(WorkbookFactory.class)) {
-            mockedFactory.when(() -> WorkbookFactory.create(any(InputStream.class)))
-                    .thenReturn(workbook);
+        // When
+        List<Map<String, String>> result = fileProcessService.processExcelFile(multipartFile);
 
-            // When
-            List<Map<String, String>> result = fileProcessService.processExcelFile(multipartFile);
-
-            // Then
-            assertNotNull(result);
-            assertEquals(1, result.size());
-            assertEquals("John", result.get(0).get("Name"));
-            assertEquals("Line1,Line2", result.get(0).get("Description")); // Newline replaced with comma
-        }
+        // Then
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("John", result.get(0).get("Name"));
+        assertEquals("Line1,Line2", result.get(0).get("Description")); // Newline replaced with comma
     }
 
     @Test
@@ -433,19 +410,14 @@ class FileProcessServiceTest {
     @Test
     @DisplayName("Test Excel processing with exception in sheet processing")
     void testExcelProcessingWithException() throws IOException {
-        // Given
+        // Given - Invalid workbook data should throw exception
         when(multipartFile.getOriginalFilename()).thenReturn("test.xlsx");
         when(multipartFile.getInputStream()).thenReturn(new ByteArrayInputStream(new byte[0]));
 
-        try (MockedStatic<WorkbookFactory> mockedFactory = mockStatic(WorkbookFactory.class)) {
-            mockedFactory.when(() -> WorkbookFactory.create(any(InputStream.class)))
-                    .thenThrow(new RuntimeException("Sheet processing error"));
-
-            // When & Then
-            RuntimeException exception = assertThrows(RuntimeException.class,
-                    () -> fileProcessService.processExcelFile(multipartFile));
-            assertEquals("Sheet processing error", exception.getMessage());
-        }
+        // When & Then
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> fileProcessService.processExcelFile(multipartFile));
+        assertNotNull(exception.getMessage());
     }
 
     @Test
@@ -457,24 +429,19 @@ class FileProcessServiceTest {
         };
 
         Workbook workbook = createTestWorkbook(testData);
-        InputStream inputStream = new ByteArrayInputStream(new byte[0]);
+        InputStream inputStream = workbookToInputStream(workbook);
 
         when(multipartFile.getOriginalFilename()).thenReturn("test.xls");
         when(multipartFile.getInputStream()).thenReturn(inputStream);
 
-        try (MockedStatic<WorkbookFactory> mockedFactory = mockStatic(WorkbookFactory.class)) {
-            mockedFactory.when(() -> WorkbookFactory.create(any(InputStream.class)))
-                    .thenReturn(workbook);
+        // When
+        List<Map<String, String>> result = fileProcessService.processExcelFile(multipartFile);
 
-            // When
-            List<Map<String, String>> result = fileProcessService.processExcelFile(multipartFile);
-
-            // Then
-            assertNotNull(result);
-            assertEquals(1, result.size());
-            assertEquals("John", result.get(0).get("Name"));
-            assertEquals("25", result.get(0).get("Age"));
-        }
+        // Then
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("John", result.get(0).get("Name"));
+        assertEquals("25", result.get(0).get("Age"));
     }
 
     @Test

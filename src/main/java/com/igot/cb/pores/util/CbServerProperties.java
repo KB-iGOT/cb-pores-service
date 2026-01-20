@@ -180,6 +180,9 @@ public class CbServerProperties {
     @Value("${org.hierarchy.required.roles}")
     private String orgHierarchyCreateRoles;
 
+    @Value("${redis_key_jwt_token_string}")
+    private String redisKeyJwtTokenString;
+
     public List<String> getOrgHierarchyCreateRequiredRoles() {
       return Arrays.asList(orgHierarchyCreateRoles.split(","));
     }

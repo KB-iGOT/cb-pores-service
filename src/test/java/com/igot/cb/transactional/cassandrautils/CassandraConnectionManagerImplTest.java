@@ -1,6 +1,7 @@
 package com.igot.cb.transactional.cassandrautils;
 
 import com.datastax.oss.driver.api.core.ConsistencyLevel;
+import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.DefaultConsistencyLevel;
 import com.igot.cb.pores.exceptions.CustomException;
 import com.igot.cb.pores.util.Constants;
@@ -14,7 +15,9 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -55,9 +58,20 @@ class CassandraConnectionManagerImplTest {
     }
 
     @Test
-    void testShutdownHook() {
+    void testShutdownHook() throws Exception {
+        CqlSession mockSession = mock(CqlSession.class);
+
+        Field mapField = CassandraConnectionManagerImpl.class.getDeclaredField("cassandraSessionMap");
+        mapField.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, CqlSession> cassandraMap = (Map<String, CqlSession>) mapField.get(null);
+        cassandraMap.clear();
+        cassandraMap.put("test-keyspace", mockSession);
         Thread thread = new CassandraConnectionManagerImpl.ResourceCleanUp();
         thread.start();
+        thread.join(2000); // wait up to 2s
+        assertEquals(Thread.State.TERMINATED, thread.getState(), "ResourceCleanUp thread should terminate");
+        verify(mockSession, times(1)).close();
     }
 
     private ConsistencyLevel invokeGetConsistencyLevel() {

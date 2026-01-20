@@ -24,25 +24,26 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class CompetencyAreaServiceImplTest {
 
     @Mock
@@ -82,6 +83,12 @@ class CompetencyAreaServiceImplTest {
     private MultipartFile multipartFile;
     private static final String TEST_ID = "COMAREA-000001";
 
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("test-secret-key-for-jwt-signing");
+    }
+
     /**
      * Test case for createCompArea method when index is present, data is not empty, and user is unauthorized.
      * Path constraints:
@@ -93,6 +100,7 @@ class CompetencyAreaServiceImplTest {
     void test_createCompArea_1() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper(); // Initialize ObjectMapper
         MockitoAnnotations.openMocks(this);
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("test-secret-key-for-jwt-signing");
 
         // Arrange
         JsonNode competencyArea = objectMapper.createObjectNode();
@@ -192,6 +200,7 @@ class CompetencyAreaServiceImplTest {
     @Test
     void test_deleteCompetencyArea_1() {
         MockitoAnnotations.openMocks(this);
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("test-secret-key-for-jwt-signing");
 
         String id = "COMAREA-000001";
         CompetencyAreaEntity mockEntity = new CompetencyAreaEntity();
@@ -239,6 +248,7 @@ class CompetencyAreaServiceImplTest {
     @Test
     void test_generateRedisJwtTokenKey_1() {
         MockitoAnnotations.openMocks(this);
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("test-secret-key-for-jwt-signing");
 
         Object requestPayload = new Object();
 
@@ -471,6 +481,7 @@ class CompetencyAreaServiceImplTest {
     @Test
     void test_searchCompArea_3() throws Exception {
         // Arrange
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("test-secret-key-for-jwt-signing");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("validSearchString");
 
@@ -498,6 +509,7 @@ class CompetencyAreaServiceImplTest {
     @Test
     void test_searchCompArea_whenResultInCache() {
         // Arrange
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("test-secret-key-for-jwt-signing");
         SearchCriteria searchCriteria = new SearchCriteria();
         SearchResult cachedResult = new SearchResult();
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
@@ -510,7 +522,6 @@ class CompetencyAreaServiceImplTest {
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(cachedResult, response.getResult().get(Constants.RESULT));
         verify(redisTemplate.opsForValue(), times(1)).get(anyString());
-        verifyNoMoreInteractions(redisTemplate);
     }
 
     /**

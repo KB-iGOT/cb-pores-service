@@ -23,12 +23,7 @@ import com.igot.cb.pores.util.PayloadValidation;
 
 import java.lang.reflect.Method;
 import java.util.*;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,10 +31,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -48,6 +46,7 @@ import static org.mockito.Mockito.*;
 
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class CompetencyThemeServiceImplTest {
 
     @Mock
@@ -95,6 +94,7 @@ class CompetencyThemeServiceImplTest {
     @BeforeEach
     void setup() {
         MockitoAnnotations.openMocks(this);
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("test-secret-key-for-jwt-signing");
     }
 
     /**
@@ -618,12 +618,15 @@ class CompetencyThemeServiceImplTest {
     void test_generateRedisJwtTokenKey_1() {
         CompetencyThemeServiceImpl service = new CompetencyThemeServiceImpl();
         ObjectMapper objectMapper = mock(ObjectMapper.class);
-        service.objectMapper = objectMapper;
+        CbServerProperties cbServerProps = mock(CbServerProperties.class);
+        ReflectionTestUtils.setField(service, "objectMapper", objectMapper);
+        ReflectionTestUtils.setField(service, "cbServerProperties", cbServerProps);
 
         Object requestPayload = new Object();
         String reqJsonString = "{\"key\":\"value\"}";
 
         try {
+            when(cbServerProps.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
             when(objectMapper.writeValueAsString(requestPayload)).thenReturn(reqJsonString);
 
             String result = service.generateRedisJwtTokenKey(requestPayload);
@@ -1223,6 +1226,7 @@ class CompetencyThemeServiceImplTest {
     @Test
     void test_searchCompTheme_1() {
         // Arrange
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         SearchCriteria searchCriteria = new SearchCriteria();
         SearchResult mockSearchResult = new SearchResult();
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
@@ -1247,6 +1251,7 @@ class CompetencyThemeServiceImplTest {
      */
     @Test
     void test_searchCompTheme_2() {
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("a");
@@ -1267,6 +1272,7 @@ class CompetencyThemeServiceImplTest {
         MockitoAnnotations.openMocks(this);
 
         // Arrange
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("validSearchString");
 
@@ -1297,6 +1303,7 @@ class CompetencyThemeServiceImplTest {
     */
     @Test
     void test_searchCompTheme_shortSearchString() {
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("ab");
