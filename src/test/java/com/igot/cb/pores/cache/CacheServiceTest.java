@@ -54,6 +54,7 @@ class CacheServiceTest {
 
         // Should log and swallow the exception
         cacheService.putCache("key", new Object());
+        verify(redisTemplate, never()).opsForValue();
     }
 
     @Test

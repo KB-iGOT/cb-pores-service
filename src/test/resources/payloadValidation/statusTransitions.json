@@ -1,4 +1,13 @@
 {
-  "objective": "Collect feedback",
-  "requestType": "Single"
+  "Broadcast": {
+    "Unassigned": ["Invalid"],
+    "Assigned": ["InProgress"],
+    "InProgress": ["Fulfill"],
+    "Fulfill": []
+  },
+  "Single": {
+    "Assigned": ["InProgress"],
+    "InProgress": ["Fulfill"],
+    "Fulfill": []
+  }
 }

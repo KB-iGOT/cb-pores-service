@@ -1,6 +1,7 @@
 package com.igot.cb.pores.elasticsearch.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.aggregations.Aggregation;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
@@ -58,44 +59,6 @@ class EsUtilServiceImplMethodTest {
         searchCriteria.setFilterCriteriaMap((HashMap<String, Object>) filterCriteriaMap);
     }
 
-//    @Test
-//    void testSearchDocuments_success() throws IOException {
-//        String index = "test_index";
-//        String jsonFilePath = "schema.json";
-//
-//        // Mock hit
-//        Hit<Object> hit1 = new Hit.Builder<>().id("doc1").index("index").source(Map.of("field", "value")).build();
-//        List<Hit<Object>> hitList = Arrays.asList(hit1);
-//
-//        // Mock total hits
-//        TotalHits totalHits = new TotalHits.Builder().value(1L).relation(TotalHitsRelation.Eq).build();
-//
-//        // Mock hits metadata
-//        HitsMetadata<Object> mockHitsMetadata = Mockito.mock(HitsMetadata.class);
-//        when(mockHitsMetadata.total()).thenReturn(totalHits);
-//        when(mockHitsMetadata.hits()).thenReturn(hitList);
-//
-//        // Mock response
-//        SearchResponse<Object> mockResponse = Mockito.mock(SearchResponse.class);
-//        when(mockResponse.hits()).thenReturn(mockHitsMetadata);
-//
-//        // Mock client
-//        when(elasticsearchClient.search(any(SearchRequest.class), eq(Object.class))).thenReturn(mockResponse);
-//
-//        // Build searchCriteria
-//        SearchCriteria searchCriteria = new SearchCriteria();
-//        searchCriteria.setPageNumber(0);
-//        searchCriteria.setPageSize(10);
-//        searchCriteria.setRequestedFields(List.of("field"));
-//        searchCriteria.setFilterCriteriaMap(new HashMap<>());
-//
-//        SearchResult result = esUtilService.searchDocuments(index, searchCriteria);
-//
-//        assertNotNull(result);
-//        assertEquals(1, result.getTotalCount());
-//        assertFalse(result.getData().isEmpty());
-//    }
-
     @Test
     void testAddRequestedFieldsToSearchSourceBuilder_emptyFields() throws Exception {
         SearchRequest.Builder builder = new SearchRequest.Builder();
@@ -104,6 +67,13 @@ class EsUtilServiceImplMethodTest {
         Method method = EsUtilServiceImpl.class.getDeclaredMethod("addRequestedFieldsToSearchSourceBuilder", SearchCriteria.class, SearchRequest.Builder.class);
         method.setAccessible(true);
         method.invoke(esUtilService, searchCriteria, builder);
+
+        SearchRequest request = builder.build();
+        assertNotNull(request.source(), "SearchRequest.source should not be null");
+        assertNotNull(request.source().filter(), "Source.filter should not be null");
+        List<String> includes = request.source().filter().includes();
+        assertNotNull(includes, "Source.filter.includes should not be null");
+        assertTrue(includes.isEmpty(), "Includes list should be empty when requestedFields is empty");
     }
 
     @Test
@@ -114,6 +84,18 @@ class EsUtilServiceImplMethodTest {
         Method method = EsUtilServiceImpl.class.getDeclaredMethod("addFacetsToSearchSourceBuilder", List.class, SearchRequest.Builder.class);
         method.setAccessible(true);
         method.invoke(esUtilService, facets, builder);
+
+        SearchRequest request = builder.build();
+        assertNotNull(request.aggregations(), "Aggregations should not be null when facets provided");
+        assertEquals(1, request.aggregations().size(), "There should be one aggregation entry");
+        assertTrue(request.aggregations().containsKey("communityId_agg"), "Expected aggregation key missing");
+
+        Aggregation aggregation =
+                request.aggregations().get("communityId_agg");
+        assertNotNull(aggregation, "Aggregation object should not be null");
+        assertNotNull(aggregation.terms(), "Terms aggregation should be present for the facet");
+        assertEquals("communityId.keyword", aggregation.terms().field(), "Terms aggregation field mismatch");
+        assertEquals(Integer.valueOf(250), aggregation.terms().size(), "Terms aggregation size mismatch");
     }
 
     @Test

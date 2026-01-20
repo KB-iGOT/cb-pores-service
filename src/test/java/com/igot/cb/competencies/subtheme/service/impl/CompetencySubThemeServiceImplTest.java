@@ -23,6 +23,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.HttpStatus;
@@ -38,6 +40,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class CompetencySubThemeServiceImplTest {
 
     @Mock
@@ -90,6 +93,7 @@ class CompetencySubThemeServiceImplTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         objectMapper = new ObjectMapper();
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("test-secret-key-for-jwt-signing");
     }
 
     /**
@@ -98,6 +102,7 @@ class CompetencySubThemeServiceImplTest {
      */
     @Test
     void testSearchCompSubThemeWithShortSearchString() {
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("a");
 
@@ -210,6 +215,7 @@ class CompetencySubThemeServiceImplTest {
     @Test
     void test_deleteCompetencySubTheme_nonExistentId() {
         MockitoAnnotations.openMocks(this);
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("test-secret-key-for-jwt-signing");
 
         String nonExistentId = "NON_EXISTENT_ID";
         when(competencySubThemeRepository.findByIdAndIsActive(nonExistentId, true)).thenReturn(Optional.empty());
@@ -228,6 +234,7 @@ class CompetencySubThemeServiceImplTest {
     @Test
     void test_generateRedisJwtTokenKey_1() {
         MockitoAnnotations.openMocks(this);
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("test-secret-key-for-jwt-signing");
 
         // Arrange
         Object requestPayload = new Object();
@@ -331,6 +338,7 @@ class CompetencySubThemeServiceImplTest {
     @Test
     void test_readCompSubTheme_3() {
         MockitoAnnotations.openMocks(this);
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("test-secret-key-for-jwt-signing");
 
         String id = "testId";
         CompetencySubThemeEntity entity = new CompetencySubThemeEntity();
@@ -507,6 +515,7 @@ class CompetencySubThemeServiceImplTest {
     @Test
     void test_searchCompSubTheme_1() {
         // Arrange
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         SearchCriteria searchCriteria = new SearchCriteria();
         SearchResult mockSearchResult = new SearchResult();
         String mockRedisKey = "mockRedisKey";
@@ -532,6 +541,7 @@ class CompetencySubThemeServiceImplTest {
     @Test
     void test_searchCompSubTheme_3() throws Exception {
         // Arrange
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("valid search");
 
@@ -556,6 +566,7 @@ class CompetencySubThemeServiceImplTest {
      */
     @Test
     void test_searchCompSubTheme_shortSearchString() {
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 //        when(valueOperations.get(anyString())).thenReturn(null);
         // Arrange

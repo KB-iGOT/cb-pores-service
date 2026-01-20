@@ -1,5 +1,7 @@
 package com.igot.cb.demand.service;
 
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.algorithms.Algorithm;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,6 +30,8 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.objenesis.Objenesis;
 import org.objenesis.ObjenesisStd;
 import org.slf4j.Logger;
@@ -38,7 +42,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
-import java.sql.Timestamp;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -46,6 +49,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class DemandServiceImplTest {
 
     @Mock
@@ -109,6 +113,7 @@ class DemandServiceImplTest {
         ReflectionTestUtils.setField(demandService, "logger", LoggerFactory.getLogger(DemandServiceImpl.class));
         // Mock statusTransitionConfig to avoid file read
         ReflectionTestUtils.setField(demandService, "statusTransitionConfig", mock(StatusTransitionConfig.class));
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("test-secret-key-for-jwt-signing");
     }
 
 
@@ -341,16 +346,23 @@ class DemandServiceImplTest {
      * and signs it with the expected algorithm.
      */
     @Test
-    void test_generateRedisJwtTokenKey_1(){
-        MockitoAnnotations.openMocks(this);
+    void test_generateRedisJwtTokenKey_1() throws Exception {
+        String secretKey = "test-secret-key-for-jwt-signing";
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn(secretKey);
 
         Object requestPayload = new Object();
+        String jsonPayload = "{}";
+        when(objectMapper.writeValueAsString(any())).thenReturn(jsonPayload);
 
         String result = demandService.generateRedisJwtTokenKey(requestPayload);
 
-        String expectedToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyZXF1ZXN0UGF5bG9hZCI6bnVsbH0.1_QviVZiSvsyjUHzK-QGNJ1qT8DTfAxVjy4orhCXCDE";
+        // Generate expected token with same secret
+        String expectedToken = JWT.create()
+            .withClaim(Constants.REQUEST_PAYLOAD, jsonPayload)
+            .sign(Algorithm.HMAC256(secretKey));
 
         assertEquals(expectedToken, result);
+        verify(objectMapper).writeValueAsString(requestPayload);
     }
 
     /**

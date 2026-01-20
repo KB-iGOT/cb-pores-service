@@ -34,6 +34,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.io.InputStream;
 import java.sql.Timestamp;
 import java.util.*;
 
@@ -239,18 +240,6 @@ class DemandServiceImplMethodTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
 
    }
-
-
-    @Test
-    void testResourceAvailability() throws Exception {
-        ClassPathResource resource = new ClassPathResource("payloadValidation/statusTransitions.json");
-        System.out.println("Resource exists? " + resource.exists());
-        if (resource.exists()) {
-            System.out.println("Resource absolute path: " + resource.getFile().getAbsolutePath());
-        } else {
-            System.out.println("Resource NOT found on classpath!");
-        }
-    }
 
     @Test
     void testUpdateDemandStatusSuccess() {

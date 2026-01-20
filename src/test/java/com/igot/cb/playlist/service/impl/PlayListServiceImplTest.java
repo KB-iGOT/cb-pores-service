@@ -1,6 +1,5 @@
 package com.igot.cb.playlist.service.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,6 +13,7 @@ import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
 import com.igot.cb.pores.util.ApiResponse;
+import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.PayloadValidation;
 import java.sql.Timestamp;
@@ -24,7 +24,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -41,7 +40,6 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -79,9 +77,13 @@ class PlayListServiceImplTest {
     @Mock
     private ValueOperations<String, SearchResult> valueOperations;
 
+    @Mock
+    private CbServerProperties cbServerProperties;
+
     @BeforeEach
     void setUp() {
         MockitoAnnotations.initMocks(this);
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("test-secret-key-for-jwt-signing");
     }
 
     /**
@@ -255,6 +257,13 @@ class PlayListServiceImplTest {
         assert response.getResponseCode() == HttpStatus.OK;
         assert response.getResult().get(Constants.STATUS).equals(Constants.DELETED_SUCCESSFULLY);
         assert response.getResult().get(Constants.ID).equals(id);
+
+        assertFalse(playListEntity.getIsActive());
+
+        verify(playListRepository).findByIdAndIsActive(id, true);
+        verify(playListRepository).save(any(PlayListEntity.class));
+        verify(redisCacheMngr).hdel(anyString(), anyString(), anyInt());
+        verify(esUtilService).deleteDocument(eq(id), eq(Constants.PLAYLIST_INDEX_NAME));
     }
 
     /**
@@ -345,6 +354,7 @@ class PlayListServiceImplTest {
     void test_generateRedisJwtTokenKey_1() {
         MockitoAnnotations.initMocks(this);
 
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         Object requestPayload = new Object();
         String jsonString = "{\"key\":\"value\"}";
 
@@ -596,6 +606,7 @@ class PlayListServiceImplTest {
     @Test
     void test_searchPlayList_1() {
         // Arrange
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         SearchCriteria searchCriteria = new SearchCriteria();
         SearchResult mockSearchResult = new SearchResult();
         ApiResponse expectedResponse = new ApiResponse();
@@ -623,6 +634,7 @@ class PlayListServiceImplTest {
     @Test
     void test_searchPlayList_2() throws Exception {
         // Arrange
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString("test search");
 
@@ -656,6 +668,7 @@ class PlayListServiceImplTest {
     @Test
     void test_searchPlayList_3(){
         // Arrange
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setSearchString(null);
 

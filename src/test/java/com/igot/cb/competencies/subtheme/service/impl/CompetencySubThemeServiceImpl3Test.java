@@ -547,6 +547,7 @@ class CompetencySubThemeServiceImpl3Test {
 
     @Test
     void testSearchCompSubTheme_fetchFromRedis() {
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         SearchCriteria criteria = new SearchCriteria();
         criteria.setSearchString("example");
 
@@ -564,6 +565,7 @@ class CompetencySubThemeServiceImpl3Test {
 
     @Test
     void testSearchCompSubTheme_esThrowsException_redisSetInvoked() throws Exception {
+        when(cbServerProperties.getRedisKeyJwtTokenString()).thenReturn("testTokenKey");
         SearchCriteria criteria = new SearchCriteria();
         criteria.setSearchString("errorTest");
 
