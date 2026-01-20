@@ -685,7 +685,6 @@ class CiosContentServiceImplTest {
         // Assert
         assertNotNull(result);
         assertEquals(expectedResult, result);
-        // The service does not add isActive into the provided filterCriteriaMap; expect it to remain unchanged (empty)
         assertNotNull(searchCriteria.getFilterCriteriaMap());
         assertTrue(searchCriteria.getFilterCriteriaMap().isEmpty());
 
