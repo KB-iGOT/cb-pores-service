@@ -56,6 +56,9 @@
     "certificateTemplateUrl": {
       "type": "string"
     },
+    "partnerCode": {
+      "type": "string"
+    },
     "isAuthenticate": {
       "type": "boolean"
     },
