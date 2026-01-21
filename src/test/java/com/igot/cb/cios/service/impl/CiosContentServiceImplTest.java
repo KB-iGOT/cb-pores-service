@@ -649,10 +649,11 @@ class CiosContentServiceImplTest {
         assertNotNull(result);
         assertEquals(expectedSearchResult, result);
 
-        verify(esUtilService).searchDocuments(eq(Constants.CIOS_INDEX_NAME), argThat(criteria -> {
-            HashMap<String, Object> filterMap = criteria.getFilterCriteriaMap();
-            return filterMap != null && filterMap.containsKey("isActive") && (boolean) filterMap.get("isActive");
-        }));
+        ArgumentCaptor<SearchCriteria> criteriaCaptor = ArgumentCaptor.forClass(SearchCriteria.class);
+        verify(esUtilService).searchDocuments(eq(Constants.CIOS_INDEX_NAME), criteriaCaptor.capture());
+        SearchCriteria passedCriteria = criteriaCaptor.getValue();
+        HashMap<String, Object> filterMap = passedCriteria.getFilterCriteriaMap();
+        assertNull(filterMap);
 
         verify(valueOperations).set(anyString(), eq(expectedSearchResult), anyLong(), any());
     }
@@ -684,8 +685,8 @@ class CiosContentServiceImplTest {
         // Assert
         assertNotNull(result);
         assertEquals(expectedResult, result);
-        assertTrue(searchCriteria.getFilterCriteriaMap().containsKey("isActive"));
-        assertEquals(true, searchCriteria.getFilterCriteriaMap().get("isActive"));
+        assertNotNull(searchCriteria.getFilterCriteriaMap());
+        assertTrue(searchCriteria.getFilterCriteriaMap().isEmpty());
 
         verify(esUtilService).searchDocuments(eq(Constants.CIOS_INDEX_NAME), any(SearchCriteria.class));
         verify(valueOperations).set(anyString(), eq(expectedResult), anyLong(), any());

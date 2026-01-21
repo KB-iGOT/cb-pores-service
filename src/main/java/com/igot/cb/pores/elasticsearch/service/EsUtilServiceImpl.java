@@ -340,12 +340,18 @@ public class EsUtilServiceImpl implements EsUtilService {
 
     private void addQueryStringToFilter(String searchString, BoolQuery.Builder boolQueryBuilder) {
         if (isNotBlank(searchString)) {
-            Query wildcardQuery = Query.of(q -> q.wildcard(
-                    WildcardQuery.of(w -> w
+            String lowerSearch = searchString.toLowerCase().trim();
+            boolQueryBuilder.must(Query.of(q -> q.bool(b -> b
+                    .should(Query.of(q1 -> q1.term(t -> t
                             .field("searchTags.keyword")
-                            .value("*" + searchString.toLowerCase() + "*"))
-            ));
-            boolQueryBuilder.must(wildcardQuery);
+                            .value(lowerSearch))))
+                    .should(Query.of(q2 -> q2.prefix(p -> p
+                            .field("searchTags.keyword")
+                            .value(lowerSearch))))
+                    .should(Query.of(q3 -> q3.wildcard(w -> w
+                            .field("searchTags.keyword")
+                            .value("*" + lowerSearch + "*"))))
+            )));
         }
     }
 
