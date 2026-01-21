@@ -28,6 +28,9 @@
     "status": {
       "type": "string",
       "enum": ["PENDING", "APPROVED", "REJECTED"]
+    },
+    "applicationId": {
+      "type": "string"
     }
   },
   "required": [

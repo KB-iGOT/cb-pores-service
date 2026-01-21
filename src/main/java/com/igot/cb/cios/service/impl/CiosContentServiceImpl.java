@@ -380,23 +380,7 @@ public class CiosContentServiceImpl implements CiosContentService {
             log.error("searchCriteria is null");
             throw new CustomException("ERROR", "Search criteria must not be null", HttpStatus.BAD_REQUEST);
         }
-        
         try {
-            if (MapUtils.isEmpty(searchCriteria.getFilterCriteriaMap())) {
-                HashMap<String, Object> filterCriteriaMap =
-                        Optional.ofNullable(searchCriteria.getFilterCriteriaMap())
-                                .orElseGet(HashMap::new);
-
-                filterCriteriaMap.putIfAbsent(Constants.IS_ACTIVE, true);
-
-                List<String> activePartnerIds = getActiveContentPartnerIds();
-                if (CollectionUtils.isNotEmpty(activePartnerIds)) {
-                    filterCriteriaMap.put("contentPartner.id", new ArrayList<String>(activePartnerIds));
-                }
-                searchCriteria.setFilterCriteriaMap(filterCriteriaMap);
-            }
-            HashMap<String, Object> filterCriteriaMap = searchCriteria.getFilterCriteriaMap();
-            filterCriteriaMap.put(Constants.IS_ACTIVE, true);
             SearchResult searchResult = redisTemplate.opsForValue()
                     .get(generateRedisJwtTokenKey(searchCriteria));
             if (searchResult != null) {
@@ -412,55 +396,6 @@ public class CiosContentServiceImpl implements CiosContentService {
             throw new CustomException("ERROR", e.getMessage(), HttpStatus.BAD_REQUEST);
         }
 
-    }
-
-    private List<String> getActiveContentPartnerIds() {
-        log.info("CiosContentServiceImpl::getActiveContentPartnerIds: Fetching active content partner IDs");
-        try {
-            // Create search criteria for active partners, requesting only ID field
-            SearchCriteria partnerSearchCriteria = new SearchCriteria();
-            HashMap<String, Object> partnerFilterMap = new HashMap<>();
-            partnerFilterMap.put(Constants.IS_ACTIVE, true);
-            partnerSearchCriteria.setFilterCriteriaMap(partnerFilterMap);
-            partnerSearchCriteria.setRequestedFields(Arrays.asList(Constants.ID));
-            partnerSearchCriteria.setPageNumber(0);
-            partnerSearchCriteria.setPageSize(500);
-
-            ApiResponse response = contentPartnerService.searchEntity(partnerSearchCriteria);
-            
-            if (response == null || response.getResponseCode() != HttpStatus.OK) {
-                log.warn("CiosContentServiceImpl::getActiveContentPartnerIds: Invalid response from content partner service");
-                return new ArrayList<>();
-            }
-
-            Object resultData = response.get(Constants.DATA);
-            if (resultData == null) {
-                log.warn("CiosContentServiceImpl::getActiveContentPartnerIds: No data in response");
-                return new ArrayList<>();
-            }
-
-            JsonNode dataNode = (resultData instanceof JsonNode jsonNode)
-                    ? jsonNode
-                    : objectMapper.valueToTree(resultData);
-
-            if (dataNode == null || !dataNode.isArray()) {
-                log.warn("CiosContentServiceImpl::getActiveContentPartnerIds: Data is not an array");
-                return new ArrayList<>();
-            }
-
-            List<String> partnerIds = StreamSupport.stream(dataNode.spliterator(), false)
-                    .map(partnerNode -> partnerNode.get(Constants.ID))
-                    .filter(idNode -> idNode != null && !idNode.isNull())
-                    .map(JsonNode::asText)
-                    .filter(StringUtils::isNotBlank)
-                    .toList();
-            
-            log.info("CiosContentServiceImpl::getActiveContentPartnerIds: Found {} active content partners", partnerIds.size());
-            return partnerIds;
-        } catch (Exception e) {
-            log.error("CiosContentServiceImpl::getActiveContentPartnerIds: Error fetching active content partner IDs", e);
-            return new ArrayList<>();
-        }
     }
 
     private String generateRedisJwtTokenKey(Object requestPayload) {

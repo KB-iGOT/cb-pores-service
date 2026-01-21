@@ -13,6 +13,7 @@ import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.PayloadValidation;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 import java.sql.Timestamp;
 import java.util.HashMap;
@@ -60,42 +61,17 @@ class ContentPartnerServiceImplTest {
 
     @Mock
     private PayloadValidation payloadValidation;
-    
+
     @Mock
     private RedisTemplate<String, SearchResult> redisTemplate;
-    
+
     @Mock
     private ValueOperations<String, SearchResult> valueOperations;
-    
+
     private ObjectMapper realObjectMapper = new ObjectMapper();
 
     private ContentPartnerEntity mockEntity;
     private final String partnerCode = "partner-123";
-
-    /**
-     * Test case for creating a content partner with an existing partner code.
-     * This test ensures that the method correctly handles the scenario where
-     * a content partner with the same partner code already exists in the system.
-     */
-    @Test
-    void testCreateOrUpdate_ExistingPartnerCode() {
-        // Arrange
-        ObjectMapper mapper = new ObjectMapper();
-        ObjectNode partnerDetails = mapper.createObjectNode();
-        partnerDetails.put(Constants.CONTENT_PARTNER_NAME, "NewPartner");
-        partnerDetails.put(Constants.PARTNERCODE, "EXISTING_CODE");
-
-        when(entityRepository.findByContentPartnerName(any())).thenReturn(Optional.empty());
-        when(entityRepository.findByPartnerCode("EXISTING_CODE")).thenReturn(Optional.of(new ContentPartnerEntity()));
-
-        // Act
-        ApiResponse response = contentPartnerService.createOrUpdate(partnerDetails);
-
-        // Assert
-        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getParams().getStatus());
-        assertEquals(Constants.CONTENT_PARTNER_CODE_ALREADY_PRESENT, response.getParams().getErrMsg());
-    }
 
     /**
      * Test case for creating a content partner with an existing partner name.
@@ -149,7 +125,7 @@ class ContentPartnerServiceImplTest {
     }
 
     /**
-     * Test case for createOrUpdate method when a content partner with the same name and code already exists.
+     * Test case for createOrUpdate method when a content partner with the same name  already exists.
      * This test covers the scenario where:
      * - The input does not have an ID (new content partner)
      * - A content partner with the same name already exists
@@ -158,22 +134,18 @@ class ContentPartnerServiceImplTest {
      */
     @Test
     void test_createOrUpdate_1() {
-        // Arrange
-        ObjectMapper realObjectMapper = new ObjectMapper();
-        ObjectNode partnerDetails = realObjectMapper.createObjectNode();
+        ObjectNode partnerDetails = new ObjectMapper().createObjectNode();
         partnerDetails.put(Constants.CONTENT_PARTNER_NAME, "TestPartner");
-        partnerDetails.put(Constants.PARTNERCODE, "TP001");
 
-        when(entityRepository.findByContentPartnerName(anyString())).thenReturn(Optional.of(new ContentPartnerEntity()));
-        when(entityRepository.findByPartnerCode(anyString())).thenReturn(Optional.of(new ContentPartnerEntity()));
+        when(entityRepository.findByContentPartnerName("TestPartner"))
+                .thenReturn(Optional.of(new ContentPartnerEntity()));
 
-        // Act
         ApiResponse response = contentPartnerService.createOrUpdate(partnerDetails);
 
-        // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals(Constants.FAILED, response.getParams().getStatus());
-        assertEquals(Constants.CONTENT_PARTNER_CODE_AND_NAME_ALREADY_PRESENT, response.getParams().getErrMsg());
+        assertEquals(Constants.CONTENT_PARTNER_NAME_ALREADY_PRESENT,
+                response.getParams().getErrMsg());
     }
 
     /**
@@ -182,52 +154,19 @@ class ContentPartnerServiceImplTest {
      */
     @Test
     void test_createOrUpdate_2() {
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode partnerDetails = mapper.createObjectNode()
-                .put(Constants.CONTENT_PARTNER_NAME, "ExistingPartner")
-                .put(Constants.PARTNERCODE, "NewCode");
+        ObjectNode partnerDetails = new ObjectMapper().createObjectNode();
+        partnerDetails.put(Constants.CONTENT_PARTNER_NAME, "ExistingPartner");
 
         ContentPartnerEntity existingEntity = new ContentPartnerEntity();
         existingEntity.setId("existingId");
 
         when(entityRepository.findByContentPartnerName("ExistingPartner")).thenReturn(Optional.of(existingEntity));
-        when(entityRepository.findByPartnerCode("NewCode")).thenReturn(Optional.empty());
 
         ApiResponse response = contentPartnerService.createOrUpdate(partnerDetails);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.CONTENT_PARTNER_NAME_ALREADY_PRESENT, response.getParams().getErrMsg());
-    }
-
-    /**
-     * Test case for createOrUpdate method when creating a new content partner
-     * with an existing partner code.
-     * 
-     * Path constraints:
-     * - partnerDetails.get(Constants.ID) == null
-     * - !optionalEntity.isPresent()
-     * - partnerCode != null && !partnerCode.isEmpty()
-     * - entityRepository.findByPartnerCode(partnerCode).isPresent()
-     */
-    @Test
-    void test_createOrUpdate_4() {
-        // Arrange
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode partnerDetails = mapper.createObjectNode()
-                .put(Constants.CONTENT_PARTNER_NAME, "Test Partner")
-                .put(Constants.PARTNERCODE, "EXISTING_CODE");
-
-        when(entityRepository.findByContentPartnerName(anyString())).thenReturn(Optional.empty());
-        when(entityRepository.findByPartnerCode("EXISTING_CODE")).thenReturn(Optional.of(new ContentPartnerEntity()));
-
-        // Act
-        ApiResponse response = contentPartnerService.createOrUpdate(partnerDetails);
-
-        // Assert
-        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getParams().getStatus());
-        assertEquals(Constants.CONTENT_PARTNER_CODE_ALREADY_PRESENT, response.getParams().getErrMsg());
     }
 
     /**
@@ -252,10 +191,8 @@ class ContentPartnerServiceImplTest {
         when(entityRepository.findById("existing-id")).thenReturn(Optional.of(existingEntity));
         when(entityRepository.findByContentPartnerName("Existing Partner")).thenReturn(Optional.of(new ContentPartnerEntity()));
 
-        // Act
         ApiResponse response = contentPartnerService.createOrUpdate(partnerDetails);
 
-        // Assert
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
         assertEquals(Constants.FAILED, response.getParams().getStatus());
     }
@@ -263,16 +200,15 @@ class ContentPartnerServiceImplTest {
     /**
      * Test case for createOrUpdate method when a content partner with the same name already exists
      * but the partner code is null or empty.
-     * 
+     *
      * This test verifies that the method returns a BAD_REQUEST response with the appropriate error message
      * when attempting to create a new content partner with an existing name but no partner code.
      */
     @Test
     void test_createOrUpdate_existingNameNoCode() {
-        ObjectMapper realObjectMapper = new ObjectMapper();
-        JsonNode partnerDetails = realObjectMapper.createObjectNode()
-            .put(Constants.CONTENT_PARTNER_NAME, "ExistingPartner")
-            .put(Constants.PARTNERCODE, "");
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode partnerDetails = mapper.createObjectNode();
+        partnerDetails.put(Constants.CONTENT_PARTNER_NAME, "ExistingPartner");
 
         ContentPartnerEntity existingEntity = new ContentPartnerEntity();
         existingEntity.setId("existingId");
@@ -283,6 +219,7 @@ class ContentPartnerServiceImplTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals(Constants.CONTENT_PARTNER_NAME_ALREADY_PRESENT, response.getParams().getErrMsg());
     }
 
     /**
@@ -442,12 +379,24 @@ class ContentPartnerServiceImplTest {
      * which is an explicitly handled edge case in the focal method.
      */
     @Test
-    void test_read_with_empty_id() {
-        ContentPartnerServiceImpl service = new ContentPartnerServiceImpl();
-        ApiResponse response = service.read("");
+    void test_delete_1_success() {
+        String id = "validId";
+        ContentPartnerEntity entity = new ContentPartnerEntity();
+        entity.setId(id);
+        entity.setIsActive(true);
+        entity.setUpdatedOn(new Timestamp(System.currentTimeMillis()));
+        ObjectNode data = realObjectMapper.createObjectNode();
+        data.put(Constants.IS_ACTIVE, true);
+        data.put(Constants.PARTNERCODE, "PCODE");
+        entity.setData(data);
+        when(entityRepository.findByIdAndIsActive(id, true)).thenReturn(Optional.of(entity));
+        when(objectMapper.convertValue(any(), eq(Map.class))).thenReturn(new HashMap<>());
+        when(cbServerProperties.getElasticContentJsonPath()).thenReturn("path");
 
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        ApiResponse response = contentPartnerService.delete(id);
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        verify(entityRepository).save(any(ContentPartnerEntity.class));
+        verify(cacheService).deleteCache(id);
     }
 
     /**
@@ -465,7 +414,7 @@ class ContentPartnerServiceImplTest {
 
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null); // Cache miss
-        
+
         when(esUtilService.searchDocuments(eq(Constants.CONTENT_PROVIDER_INDEX_NAME), any(SearchCriteria.class)))
                 .thenReturn(mockSearchResult);
 
@@ -473,7 +422,7 @@ class ContentPartnerServiceImplTest {
 
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
-        
+
 
         verify(valueOperations).get(anyString());
         verify(valueOperations).set(anyString(), eq(mockSearchResult), anyLong(), any());
@@ -527,68 +476,77 @@ class ContentPartnerServiceImplTest {
 
     @Test
     void testCreatePartner_Success() throws Exception {
-        JsonNode input = realObjectMapper.readTree("{\"contentPartnerName\": \"TestPartner\", \"partnerCode\": \"TP01\"}");
+        // Arrange
+        ObjectNode input = realObjectMapper.createObjectNode();
+        input.put(Constants.CONTENT_PARTNER_NAME, "TestPartner");
 
         when(entityRepository.findByContentPartnerName("TestPartner")).thenReturn(Optional.empty());
-        when(entityRepository.findByPartnerCode("TP01")).thenReturn(Optional.empty());
+        when(entityRepository.findByPartnerCode(anyString())).thenReturn(Optional.empty());
 
-        when(entityRepository.save(any(ContentPartnerEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(objectMapper.convertValue(any(), eq(Map.class))).thenReturn(new HashMap<>());
+        ContentPartnerEntity savedEntity = new ContentPartnerEntity();
+        savedEntity.setId("generated-uuid");
+        savedEntity.setCreatedOn(new Timestamp(System.currentTimeMillis()));
+        savedEntity.setUpdatedOn(savedEntity.getCreatedOn());
+        savedEntity.setIsActive(Constants.ACTIVE_STATUS);
+        ObjectNode dataNode = realObjectMapper.createObjectNode();
+        dataNode.put(Constants.CONTENT_PARTNER_NAME, "TestPartner");
+        savedEntity.setData(dataNode);
+        when(entityRepository.save(any(ContentPartnerEntity.class))).thenReturn(savedEntity);
+        when(objectMapper.convertValue(eq(savedEntity.getData()), eq(Map.class))).thenReturn(new HashMap<>());
+        when(objectMapper.convertValue(eq(savedEntity), eq(Map.class))).thenReturn(new HashMap<>());
         when(cbServerProperties.getElasticContentJsonPath()).thenReturn("elastic-path");
 
-        ApiResponse response = contentPartnerService.createOrUpdate(input);
+        // Act
+        ApiResponse response = contentPartnerService.createContentPartner(input);
 
+        // Assert
         assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertNotNull(response.getResult());
+
+        verify(entityRepository).findByContentPartnerName("TestPartner");
+        verify(entityRepository, atLeastOnce()).findByPartnerCode(anyString());
+        verify(entityRepository).save(any(ContentPartnerEntity.class));
+        verify(esUtilService).addDocument(
+                eq(Constants.CONTENT_PROVIDER_INDEX_NAME),
+                eq(Constants.INDEX_TYPE),
+                anyString(),
+                anyMap(),
+                anyString()
+        );
+        verify(cacheService).putCache(anyString(), any());
     }
 
-    @Test
-    void testUpdatePartner_Success() throws Exception {
-        ObjectNode data = realObjectMapper.createObjectNode();
-        data.put("contentPartnerName", "UpdatedPartner");
-
-        ObjectNode input = realObjectMapper.createObjectNode();
-        input.put("id", "1234");
-        input.set("data", data);
-
-        ContentPartnerEntity entity = new ContentPartnerEntity();
-        entity.setId("1234");
-        entity.setCreatedOn(new Timestamp(System.currentTimeMillis()));
-        entity.setData(data);
-
-        when(entityRepository.findById("1234")).thenReturn(Optional.of(entity));
-        when(entityRepository.findByContentPartnerName("UpdatedPartner")).thenReturn(Optional.of(entity));
-        when(entityRepository.save(any())).thenReturn(entity);
-        when(objectMapper.convertValue(any(), eq(Map.class))).thenReturn(new HashMap<>());
-        when(cbServerProperties.getElasticContentJsonPath()).thenReturn("path");
-
-        ApiResponse response = contentPartnerService.createOrUpdate(input);
-
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-    }
 
     @Test
     void testCreatePartner_PartnerNameAlreadyExists() {
-        JsonNode input = realObjectMapper.createObjectNode()
-                .put("contentPartnerName", "TestPartner")
-                .put("partnerCode", "TP01");
+        // Arrange
+        ObjectNode input = realObjectMapper.createObjectNode();
+        input.put(Constants.CONTENT_PARTNER_NAME, "ExistingPartner");
 
-        when(entityRepository.findByContentPartnerName("TestPartner")).thenReturn(Optional.of(new ContentPartnerEntity()));
-        when(entityRepository.findByPartnerCode("TP01")).thenReturn(Optional.of(new ContentPartnerEntity()));
+        ContentPartnerEntity existingEntity = new ContentPartnerEntity();
+        existingEntity.setId("existing-id");
 
-        ApiResponse response = contentPartnerService.createOrUpdate(input);
+        when(entityRepository.findByContentPartnerName("ExistingPartner")).thenReturn(Optional.of(existingEntity));
 
+        // Act
+        ApiResponse response = contentPartnerService.createContentPartner(input);
+        // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.CONTENT_PARTNER_CODE_AND_NAME_ALREADY_PRESENT, response.getParams().getErrMsg());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals(Constants.CONTENT_PARTNER_NAME_ALREADY_PRESENT, response.getParams().getErrMsg());
+        verify(entityRepository).findByContentPartnerName("ExistingPartner");
+        verify(entityRepository, never()).save(any());
+        verify(esUtilService, never()).addDocument(any(), any(), any(), any(), any());
     }
 
     @Test
     void testUpdatePartner_NotFound() {
         ObjectNode data = realObjectMapper.createObjectNode();
-        data.put("contentPartnerName", "NotExist");
+        data.put(Constants.CONTENT_PARTNER_NAME, "NotExist");
 
         ObjectNode input = realObjectMapper.createObjectNode();
-        input.put("id", "1234");
-        input.set("data", data);
+        input.put(Constants.ID, "1234");
+        input.set(Constants.DATA, data);
 
         when(entityRepository.findById("1234")).thenReturn(Optional.empty());
 
@@ -596,6 +554,54 @@ class ContentPartnerServiceImplTest {
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals(Constants.DATA_NOT_PRESENT, response.getParams().getErrMsg());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+    }
+    @Test
+    void testCreatePartner_GeneratesIdAndPartnerCode() throws Exception {
+        // Arrange
+        ObjectNode input = realObjectMapper.createObjectNode();
+        input.put(Constants.CONTENT_PARTNER_NAME, "New Partner");
+        when(entityRepository.findByContentPartnerName("New Partner")).thenReturn(Optional.empty());
+        when(entityRepository.findByPartnerCode(anyString())).thenReturn(Optional.empty());
+        ContentPartnerEntity savedEntity = new ContentPartnerEntity();
+        savedEntity.setId("auto-generated-uuid");
+        savedEntity.setData(input);
+        when(entityRepository.save(any(ContentPartnerEntity.class))).thenReturn(savedEntity);
+        when(objectMapper.convertValue(any(), eq(Map.class))).thenReturn(new HashMap<>());
+        when(cbServerProperties.getElasticContentJsonPath()).thenReturn("path");
+        // Act
+        ApiResponse response = contentPartnerService.createContentPartner(input);
+        // Assert
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        verify(payloadValidation).validatePayload(
+                eq(Constants.PAYLOAD_VALIDATION_FILE_CONTENT_PROVIDER),
+                any()
+        );
+        verify(entityRepository).save(any(ContentPartnerEntity.class));
+    }
+
+    @Test
+    void testCreatePartner_RegeneratesPartnerCodeIfExists() throws Exception {
+        // Arrange
+        ObjectNode input = realObjectMapper.createObjectNode();
+        input.put(Constants.CONTENT_PARTNER_NAME, "TestPartner");
+        when(entityRepository.findByContentPartnerName("TestPartner")).thenReturn(Optional.empty());
+        // First call returns existing, second call returns empty (code is unique)
+        when(entityRepository.findByPartnerCode(anyString()))
+                .thenReturn(Optional.of(new ContentPartnerEntity()))
+                .thenReturn(Optional.empty());
+        ContentPartnerEntity savedEntity = new ContentPartnerEntity();
+        savedEntity.setId("test-id");
+        savedEntity.setData(input);
+        when(entityRepository.save(any(ContentPartnerEntity.class))).thenReturn(savedEntity);
+        when(objectMapper.convertValue(any(), eq(Map.class))).thenReturn(new HashMap<>());
+        when(cbServerProperties.getElasticContentJsonPath()).thenReturn("path");
+        // Act
+        ApiResponse response = contentPartnerService.createContentPartner(input);
+        // Assert
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        // Verify that findByPartnerCode was called at least twice (once found, once not found)
+        verify(entityRepository, atLeast(2)).findByPartnerCode(anyString());
     }
 
     @Test
@@ -678,33 +684,6 @@ class ContentPartnerServiceImplTest {
         verify(objectMapper).convertValue(mockEntity, Map.class);
     }
 
-    @Test
-    void testCreateContentPartner_Success() throws Exception {
-        ObjectNode request = realObjectMapper.createObjectNode();
-        request.put(Constants.CONTENT_PARTNER_NAME, "NewPartner");
-        request.put("partnerCode", "P001");
-        when(entityRepository.findByContentPartnerName("NewPartner")).thenReturn(Optional.empty());
-        when(entityRepository.findByPartnerCode("P001")).thenReturn(Optional.empty());
-
-        ContentPartnerEntity saved = new ContentPartnerEntity();
-        saved.setId("generated-id");
-        saved.setCreatedOn(new Timestamp(System.currentTimeMillis()));
-        saved.setUpdatedOn(saved.getCreatedOn());
-        ObjectNode dataNode = realObjectMapper.createObjectNode();
-        dataNode.put(Constants.CONTENT_PARTNER_NAME, "NewPartner");
-        saved.setData(dataNode);
-
-        when(entityRepository.save(any(ContentPartnerEntity.class))).thenReturn(saved);
-        when(objectMapper.convertValue(eq(saved.getData()), eq(Map.class))).thenReturn(new HashMap<>());
-        when(cbServerProperties.getElasticContentJsonPath()).thenReturn("elastic-path");
-        ApiResponse resp = contentPartnerService.createOrUpdate(request);
-
-        assertNotNull(resp);
-        assertEquals(HttpStatus.OK, resp.getResponseCode());
-        verify(entityRepository).save(any(ContentPartnerEntity.class));
-        verify(esUtilService).addDocument(eq(Constants.CONTENT_PROVIDER_INDEX_NAME), eq(Constants.INDEX_TYPE), anyString(), anyMap(), anyString());
-        verify(cacheService).putCache(eq(saved.getId()), any());
-    }
 
     @Test
     void testUpdateContentPartner_Success() throws Exception {

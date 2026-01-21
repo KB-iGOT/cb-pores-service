@@ -69,10 +69,8 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         String organizationName = registrationDetails.path("contentPartnerName").asText("");
         String contactName = registrationDetails.path(Constants.EVENT_CONTACT_NAME).asText("");
         String email = registrationDetails.path("email").asText("");
-
         Optional<ContentPartnerRegistrationEntity> existingByOrgName =
                 registrationRepository.findByContentPartnerOrganizationName(organizationName);
-
         if (existingByOrgName.isPresent()) {
             ProjectUtil.errorResponse(response, "Organization Name already registered", HttpStatus.BAD_REQUEST);
             return response;
@@ -84,16 +82,12 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
             return response;
         }
         String id = UUID.randomUUID().toString();
+        String firstWord = organizationName.trim().split("\\s+")[0].toUpperCase().replaceAll("[^A-Z]", "");
         String applicationId;
         do {
-            applicationId = Constants.APPLICATION_ID_PREFIX +
-                    UUID.randomUUID()
-                            .toString()
-                            .replace("-", "")
-                            .substring(0, 5)
-                            .toUpperCase();
+            String randomCode = id.replace("-", "").substring(0, 5).toUpperCase();
+            applicationId = Constants.APPLICATION_ID_PREFIX + firstWord + "-" + randomCode;
         } while (registrationRepository.existsByApplicationId(applicationId));
-
         ObjectNode jsonNode = (ObjectNode) registrationDetails;
         jsonNode.put(Constants.ID, id);
         jsonNode.put(Constants.CREATED_ON, currentTime.toString());
@@ -118,8 +112,8 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         event.put(Constants.EVENT_EMAIL, email);
         event.put(Constants.EVENT_PARTNER_NAME, organizationName);
         event.put(Constants.EVENT_REGISTRATION_ID, applicationId);
-        event.put(Constants.EVENT_CONTACT_NAME,contactName);
-        event.put(Constants.COMMENT,"");
+        event.put(Constants.EVENT_CONTACT_NAME, contactName);
+        event.put(Constants.COMMENT, "");
         kafkaProducer.push(cbServerProperties.getContentPartnerRegistrationTopic(), event);
 
         log.info("Content Partner Registration Created Successfully");
@@ -202,7 +196,7 @@ public class ContentPartnerRegistrationServiceImpl implements ContentPartnerRegi
         }
         try {
             ObjectNode registrationData = registrationEntity.getData().deepCopy();
-            registrationData.remove(List.of(Constants.CREATED_ON, Constants.UPDATED_ON, Constants.STATUS, Constants.EMAIL, Constants.PHONE_NUMBER, Constants.CONTACT_NAME, Constants.APPLICATION_ID, Constants.COMMENT, Constants.SEARCHTAGS));
+            registrationData.remove(List.of(Constants.CREATED_ON, Constants.UPDATED_ON, Constants.STATUS, Constants.EMAIL, Constants.PHONE_NUMBER, Constants.CONTACT_NAME, Constants.COMMENT, Constants.SEARCHTAGS));
             log.info(Constants.CONTENT_PARTNER_CREATE_START, registrationEntity.getId());
             ApiResponse createResponse = contentPartnerService.createContentPartner(registrationData);
             if (HttpStatus.OK.equals(createResponse.getResponseCode())) {

@@ -57,10 +57,9 @@
       "type": "string"
     },
     "partnerCode": {
-      "minLength": 3,
-      "maxLength": 6,
-      "pattern": "^[A-Z][A-Z0-9]*$",
-      "type": "string"
+      "type": "string",
+      "minLength": 12,
+      "pattern": "^IGOT-[A-Z]+-[A-Z0-9]{5}$"
     },
     "isAuthenticate": {
       "type": "boolean"
@@ -126,8 +125,7 @@
     "contentPartnerName",
     "websiteUrl",
     "link",
-    "description",
-    "partnerCode"
+    "description"
   ],
   "additionalProperties": false,
 
