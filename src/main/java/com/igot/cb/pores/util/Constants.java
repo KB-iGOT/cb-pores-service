@@ -268,7 +268,7 @@ public class Constants {
     public static final String UPDATED_DESIGNATION = "Updated Designations";
     public static final String DESIGNATION = "designation";
     public static final String DESCRIPTION_PAYLOAD = "Description";
-    public static final String DESIGNATION_INDEX_NAME = "designation_entity";
+    public static final String DESIGNATION_INDEX_NAME = "designation_entity_alias";
     public static final String TERM_CREATE_PAYLOAD_VALIDATION = "/payloadValidation/termCreateValidation.json";
     public static final String REF_ID = "refId";
     public static final String REF_TYPE = "refType";
