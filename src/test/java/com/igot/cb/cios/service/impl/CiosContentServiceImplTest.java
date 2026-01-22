@@ -653,7 +653,8 @@ class CiosContentServiceImplTest {
         verify(esUtilService).searchDocuments(eq(Constants.CIOS_INDEX_NAME), criteriaCaptor.capture());
         SearchCriteria passedCriteria = criteriaCaptor.getValue();
         HashMap<String, Object> filterMap = passedCriteria.getFilterCriteriaMap();
-        assertNull(filterMap);
+        assertNotNull(filterMap);
+        assertEquals(true, filterMap.get("isActive"));
 
         verify(valueOperations).set(anyString(), eq(expectedSearchResult), anyLong(), any());
     }
@@ -686,7 +687,8 @@ class CiosContentServiceImplTest {
         assertNotNull(result);
         assertEquals(expectedResult, result);
         assertNotNull(searchCriteria.getFilterCriteriaMap());
-        assertTrue(searchCriteria.getFilterCriteriaMap().isEmpty());
+        assertEquals(1, searchCriteria.getFilterCriteriaMap().size());
+        assertEquals(true, searchCriteria.getFilterCriteriaMap().get("isActive"));
 
         verify(esUtilService).searchDocuments(eq(Constants.CIOS_INDEX_NAME), any(SearchCriteria.class));
         verify(valueOperations).set(anyString(), eq(expectedResult), anyLong(), any());
