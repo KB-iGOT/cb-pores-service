@@ -57,9 +57,7 @@
       "type": "string"
     },
     "partnerCode": {
-      "type": "string",
-      "minLength": 12,
-      "pattern": "^IGOT-[A-Z]+-[A-Z0-9]{5}$"
+      "type": "string"
     },
     "isAuthenticate": {
       "type": "boolean"
