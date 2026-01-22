@@ -391,8 +391,8 @@ public class CiosContentServiceImpl implements CiosContentService {
             if (filterCriteriaMap == null) {
                 filterCriteriaMap = new HashMap<>();
             }
-            if(filterCriteriaMap.get("isActive")==null){
-                filterCriteriaMap.put("isActive", true);
+            if (filterCriteriaMap.get(Constants.IS_ACTIVE) == null) {
+                filterCriteriaMap.put(Constants.IS_ACTIVE, true);
             }
             searchCriteria.setFilterCriteriaMap(filterCriteriaMap);
             searchResult = esUtilService.searchDocuments(Constants.CIOS_INDEX_NAME, searchCriteria);
