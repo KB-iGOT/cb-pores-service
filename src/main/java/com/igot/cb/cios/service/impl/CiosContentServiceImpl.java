@@ -467,4 +467,28 @@ public class CiosContentServiceImpl implements CiosContentService {
             contentNode.put(Constants.DIFFICULTY_LEVEL, difficultyLevel);
         }
     }
+
+    @Override
+    public SearchResult readContent(SearchCriteria searchCriteria) {
+        log.info("CiosContentServiceImpl::readContent");
+        if (searchCriteria == null) {
+            log.error("searchCriteria is null");
+            throw new CustomException("ERROR", "Search criteria must not be null", HttpStatus.BAD_REQUEST);
+        }
+        try {
+            SearchResult searchResult = redisTemplate.opsForValue()
+                    .get(generateRedisJwtTokenKey(searchCriteria));
+            if (searchResult != null) {
+                log.info("CiosContentServiceImpl::readContent: search result fetched from redis cache");
+                return searchResult;
+            }
+            searchResult = esUtilService.searchDocuments(Constants.CIOS_INDEX_NAME, searchCriteria);
+            redisTemplate.opsForValue()
+                    .set(generateRedisJwtTokenKey(searchCriteria), searchResult, searchResultRedisTtl,
+                            TimeUnit.SECONDS);
+            return searchResult;
+        } catch (Exception e) {
+            throw new CustomException("ERROR", e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+    }
 }
