@@ -439,6 +439,17 @@ public class Constants {
     public static final String IS_TRAINING_INSTITUTE = "isTrainingInstitution";
     public static final String EXTERNAL = "external";
     public static final String PROVIDER_TYPE = "providerType";
+    public static final String PARTNER_ID = "partnerId";
+    public static final String FILTER_CONTENT_PARTNER_ID = "contentPartner.id";
+    public static final String REDIRECT_URL = "redirectUrl";
+    public static final String NO_RESPONSE_FOR_CONTENT_ID = "No response for contentId={}";
+    public static final String NO_VALID_CONTENT_NODE_FOR_CONTENT_ID = "No valid 'content' node for contentId={}";
+    public static final String FAILED_TO_FETCH_OR_BUILD_DTO_FOR_CONTENT_ID = "Failed to fetch/build dto for contentId={}";
+    public static final String NO_PARTNER_IDS_TO_PROCESS = "No partner IDs to process in this poll.";
+    public static final String SKIPPING_EMPTY_PARTNER_ID = "Skipping record with empty partnerId. value={}";
+    public static final String PROCESSED_PARTNER_ID = "Processed partnerId={}";
+    public static final String FAILED_PROCESSING_PARTNER_ID_WILL_RETRY = "Failed processing partnerId={}, will retry";
+    public static final String SCHEDULER_POLL_FAILED = "Scheduler poll failed";
 
 
 

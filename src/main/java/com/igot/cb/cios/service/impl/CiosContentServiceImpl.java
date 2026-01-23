@@ -204,11 +204,17 @@ public class CiosContentServiceImpl implements CiosContentService {
         try {
             Timestamp timestamp = new Timestamp(System.currentTimeMillis());
             String partnerCode = null;
+            Boolean contentPartnerStatus=null;
             for (ObjectDto eachData : data) {
                 partnerCode = eachData.getContentPartner().get("partnerCode").asText();
+                JsonNode isActiveNode = eachData.getContentPartner().get("isActive");
+                if (isActiveNode != null && !isActiveNode.isNull()) {
+                    contentPartnerStatus = isActiveNode.asBoolean();
+                }
                 JsonNode jsonNode = eachData.getContentData();
                 payloadValidation.validatePayload(Constants.CIOS_CONTENT_VALIDATION_FILE_JSON, jsonNode);
                 ObjectNode contentNode = (ObjectNode) jsonNode.path(Constants.CONTENT);
+                contentNode.set(Constants.CONTENT_PARTNER, eachData.getContentPartner());
                 updateContentWithRequiredFields(contentNode, timestamp, eachData);
                 if (Constants.DRAFT.equalsIgnoreCase(eachData.getStatus())) {
                     log.info("Status of the data {}", eachData.getStatus());
@@ -237,7 +243,9 @@ public class CiosContentServiceImpl implements CiosContentService {
                     return apiResponse;
                 }
             }
-            fetchAndUpdateContentCountsInPartnerDb(partnerCode);
+            if (!Boolean.FALSE.equals(contentPartnerStatus)) {
+                fetchAndUpdateContentCountsInPartnerDb(partnerCode);
+            }
             Map<String, Object> result = new HashMap<>();
             result.put("ApiResponse", "All data curated successfully");
             apiResponse.setResult(result);

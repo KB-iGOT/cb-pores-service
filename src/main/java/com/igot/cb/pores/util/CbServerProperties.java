@@ -86,6 +86,9 @@ public class CbServerProperties {
   @Value("${kafka.topic.content.partner.registration}")
   private String contentPartnerRegistrationTopic;
 
+  @Value("${kafka.topic.content.partner.delete}")
+  private String contentPartnerDeleteTopic;
+
   @Value("${notification.support.mail}")
   private String supportEmail;
 

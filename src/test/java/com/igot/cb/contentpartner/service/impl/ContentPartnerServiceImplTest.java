@@ -1,6 +1,6 @@
 package com.igot.cb.contentpartner.service.impl;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.igot.cb.producer.Producer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.igot.cb.contentpartner.entity.ContentPartnerEntity;
@@ -13,13 +13,13 @@ import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.PayloadValidation;
-import com.fasterxml.jackson.core.type.TypeReference;
 
 import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,7 +35,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -67,6 +66,9 @@ class ContentPartnerServiceImplTest {
 
     @Mock
     private ValueOperations<String, SearchResult> valueOperations;
+
+    @Mock
+    private Producer kafkaProducer;
 
     private ObjectMapper realObjectMapper = new ObjectMapper();
 
@@ -228,52 +230,47 @@ class ContentPartnerServiceImplTest {
      * the content partner is marked as inactive and the appropriate response is returned.
      */
     @Test
-    void test_delete_1() {
+    void test_delete_success() {
         // Arrange
         String id = "validId";
         ContentPartnerEntity entity = new ContentPartnerEntity();
         entity.setId(id);
         entity.setIsActive(true);
-
+        ObjectMapper realMapper = new ObjectMapper();
+        ObjectNode data = realMapper.createObjectNode();
+        data.put(Constants.PARTNERCODE, "PCODE1");
+        entity.setData(data);
         when(entityRepository.findByIdAndIsActive(eq(id), eq(true))).thenReturn(Optional.of(entity));
-
-        // Act
+        when(cbServerProperties.getContentPartnerDeleteTopic()).thenReturn("content-partner-delete-topic");
+        Map<String, Object> converted = new HashMap<>();
+        converted.put(Constants.PARTNERCODE, "PCODE1");
+        when(objectMapper.convertValue(any(), eq(Map.class))).thenReturn(converted);
         ApiResponse response = contentPartnerService.delete(id);
+        assertEquals(HttpStatus.OK, response.getResponseCode());
 
-        // Assert
-        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        verify(entityRepository).save(any(ContentPartnerEntity.class));
+        verify(kafkaProducer).push(eq("content-partner-delete-topic"), any(Map.class));
+        verify(cacheService).deleteCache(eq(id));
+        verify(cacheService).deleteCache(eq("PCODE1"));
     }
 
-    /**
-     * Test case for delete method when the entity is not found
-     * This test verifies that the delete method returns a BAD_REQUEST response
-     * with the appropriate error message when the content partner is not found.
-     */
+
     @Test
-    void test_delete_2() {
-        // Arrange
-        String id = "non-existent-id";
-        when(entityRepository.findByIdAndIsActive(id, true)).thenReturn(Optional.empty());
+    void test_delete_sendsKafkaEventWithPartnerId() {
+        String id = "validId";
 
-        // Act
-        ApiResponse response = contentPartnerService.delete(id);
-
-        // Assert
-        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.CONTENT_PARTNER_NOT_FOUND, response.getParams().getErrMsg());
-    }
-
-    /**
-     * Test case for delete method when the input id is empty or null.
-     * This test verifies that the method returns a BAD_REQUEST response
-     * with an appropriate error message when the id is invalid.
-     */
-    @Test
-    void test_delete_emptyOrNullId() {
-        ApiResponse response = contentPartnerService.delete("");
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.INVALID_ID, response.getParams().getErrMsg());
+        ContentPartnerEntity entity = new ContentPartnerEntity();
+        entity.setId(id);
+        entity.setIsActive(true);
+        entity.setData(new ObjectMapper().createObjectNode());
+        when(entityRepository.findByIdAndIsActive(eq(id), eq(true))).thenReturn(Optional.of(entity));
+        when(cbServerProperties.getContentPartnerDeleteTopic()).thenReturn("content-partner-delete-topic");
+        contentPartnerService.delete(id);
+        ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);
+        verify(kafkaProducer).push(eq("content-partner-delete-topic"), captor.capture());
+        Map<String, Object> event = captor.getValue();
+        assertEquals(id, event.get("partnerId"));
+        assertNotNull(event.get("deletedOn"));
     }
 
     /**

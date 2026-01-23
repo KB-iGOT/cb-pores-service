@@ -20,6 +20,7 @@ import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.PayloadValidation;
+import com.igot.cb.producer.Producer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -56,6 +57,9 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
 
     @Autowired
     private RedisTemplate<String, SearchResult> redisTemplate;
+
+    @Autowired
+    private Producer kafkaProducer;
 
     @Value("${search.result.redis.ttl}")
     private long searchResultRedisTtl;
@@ -373,6 +377,10 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                     josnEntity.setIsActive(Constants.ACTIVE_STATUS_FALSE);
                     ((ObjectNode) josnEntity.getData()).put(Constants.IS_ACTIVE, Constants.ACTIVE_STATUS_FALSE);
                     entityRepository.save(josnEntity);
+                    Map<String, Object> event = new HashMap<>();
+                    event.put("partnerId", id);
+                    event.put("deletedOn", System.currentTimeMillis());
+                    kafkaProducer.push(cbServerProperties.getContentPartnerDeleteTopic(), event);
                     Map<String, Object> map = objectMapper.convertValue(josnEntity.getData(), Map.class);
                     esUtilService.addDocument(Constants.CONTENT_PROVIDER_INDEX_NAME, Constants.INDEX_TYPE, id, map, cbServerProperties.getElasticContentJsonPath());
                     cacheService.deleteCache(id);
