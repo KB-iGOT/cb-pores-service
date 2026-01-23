@@ -21,4 +21,6 @@ public interface CiosContentService {
 
     Object fetchDataByExternalIdAndPartnerId(String externalid,String partnerid);
 
+    SearchResult searchContentV2(SearchCriteria searchCriteria);
+
 }

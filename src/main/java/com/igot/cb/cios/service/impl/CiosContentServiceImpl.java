@@ -380,21 +380,13 @@ public class CiosContentServiceImpl implements CiosContentService {
             log.error("searchCriteria is null");
             throw new CustomException("ERROR", "Search criteria must not be null", HttpStatus.BAD_REQUEST);
         }
-        SearchResult searchResult = redisTemplate.opsForValue()
-                .get(generateRedisJwtTokenKey(searchCriteria));
-        if (searchResult != null) {
-            log.info("CiosContentServiceImpl::searchCotent:  search result fetched from redis");
-            return searchResult;
-        }
         try {
-            HashMap<String, Object> filterCriteriaMap = searchCriteria.getFilterCriteriaMap();
-            if (filterCriteriaMap == null) {
-                filterCriteriaMap = new HashMap<>();
+            SearchResult searchResult = redisTemplate.opsForValue()
+                    .get(generateRedisJwtTokenKey(searchCriteria));
+            if (searchResult != null) {
+                log.info("CiosContentServiceImpl::searchCotent: search result fetched from redis cache");
+                return searchResult;
             }
-            if (filterCriteriaMap.get(Constants.IS_ACTIVE) == null) {
-                filterCriteriaMap.put(Constants.IS_ACTIVE, true);
-            }
-            searchCriteria.setFilterCriteriaMap(filterCriteriaMap);
             searchResult = esUtilService.searchDocuments(Constants.CIOS_INDEX_NAME, searchCriteria);
             redisTemplate.opsForValue()
                     .set(generateRedisJwtTokenKey(searchCriteria), searchResult, searchResultRedisTtl,
@@ -466,5 +458,16 @@ public class CiosContentServiceImpl implements CiosContentService {
         if (StringUtils.isNotBlank(difficultyLevel)) {
             contentNode.put(Constants.DIFFICULTY_LEVEL, difficultyLevel);
         }
+    }
+
+    public SearchResult searchContentV2(SearchCriteria searchCriteria) {
+        HashMap<String, Object> filterCriteriaMap = searchCriteria.getFilterCriteriaMap();
+        if (filterCriteriaMap == null) {
+            filterCriteriaMap = new HashMap<>();
+        }
+        if (filterCriteriaMap.get(Constants.IS_ACTIVE) == null) {
+            filterCriteriaMap.put(Constants.IS_ACTIVE, true);
+        }
+        return searchCotent(searchCriteria);
     }
 }

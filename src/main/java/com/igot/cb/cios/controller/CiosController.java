@@ -47,4 +47,10 @@ public class CiosController {
     public ResponseEntity<Object> fetchDataByExternalId(@PathVariable String externalid,@PathVariable String partnerid) {
         return new ResponseEntity<>(ciosContentService.fetchDataByExternalIdAndPartnerId(externalid,partnerid), HttpStatus.OK);
     }
+
+    @PostMapping(value = "/v2/search/content")
+    public ResponseEntity<?> searchContentV2(@RequestBody SearchCriteria searchCriteria) {
+        SearchResult searchResult = ciosContentService.searchContentV2(searchCriteria);
+        return new ResponseEntity<>(searchResult, HttpStatus.OK);
+    }
 }
