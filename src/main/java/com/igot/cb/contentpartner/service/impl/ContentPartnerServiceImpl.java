@@ -61,7 +61,6 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
     @Autowired
     private Producer kafkaProducer;
 
-
     @Value("${search.result.redis.ttl}")
     private long searchResultRedisTtl;
 

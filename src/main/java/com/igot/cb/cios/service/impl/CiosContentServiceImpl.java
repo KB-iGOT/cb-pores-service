@@ -45,6 +45,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import org.springframework.util.CollectionUtils;
 
 
 @Service
@@ -493,10 +494,9 @@ public class CiosContentServiceImpl implements CiosContentService {
             esUtilService.updateDocument(Constants.CIOS_INDEX_NAME, Constants.INDEX_TYPE, contentId, updatedDoc, cbServerProperties.getElasticCiosJsonPath());
             contentIds.add(contentId);
         }
-        if (!contentIds.isEmpty()) {
+        if (!CollectionUtils.isEmpty(contentIds)) {
             ciosRepository.bulkUpdateIsActiveAndJson(contentIds, targetIsActive);
         }
-
     }
 
 }

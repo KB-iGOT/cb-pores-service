@@ -50,7 +50,6 @@ public class ContentPartnerController {
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 
-
     @GetMapping("/v1/readbypartnercode/{partnercode}")
     public ResponseEntity<?> fetchContentDetailsByName(@PathVariable String partnercode) {
         ApiResponse response = partnerService.getContentDetailsByPartnerCode(partnercode);
