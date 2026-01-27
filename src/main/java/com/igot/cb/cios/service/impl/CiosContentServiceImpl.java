@@ -453,13 +453,6 @@ public class CiosContentServiceImpl implements CiosContentService {
             contentNode.set(Constants.COMPETENCIES_V6, eachData.getCompetencies_v6());
         }
         if (eachData.getContentPartner() != null) {
-            JsonNode contentPartnerNode = eachData.getContentPartner();
-            if (contentPartnerNode.isObject()) {
-                ObjectNode contentPartnerObj = (ObjectNode) contentPartnerNode;
-                if (!contentPartnerObj.has(Constants.IS_ACTIVE) || contentPartnerObj.get(Constants.IS_ACTIVE).isNull()) {
-                    contentPartnerObj.put(Constants.IS_ACTIVE, true);
-                }
-            }
             contentNode.set(Constants.CONTENT_PARTNER, eachData.getContentPartner());
         }
         if (eachData.getTags() != null) {
@@ -474,8 +467,9 @@ public class CiosContentServiceImpl implements CiosContentService {
     }
 
     @Override
-    public void updatePartnerIsActiveInEs(JsonNode contents, String partnerId, boolean targetIsActive ) {
-        List<String> contentIds = new ArrayList<>();
+    public void updatePartnerIsActiveInEs(JsonNode contents, String partnerId, boolean targetIsActive) {
+        List<String> successContentIds = new ArrayList<>();
+        List<String> failedContentIds = new ArrayList<>();
         for (JsonNode contentNode : contents) {
             JsonNode partnerNode = contentNode.path(Constants.CONTENT_PARTNER);
             if (!partnerNode.isObject()) {
@@ -490,12 +484,24 @@ public class CiosContentServiceImpl implements CiosContentService {
             if (contentId == null) {
                 continue;
             }
-            Map<String, Object> updatedDoc = objectMapper.convertValue(contentNode, new TypeReference<Map<String, Object>>() {});
-            esUtilService.updateDocument(Constants.CIOS_INDEX_NAME, Constants.INDEX_TYPE, contentId, updatedDoc, cbServerProperties.getElasticCiosJsonPath());
-            contentIds.add(contentId);
+            try {
+                Map<String, Object> updatedDoc = objectMapper.convertValue(contentNode, new TypeReference<Map<String, Object>>() {
+                });
+                esUtilService.updateDocument(Constants.CIOS_INDEX_NAME, Constants.INDEX_TYPE, contentId, updatedDoc, cbServerProperties.getElasticCiosJsonPath());
+                log.info(Constants.LOG_ES_UPDATE_SUCCESS, contentId);
+                successContentIds.add(contentId);
+            } catch (Exception ex) {
+                log.error(Constants.LOG_ES_UPDATE_FAILURE, contentId, ex);
+                failedContentIds.add(contentId);
+            }
         }
-        if (!CollectionUtils.isEmpty(contentIds)) {
-            ciosRepository.bulkUpdateIsActiveAndJson(contentIds, targetIsActive);
+        if (!CollectionUtils.isEmpty(successContentIds)) {
+            try {
+                ciosRepository.bulkUpdateIsActiveAndJson(successContentIds, targetIsActive);
+                log.info(Constants.LOG_DB_BULK_UPDATE_SUCCESS, successContentIds);
+            } catch (Exception ex) {
+                log.error(Constants.LOG_DB_BULK_UPDATE_FAILURE, successContentIds, ex);
+            }
         }
     }
 
