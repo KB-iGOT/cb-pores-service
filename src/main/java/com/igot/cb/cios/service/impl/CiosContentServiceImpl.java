@@ -31,8 +31,6 @@ import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.ValidationMessage;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,7 +45,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
+import org.springframework.util.CollectionUtils;
 
 
 @Service
@@ -467,4 +465,44 @@ public class CiosContentServiceImpl implements CiosContentService {
             contentNode.put(Constants.DIFFICULTY_LEVEL, difficultyLevel);
         }
     }
+
+    @Override
+    public void updatePartnerIsActiveInEs(JsonNode contents, String partnerId, boolean targetIsActive) {
+        List<String> successContentIds = new ArrayList<>();
+        List<String> failedContentIds = new ArrayList<>();
+        for (JsonNode contentNode : contents) {
+            JsonNode partnerNode = contentNode.path(Constants.CONTENT_PARTNER);
+            if (!partnerNode.isObject()) {
+                continue;
+            }
+            boolean currentState = partnerNode.path(Constants.IS_ACTIVE).asBoolean(true);
+            if (currentState == targetIsActive) {
+                continue;
+            }
+            ((ObjectNode) partnerNode).put(Constants.IS_ACTIVE, targetIsActive);
+            String contentId = contentNode.path(Constants.CONTENT_ID).asText(null);
+            if (contentId == null) {
+                continue;
+            }
+            try {
+                Map<String, Object> updatedDoc = objectMapper.convertValue(contentNode, new TypeReference<Map<String, Object>>() {
+                });
+                esUtilService.updateDocument(Constants.CIOS_INDEX_NAME, Constants.INDEX_TYPE, contentId, updatedDoc, cbServerProperties.getElasticCiosJsonPath());
+                log.info(Constants.LOG_ES_UPDATE_SUCCESS, contentId);
+                successContentIds.add(contentId);
+            } catch (Exception ex) {
+                log.error(Constants.LOG_ES_UPDATE_FAILURE, contentId, ex);
+                failedContentIds.add(contentId);
+            }
+        }
+        if (!CollectionUtils.isEmpty(successContentIds)) {
+            try {
+                ciosRepository.bulkUpdateIsActiveAndJson(successContentIds, targetIsActive);
+                log.info(Constants.LOG_DB_BULK_UPDATE_SUCCESS, successContentIds);
+            } catch (Exception ex) {
+                log.error(Constants.LOG_DB_BULK_UPDATE_FAILURE, successContentIds, ex);
+            }
+        }
+    }
+
 }

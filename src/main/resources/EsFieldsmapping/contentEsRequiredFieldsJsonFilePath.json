@@ -57,5 +57,11 @@
   },
   "courseProvider": {
     "type": "keyword"
+  },
+  "programId": {
+    "type": "keyword"
+  },
+  "accessSettingsEnabled": {
+    "type": "boolean"
   }
 }

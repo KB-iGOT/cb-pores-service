@@ -18,4 +18,5 @@ public interface ContentPartnerService {
 
     ApiResponse getContentDetailsByPartnerCode(String partnercode);
 
+    ApiResponse activate(String id);
 }

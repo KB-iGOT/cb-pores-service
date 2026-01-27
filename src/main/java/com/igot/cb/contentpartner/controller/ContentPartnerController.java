@@ -44,6 +44,12 @@ public class ContentPartnerController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
+    @PutMapping("/v1/activate/{id}")
+    public ResponseEntity<?> activate(@PathVariable String id) {
+        ApiResponse response = partnerService.activate(id);
+        return new ResponseEntity<>(response, response.getResponseCode());
+    }
+
     @GetMapping("/v1/readbypartnercode/{partnercode}")
     public ResponseEntity<?> fetchContentDetailsByName(@PathVariable String partnercode) {
         ApiResponse response = partnerService.getContentDetailsByPartnerCode(partnercode);

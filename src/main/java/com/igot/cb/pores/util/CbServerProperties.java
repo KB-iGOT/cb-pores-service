@@ -180,6 +180,12 @@ public class CbServerProperties {
     @Value("${org.hierarchy.required.roles}")
     private String orgHierarchyCreateRoles;
 
+    @Value("${kafka.topic.content.partner.delete}")
+    private String contentPartnerDeleteTopic;
+
+    @Value("${kafka.topic.content.partner.activate}")
+    private String contentPartnerActivateTopic;
+
     public List<String> getOrgHierarchyCreateRequiredRoles() {
       return Arrays.asList(orgHierarchyCreateRoles.split(","));
     }

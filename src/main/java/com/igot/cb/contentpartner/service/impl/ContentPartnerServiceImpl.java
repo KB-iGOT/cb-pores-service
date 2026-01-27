@@ -30,6 +30,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
+import com.igot.cb.producer.Producer;
 
 import java.sql.Timestamp;
 import java.util.*;
@@ -56,6 +57,9 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
 
     @Autowired
     private RedisTemplate<String, SearchResult> redisTemplate;
+
+    @Autowired
+    private Producer kafkaProducer;
 
     @Value("${search.result.redis.ttl}")
     private long searchResultRedisTtl;
@@ -373,6 +377,10 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                     josnEntity.setIsActive(Constants.ACTIVE_STATUS_FALSE);
                     ((ObjectNode) josnEntity.getData()).put(Constants.IS_ACTIVE, Constants.ACTIVE_STATUS_FALSE);
                     entityRepository.save(josnEntity);
+                    Map<String, Object> event = new HashMap<>();
+                    event.put(Constants.PARTNER_ID, id);
+                    event.put(Constants.DELETED_ON, System.currentTimeMillis());
+                    kafkaProducer.push(cbServerProperties.getContentPartnerDeleteTopic(), event);
                     Map<String, Object> map = objectMapper.convertValue(josnEntity.getData(), Map.class);
                     esUtilService.addDocument(Constants.CONTENT_PROVIDER_INDEX_NAME, Constants.INDEX_TYPE, id, map, cbServerProperties.getElasticContentJsonPath());
                     cacheService.deleteCache(id);
@@ -441,5 +449,47 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
             }
         }
         return "";
+    }
+
+    @Override
+    public ApiResponse activate(String id) {
+        log.info("ContentPartnerServiceImpl::activate: activating the content partner");
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_ACTIVATE);
+        try {
+            if (StringUtils.isNotEmpty(id)) {
+                Optional<ContentPartnerEntity> entityOptional = entityRepository.findByIdAndIsActive(id, false);
+                if (entityOptional.isPresent()) {
+                    ContentPartnerEntity jsonEntity = entityOptional.get();
+                    Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+                    jsonEntity.setUpdatedOn(currentTime);
+                    jsonEntity.setIsActive(Constants.ACTIVE_STATUS_TRUE);
+                    ((ObjectNode) jsonEntity.getData()).put(Constants.IS_ACTIVE, Constants.ACTIVE_STATUS_TRUE);
+                    entityRepository.save(jsonEntity);
+                    Map<String, Object> event = new HashMap<>();
+                    event.put(Constants.PARTNER_ID, id);
+                    event.put(Constants.ACTIVATED_ON, System.currentTimeMillis());
+                    kafkaProducer.push(cbServerProperties.getContentPartnerActivateTopic(), event);
+                    Map<String, Object> map = objectMapper.convertValue(jsonEntity.getData(), Map.class);
+                    esUtilService.addDocument(Constants.CONTENT_PROVIDER_INDEX_NAME, Constants.INDEX_TYPE, id, map, cbServerProperties.getElasticContentJsonPath());
+                    cacheService.deleteCache(id);
+                    cacheService.deleteCache((String) map.get(Constants.PARTNERCODE));
+                    Map<String, Object> result = new HashMap<>();
+                    result.put(id, Constants.ACTIVATED_SUCCESSFULLY);
+                    response.setResponseCode(HttpStatus.OK);
+                    response.setResult(result);
+                } else {
+                    response.setResponseCode(HttpStatus.BAD_REQUEST);
+                    response.getParams().setErrMsg(Constants.CONTENT_PARTNER_NOT_FOUND);
+                }
+            } else {
+                response.setResponseCode(HttpStatus.BAD_REQUEST);
+                response.getParams().setErrMsg(Constants.INVALID_ID);
+            }
+        } catch (Exception e) {
+            log.error("Error activating Entity with ID {}", id, e);
+            response.setResponseCode(HttpStatus.BAD_REQUEST);
+            response.getParams().setErrMsg("Error activating Entity with ID " + id);
+        }
+        return response;
     }
 }

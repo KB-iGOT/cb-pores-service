@@ -174,4 +174,25 @@ class ContentPartnerControllerTest {
         assertEquals(mockResponse, result.getBody());
     }
 
+    @Test
+    void testActivateContentPartner() {
+        String id = "test-id";
+        ApiResponse mockResponse = new ApiResponse();
+        mockResponse.setResponseCode(HttpStatus.OK);
+        when(partnerService.activate(id)).thenReturn(mockResponse);
+        ResponseEntity<?> responseEntity = contentPartnerController.activate(id);
+        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
+        assertEquals(mockResponse, responseEntity.getBody());
+    }
+    @Test
+    void testActivateContentPartner_badRequest() {
+        String id = "invalid-id";
+        ApiResponse mockResponse = new ApiResponse();
+        mockResponse.setResponseCode(HttpStatus.BAD_REQUEST);
+        when(partnerService.activate(id)).thenReturn(mockResponse);
+        ResponseEntity<?> responseEntity = contentPartnerController.activate(id);
+        assertEquals(HttpStatus.BAD_REQUEST, responseEntity.getStatusCode());
+        assertEquals(mockResponse, responseEntity.getBody());
+    }
+
 }
