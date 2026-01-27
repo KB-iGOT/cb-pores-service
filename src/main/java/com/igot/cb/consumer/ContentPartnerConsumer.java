@@ -61,7 +61,10 @@ public class ContentPartnerConsumer {
     private void updateAllPartnerContents(String partnerId, boolean isActive) {
         int page = 0;
         int size = pageSize;
-        while (true) {
+        boolean continueProcessing = true;
+        long processedCount = 0;
+        long totalCount = 0;
+        do {
             SearchCriteria criteria = new SearchCriteria();
             HashMap<String, Object> filterMap = new HashMap<>();
             filterMap.put(Constants.FILTER_CONTENT_PARTNER_ID, partnerId);
@@ -70,14 +73,25 @@ public class ContentPartnerConsumer {
             criteria.setPageNumber(page);
             criteria.setPageSize(size);
             SearchResult result = ciosContentService.searchCotent(criteria);
-            if (result == null || result.getData() == null || !result.getData().isArray() || result.getData().size() == 0) {
+            if (result == null || result.getData() == null || !result.getData().isArray()) {
+                log.warn("Search failed or invalid response for partnerId={}", partnerId);
+                continueProcessing = false;
                 break;
             }
+            if (result.getData().size() == 0) {
+                continueProcessing = false;
+                break;
+            }
+            if (page == 0) {
+                totalCount = result.totalCount;
+            }
             ciosContentService.updatePartnerIsActiveInEs(result.getData(), partnerId, isActive);
-            if (result.getData().size() < size) {
+            processedCount += result.getData().size();
+            if (processedCount >= totalCount) {
+                continueProcessing = false;
                 break;
             }
             page++;
-        }
+        } while (continueProcessing);
     }
 }

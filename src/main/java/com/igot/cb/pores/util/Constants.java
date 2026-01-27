@@ -446,6 +446,10 @@ public class Constants {
     public static final String ACTIVATED_SUCCESSFULLY = "Activated successfully";
     public static final String ACTIVATED_ON = "activatedOn";
     public static final String DELETED_ON = "deletedOn";
+    public static final String LOG_ES_UPDATE_SUCCESS = "ES update successful for contentId={}";
+    public static final String LOG_ES_UPDATE_FAILURE = "ES update failed for contentId={}";
+    public static final String LOG_DB_BULK_UPDATE_SUCCESS = "DB bulk update successful for contentIds={}";
+    public static final String LOG_DB_BULK_UPDATE_FAILURE = "DB bulk update failed for contentIds={}";
 
 
 
