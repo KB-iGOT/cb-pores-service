@@ -1,6 +1,7 @@
 package com.igot.cb.cios.service;
 
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.igot.cb.cios.dto.ObjectDto;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
@@ -21,4 +22,5 @@ public interface CiosContentService {
 
     Object fetchDataByExternalIdAndPartnerId(String externalid,String partnerid);
 
+    void updatePartnerIsActiveInEs(JsonNode contents, String partnerId, boolean targetIsActive);
 }

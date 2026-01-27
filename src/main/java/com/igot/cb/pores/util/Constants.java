@@ -439,6 +439,13 @@ public class Constants {
     public static final String IS_TRAINING_INSTITUTE = "isTrainingInstitution";
     public static final String EXTERNAL = "external";
     public static final String PROVIDER_TYPE = "providerType";
+    public static final String PARTNER_ID = "partnerId";
+    public static final String FILTER_CONTENT_PARTNER_ID = "contentPartner.id";
+    public static final String API_PARTNER_ACTIVATE = "api.partner.activate";
+    public static final Boolean ACTIVE_STATUS_TRUE = true;
+    public static final String ACTIVATED_SUCCESSFULLY = "Activated successfully";
+    public static final String ACTIVATED_ON = "activatedOn";
+    public static final String DELETED_ON = "deletedOn";
 
 
 

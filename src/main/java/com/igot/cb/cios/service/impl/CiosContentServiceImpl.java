@@ -31,8 +31,6 @@ import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.ValidationMessage;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,7 +45,6 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 
 @Service
@@ -455,6 +452,13 @@ public class CiosContentServiceImpl implements CiosContentService {
             contentNode.set(Constants.COMPETENCIES_V6, eachData.getCompetencies_v6());
         }
         if (eachData.getContentPartner() != null) {
+            JsonNode contentPartnerNode = eachData.getContentPartner();
+            if (contentPartnerNode.isObject()) {
+                ObjectNode contentPartnerObj = (ObjectNode) contentPartnerNode;
+                if (!contentPartnerObj.has(Constants.IS_ACTIVE) || contentPartnerObj.get(Constants.IS_ACTIVE).isNull()) {
+                    contentPartnerObj.put(Constants.IS_ACTIVE, true);
+                }
+            }
             contentNode.set(Constants.CONTENT_PARTNER, eachData.getContentPartner());
         }
         if (eachData.getTags() != null) {
@@ -467,4 +471,32 @@ public class CiosContentServiceImpl implements CiosContentService {
             contentNode.put(Constants.DIFFICULTY_LEVEL, difficultyLevel);
         }
     }
+
+    @Override
+    public void updatePartnerIsActiveInEs(JsonNode contents, String partnerId, boolean targetIsActive ) {
+        List<String> contentIds = new ArrayList<>();
+        for (JsonNode contentNode : contents) {
+            JsonNode partnerNode = contentNode.path(Constants.CONTENT_PARTNER);
+            if (!partnerNode.isObject()) {
+                continue;
+            }
+            boolean currentState = partnerNode.path(Constants.IS_ACTIVE).asBoolean(true);
+            if (currentState == targetIsActive) {
+                continue;
+            }
+            ((ObjectNode) partnerNode).put(Constants.IS_ACTIVE, targetIsActive);
+            String contentId = contentNode.path(Constants.CONTENT_ID).asText(null);
+            if (contentId == null) {
+                continue;
+            }
+            Map<String, Object> updatedDoc = objectMapper.convertValue(contentNode, new TypeReference<Map<String, Object>>() {});
+            esUtilService.updateDocument(Constants.CIOS_INDEX_NAME, Constants.INDEX_TYPE, contentId, updatedDoc, cbServerProperties.getElasticCiosJsonPath());
+            contentIds.add(contentId);
+        }
+        if (!contentIds.isEmpty()) {
+            ciosRepository.bulkUpdateIsActiveAndJson(contentIds, targetIsActive);
+        }
+
+    }
+
 }
