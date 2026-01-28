@@ -84,7 +84,6 @@ public class ContentPartnerConsumer {
             }
             if (page == 0) {
                 totalCount = result.getTotalCount();
-
             }
             ciosContentService.updatePartnerIsActiveInEs(result.getData(), partnerId, isActive);
             processedCount += result.getData().size();
