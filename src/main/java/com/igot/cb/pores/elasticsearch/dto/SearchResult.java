@@ -18,5 +18,5 @@ public class SearchResult implements Serializable {
 
   private JsonNode data;
   private Map<String, List<FacetDTO>> facets;
-  public long totalCount;
+  private long totalCount;
 }
