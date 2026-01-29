@@ -400,7 +400,6 @@ class CiosContentServiceImplTest {
      * Test case for onboardContent method when the status is "draft" and competencies and content partner are present,
      * but tags are not present.
      */
-
     @Test
     void testOnboardContent_successForDraftAndLive() {
         ObjectMapper draftObjectMapper = new ObjectMapper();
@@ -1403,5 +1402,63 @@ class CiosContentServiceImplTest {
 
     }
 
+    @Test
+    void test_readContent_cachedResult() {
+        // Arrange
+        SearchCriteria searchCriteria = new SearchCriteria();
+        SearchResult expectedResult = new SearchResult();
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(expectedResult);
+
+        // Act
+        SearchResult actualResult = ciosContentService.readContent(searchCriteria);
+
+        // Assert
+        assertNotNull(actualResult);
+        assertEquals(expectedResult, actualResult);
+        verify(redisTemplate).opsForValue();
+        verify(valueOperations).get(anyString());
+        verifyNoMoreInteractions(redisTemplate, valueOperations);
+    }
+
+    @Test
+    void test_readContent_shouldThrowException_WhenSearchCriteriaIsNull() {
+        // Arrange
+        SearchCriteria searchCriteria = null;
+
+        // Act & Assert
+        CustomException exception = assertThrows(CustomException.class, () -> {
+            ciosContentService.readContent(searchCriteria);
+        });
+
+        // Verify exception details
+        assertEquals("Search criteria must not be null", exception.getMessage());
+        assertEquals("ERROR", exception.getCode());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatusCode());
+    }
+
+    @Test
+    void test_readContent_cacheMiss_callsEsAndCachesResult() throws Exception {
+        // Arrange
+        SearchCriteria searchCriteria = new SearchCriteria();
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(null);
+
+        SearchResult expectedResult = new SearchResult();
+        when(esUtilService.searchDocuments(eq(Constants.CIOS_INDEX_NAME), any(SearchCriteria.class)))
+                .thenReturn(expectedResult);
+
+        // Act
+        SearchResult result = ciosContentService.readContent(searchCriteria);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(expectedResult, result);
+
+        verify(esUtilService).searchDocuments(eq(Constants.CIOS_INDEX_NAME), any(SearchCriteria.class));
+        verify(valueOperations).set(anyString(), eq(expectedResult), anyLong(), any());
+    }
 
 }

@@ -23,4 +23,7 @@ public interface CiosContentService {
     Object fetchDataByExternalIdAndPartnerId(String externalid,String partnerid);
 
     void updatePartnerIsActiveInEs(JsonNode contents, String partnerId, boolean targetIsActive);
+  
+    SearchResult readContent(SearchCriteria searchCriteria);
+
 }
