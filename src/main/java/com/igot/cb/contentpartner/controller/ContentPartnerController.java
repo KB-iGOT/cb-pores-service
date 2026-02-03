@@ -44,9 +44,9 @@ public class ContentPartnerController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
-    @PutMapping("/v1/activate/{id}")
-    public ResponseEntity<?> activate(@PathVariable String id) {
-        ApiResponse response = partnerService.activate(id);
+    @PutMapping("/v1/activate")
+    public ResponseEntity<?> activate(@RequestBody JsonNode partnerDetails) {
+        ApiResponse response = partnerService.activate(partnerDetails);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 

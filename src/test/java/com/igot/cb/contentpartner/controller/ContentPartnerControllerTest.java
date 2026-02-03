@@ -2,9 +2,11 @@ package com.igot.cb.contentpartner.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.igot.cb.contentpartner.service.ContentPartnerService;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.util.ApiResponse;
+import com.igot.cb.pores.util.Constants;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -179,8 +181,11 @@ class ContentPartnerControllerTest {
         String id = "test-id";
         ApiResponse mockResponse = new ApiResponse();
         mockResponse.setResponseCode(HttpStatus.OK);
-        when(partnerService.activate(id)).thenReturn(mockResponse);
-        ResponseEntity<?> responseEntity = contentPartnerController.activate(id);
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode requestBody = mapper.createObjectNode();
+        requestBody.put(Constants.PARTNER_ID, id);
+        when(partnerService.activate(requestBody)).thenReturn(mockResponse);
+        ResponseEntity<?> responseEntity = contentPartnerController.activate(requestBody);
         assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
         assertEquals(mockResponse, responseEntity.getBody());
     }
@@ -189,8 +194,11 @@ class ContentPartnerControllerTest {
         String id = "invalid-id";
         ApiResponse mockResponse = new ApiResponse();
         mockResponse.setResponseCode(HttpStatus.BAD_REQUEST);
-        when(partnerService.activate(id)).thenReturn(mockResponse);
-        ResponseEntity<?> responseEntity = contentPartnerController.activate(id);
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode requestBody = mapper.createObjectNode();
+        requestBody.put(Constants.PARTNER_ID, id);
+        when(partnerService.activate(requestBody)).thenReturn(mockResponse);
+        ResponseEntity<?> responseEntity = contentPartnerController.activate(requestBody);
         assertEquals(HttpStatus.BAD_REQUEST, responseEntity.getStatusCode());
         assertEquals(mockResponse, responseEntity.getBody());
     }

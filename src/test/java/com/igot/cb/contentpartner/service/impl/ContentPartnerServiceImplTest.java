@@ -408,7 +408,9 @@ class ContentPartnerServiceImplTest {
         when(cbServerProperties.getContentPartnerActivateTopic()).thenReturn("content-partner-activate-topic");
         when(cbServerProperties.getElasticContentJsonPath()).thenReturn("path");
         when(objectMapper.convertValue(any(), eq(Map.class))).thenReturn(new HashMap<>());
-        ApiResponse response = contentPartnerService.activate(id);
+        ObjectNode requestBody = realObjectMapper.createObjectNode();
+        requestBody.put(Constants.PARTNER_ID, id);
+        ApiResponse response = contentPartnerService.activate(requestBody);
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(Constants.ACTIVATED_SUCCESSFULLY, ((Map<?, ?>) response.getResult()).get(id));
         verify(entityRepository).save(any(ContentPartnerEntity.class));
@@ -419,8 +421,10 @@ class ContentPartnerServiceImplTest {
     @Test
     void test_activate_partnerNotFound() {
         String id = "missing-id";
+        ObjectNode requestBody = realObjectMapper.createObjectNode();
+        requestBody.put(Constants.PARTNER_ID, id);
         when(entityRepository.findByIdAndIsActive(id, false)).thenReturn(Optional.empty());
-        ApiResponse response = contentPartnerService.activate(id);
+        ApiResponse response = contentPartnerService.activate(requestBody);
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals(Constants.CONTENT_PARTNER_NOT_FOUND, response.getParams().getErrMsg());
     }
