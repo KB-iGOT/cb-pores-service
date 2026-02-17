@@ -48,8 +48,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
   private final RedisTemplate<String, SearchResult> redisTemplate;
   private final CbServerProperties serverProperties;
 
-  private final String requiredJsonFilePath =
-          "/EsFieldsmapping/announcementEsMapping.json";
+  private final String requiredJsonFilePath = "/EsFieldsmapping/announcementEsMapping.json";
 
   public AnnouncementServiceImpl(
           PayloadValidation payloadValidation,
