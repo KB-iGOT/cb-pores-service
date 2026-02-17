@@ -20,8 +20,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/announcements")
 public class AnnouncementController {
 
-  @Autowired
-  private AnnouncementService announcementService;
+  private final AnnouncementService announcementService;
+
+  public AnnouncementController(AnnouncementService announcementService) {
+    this.announcementService = announcementService;
+  }
 
   @PostMapping("/v1/create")
   public ResponseEntity<CustomResponse> create(@RequestBody JsonNode announcementEntity) {
@@ -30,7 +33,7 @@ public class AnnouncementController {
   }
 
   @PostMapping("/v1/search")
-  public ResponseEntity<?> search(@RequestBody SearchCriteria searchCriteria) {
+  public ResponseEntity<CustomResponse> search(@RequestBody SearchCriteria searchCriteria) {
     CustomResponse response = announcementService.searchAnnouncement(searchCriteria);
     return new ResponseEntity<>(response, response.getResponseCode());
   }
@@ -42,13 +45,13 @@ public class AnnouncementController {
   }
 
   @GetMapping("/v1/read/{id}")
-  public ResponseEntity<?> read(@PathVariable String id) {
+  public ResponseEntity<CustomResponse> read(@PathVariable String id) {
     CustomResponse response = announcementService.readAnnouncement(id);
     return new ResponseEntity<>(response, HttpStatus.OK);
   }
 
   @DeleteMapping("/v1/delete/{id}")
-  public ResponseEntity<?> delete(@PathVariable String id) {
+  public ResponseEntity<CustomResponse> delete(@PathVariable String id) {
     CustomResponse response = announcementService.deleteAnnouncement(id);
     return new ResponseEntity<>(response, HttpStatus.OK);
   }
