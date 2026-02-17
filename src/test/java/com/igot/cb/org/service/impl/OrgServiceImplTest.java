@@ -858,6 +858,7 @@ class OrgServiceImplTest {
 
         // Act
         orgService.updateOrganizationFramework(frameworkId, orgId, "id", "Completed");
+        verify(cassandraOperation, times(1)).updateRecord(anyString(), anyString(), any(Map.class));
 
         // Assert
         // No assertion needed as we're testing a void method and the error is logged

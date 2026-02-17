@@ -246,9 +246,9 @@ class DemandServiceImplMethodTest {
         ClassPathResource resource = new ClassPathResource("payloadValidation/statusTransitions.json");
         System.out.println("Resource exists? " + resource.exists());
         if (resource.exists()) {
-            System.out.println("Resource absolute path: " + resource.getFile().getAbsolutePath());
+            assertNotNull(resource.getFile(), "Resource file should be accessible when it exists");
         } else {
-            System.out.println("Resource NOT found on classpath!");
+            fail("statusTransitions.json not found in classpath");
         }
     }
 

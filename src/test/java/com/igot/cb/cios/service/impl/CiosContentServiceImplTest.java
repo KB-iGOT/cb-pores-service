@@ -101,6 +101,9 @@ class CiosContentServiceImplTest {
     @Mock
     private ResponseEntity<JsonNode> responseEntity;
 
+    @Mock
+    private ContentPartnerRepository contentPartnerRepository;
+
     private ObjectMapper realObjectMapper = new ObjectMapper();
 
 
@@ -1124,6 +1127,7 @@ class CiosContentServiceImplTest {
         Method method = CiosContentServiceImpl.class.getDeclaredMethod("fetchAndUpdateContentCountsInPartnerDb", String.class);
         method.setAccessible(true);
         method.invoke(service, "PARTNER001");
+        assertDoesNotThrow(() -> method.invoke(service, "PARTNER001"));
     }
 
     private CiosContentServiceImpl prepareServiceWithMocks(JsonNode mockedNode) throws Exception {
@@ -1168,6 +1172,8 @@ class CiosContentServiceImplTest {
         Method method = CiosContentServiceImpl.class.getDeclaredMethod("fetchAndUpdateContentCountsInPartnerDb", String.class);
         method.setAccessible(true);
         method.invoke(service, "PARTNER001");
+        verify(contentPartnerRepository, never()).save(any());
+
     }
 
     @Test
@@ -1185,6 +1191,7 @@ class CiosContentServiceImplTest {
         Method method = CiosContentServiceImpl.class.getDeclaredMethod("fetchAndUpdateContentCountsInPartnerDb", String.class);
         method.setAccessible(true);
         method.invoke(service, "PARTNER001");
+        verify(contentPartnerRepository, never()).save(any());
     }
 
     @Test
@@ -1193,6 +1200,7 @@ class CiosContentServiceImplTest {
         Method method = CiosContentServiceImpl.class.getDeclaredMethod("fetchAndUpdateContentCountsInPartnerDb", String.class);
         method.setAccessible(true);
         method.invoke(service, "PARTNER001");
+        verify(contentPartnerRepository, never()).save(any());
     }
 
     @Test
