@@ -343,13 +343,13 @@ public class EsUtilServiceImpl implements EsUtilService {
             String lowerSearch = searchString.toLowerCase().trim();
             boolQueryBuilder.must(Query.of(q -> q.bool(b -> b
                     .should(Query.of(q1 -> q1.term(t -> t
-                            .field("searchTags.keyword")
+                            .field(Constants.SEARCHTAGS_KEYWORD)
                             .value(lowerSearch))))
                     .should(Query.of(q2 -> q2.prefix(p -> p
-                            .field("searchTags.keyword")
+                            .field(Constants.SEARCHTAGS_KEYWORD)
                             .value(lowerSearch))))
                     .should(Query.of(q3 -> q3.wildcard(w -> w
-                            .field("searchTags.keyword")
+                            .field(Constants.SEARCHTAGS_KEYWORD)
                             .value("*" + lowerSearch + "*"))))
             )));
         }
@@ -567,6 +567,209 @@ public class EsUtilServiceImpl implements EsUtilService {
                 HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    @Override
+    public SearchResult searchDocumentsV2(String esIndexName, SearchCriteria searchCriteria) {
+
+        SearchRequest.Builder searchRequestBuilder = buildSearchRequestV2(searchCriteria);
+        searchRequestBuilder.index(esIndexName);
+
+        try {
+            int pageNumber = searchCriteria.getPageNumber();
+            int pageSize = searchCriteria.getPageSize();
+            int from = pageNumber * pageSize;
+
+            searchRequestBuilder.from(from);
+            searchRequestBuilder.size(pageSize);
+
+            SearchRequest searchRequest = searchRequestBuilder.build();
+            log.info("Final search query: {}", searchRequest.toString());
+
+            SearchResponse<Object> response =
+                    elasticsearchClient.search(searchRequest, Object.class);
+
+            List<Map<String, Object>> result = extractPaginatedResult(response);
+            Map<String, List<FacetDTO>> facets =
+                    extractFacetData(response, searchCriteria);
+
+            SearchResult searchResult = new SearchResult();
+            searchResult.setData(objectMapper.valueToTree(result));
+            searchResult.setFacets(facets);
+            searchResult.setTotalCount(response.hits().total().value());
+
+            return searchResult;
+
+        } catch (IOException e) {
+            log.error("Error while searching V2", e);
+            return null;
+        }
+    }
+
+    private SearchRequest.Builder buildSearchRequestV2(SearchCriteria searchCriteria) {
+        BoolQuery.Builder boolQuery = buildFilterQueryV2(searchCriteria.getFilterCriteriaMap());
+        if (isNotBlank(searchCriteria.getStartsWith()) &&
+                isNotBlank(searchCriteria.getStartsWithField())) {
+            boolQuery.must(Query.of(q -> q.prefix(p -> p
+                    .field(searchCriteria.getStartsWithField())
+                    .value(searchCriteria.getStartsWith())
+            )));
+        }
+        addQueryStringToFilterV2(searchCriteria.getSearchString(), boolQuery);
+
+        SearchRequest.Builder builder = new SearchRequest.Builder();
+        builder.query(boolQuery.build()._toQuery());
+        addSortV2(searchCriteria, builder);
+        addRequestedFieldsToSearchSourceBuilder(searchCriteria, builder);
+        addFacetsV2(searchCriteria.getFacets(), builder);
+
+        return builder;
+    }
+
+
+    private BoolQuery.Builder buildFilterQueryV2(Map<String, Object> filterCriteriaMap) {
+
+        BoolQuery.Builder boolQuery = QueryBuilders.bool();
+
+        if (filterCriteriaMap == null) return boolQuery;
+
+        filterCriteriaMap.forEach((field, value) -> {
+            if (value instanceof Boolean boolValue) {
+                boolQuery.must(Query.of(q -> q.term(t -> t.field(field).value(boolValue))));
+            } else if (value instanceof String stringValue) {
+                boolQuery.must(Query.of(q -> q.term(t ->
+                        t.field(field).value(stringValue)
+                )));
+            } else if (value instanceof List) {
+                List<FieldValue> values = ((List<String>) value).stream()
+                        .map(FieldValue::of)
+                        .toList();
+
+                boolQuery.must(Query.of(q -> q.terms(t ->
+                        t.field(field).terms(terms -> terms.value(values))
+                )));
+            } else if (value instanceof Map) {
+                Map<String, Object> rangeMap = (Map<String, Object>) value;
+
+                RangeQuery.Builder rangeQuery = QueryBuilders.range().field(field);
+
+                rangeMap.forEach((operator, rangeValue) -> {
+                    switch (operator) {
+                        case "gte" -> rangeQuery.gte(JsonData.of(rangeValue));
+                        case "lte" -> rangeQuery.lte(JsonData.of(rangeValue));
+                        case "gt" -> rangeQuery.gt(JsonData.of(rangeValue));
+                        case "lt" -> rangeQuery.lt(JsonData.of(rangeValue));
+                        default ->
+                                throw new CustomException(Constants.ERROR, "Unsupported range operator: " + operator, HttpStatus.BAD_REQUEST);
+                    }
+                });
+
+                boolQuery.must(rangeQuery.build()._toQuery());
+            }
+
+        });
+
+        return boolQuery;
+    }
+
+    private void addSortV2(SearchCriteria searchCriteria,
+                           SearchRequest.Builder builder) {
+
+        if (isNotBlank(searchCriteria.getOrderBy())) {
+
+            SortOrder order = "asc".equalsIgnoreCase(searchCriteria.getOrderDirection())
+                    ? SortOrder.Asc : SortOrder.Desc;
+
+            builder.sort(s -> s.field(f -> f
+                    .field(searchCriteria.getOrderBy())
+                    .order(order)
+            ));
+        }
+    }
+
+    private void addFacetsV2(List<String> facets,
+                             SearchRequest.Builder builder) {
+
+        if (facets == null || facets.isEmpty()) return;
+
+        Map<String, Aggregation> aggs = facets.stream()
+                .collect(Collectors.toMap(
+                        field -> field + "_agg",
+                        field -> Aggregation.of(a -> a.terms(t ->
+                                t.field(field).size(250)
+                        ))
+                ));
+
+        builder.aggregations(aggs);
+    }
+
+    private void addQueryStringToFilterV2(String searchString,
+                                          BoolQuery.Builder boolQueryBuilder) {
+
+        if (!isNotBlank(searchString)) {
+            return;
+        }
+
+        String trimmedSearch = searchString.trim();
+
+        Map<String, Float> fieldsWithBoost =
+                parseBoostConfig(cbServerProperties.getSearchFieldsWithBoost());
+
+        if (fieldsWithBoost.isEmpty()) {
+            log.warn("No search fields configured");
+            return;
+        }
+
+        fieldsWithBoost.forEach((field, boost) ->
+                boolQueryBuilder.should(Query.of(q -> q.term(t -> t
+                        .field(field)
+                        .value(trimmedSearch)
+                        .boost(boost * 4)
+                )))
+        );
+        fieldsWithBoost.forEach((field, boost) ->
+                boolQueryBuilder.should(Query.of(q -> q.matchPhrase(mp -> mp
+                        .field(field)
+                        .query(trimmedSearch)
+                        .boost(boost * 2)
+                        .slop(1)
+                )))
+        );
+        List<String> boostedFields = fieldsWithBoost.entrySet()
+                .stream()
+                .map(entry -> entry.getKey() + "^" + entry.getValue())
+                .toList();
+
+        boolQueryBuilder.should(Query.of(q -> q.multiMatch(m -> m
+                .query(trimmedSearch)
+                .fields(boostedFields)
+                .type(TextQueryType.MostFields)
+                .operator(Operator.Or)
+                .fuzziness("AUTO")
+        )));
+        boolQueryBuilder.minimumShouldMatch("1");
+    }
+
+    private Map<String, Float> parseBoostConfig(String configValue) {
+
+        if (configValue == null || configValue.isBlank()) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, Float> fieldBoostMap = new HashMap<>();
+
+        Arrays.stream(configValue.split(","))
+                .map(String::trim)
+                .filter(entry -> entry.contains(":"))
+                .forEach(entry -> {
+                    String[] parts = entry.split(":");
+                    String field = parts[0].trim();
+                    Float boost = Float.parseFloat(parts[1].trim());
+                    fieldBoostMap.put(field, boost);
+                });
+
+        return fieldBoostMap;
+    }
+
 
 
 }

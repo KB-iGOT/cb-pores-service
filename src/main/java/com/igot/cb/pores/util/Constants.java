@@ -450,6 +450,30 @@ public class Constants {
     public static final String LOG_ES_UPDATE_FAILURE = "ES update failed for contentId={}";
     public static final String LOG_DB_BULK_UPDATE_SUCCESS = "DB bulk update successful for receivedContentIdsSize={} and updatedRecordsCount={}";
     public static final String LOG_DB_BULK_UPDATE_FAILURE = "DB bulk update failed for contentIds={}";
+    // Knowledge Centre Constants
+    public static final String KNOWLEDGE_CENTRE_INDEX_NAME = "knowledge_centre";
+    public static final String API_CATEGORY_CREATE = "api.category.create";
+    public static final String API_CATEGORY_UPDATE = "api.category.update";
+    public static final String CATEGORY_FILE_JSON = "/payloadValidation/categoryValidationFile.json";
+    public static final String CATEGORY_CREATED = "Category created successfully";
+    public static final String CATEGORY_UPDATED = "Category updated successfully";
+    public static final String CATEGORY_NOT_FOUND = "Category not found for the given ID";
+    public static final String KNOWLEDGE_ES_FILE_JSON = "/EsFieldsmapping/knowledgeCentreEsMapping.json";
+    public static final String SUB_CATEGORY_FILE_JSON = "/payloadValidation/subCategoryValidationFile.json";
+    public static final String API_SUB_CATEGORY_CREATE = "api.subcategory.create";
+    public static final String API_SUB_CATEGORY_UPDATE = "api.subcategory.update";
+    public static final String SUB_CATEGORY_CREATED = "Sub-category created successfully";
+    public static final String SUB_CATEGORY_UPDATED = "Sub-category updated successfully";
+    public static final String SUB_CATEGORY_NOT_FOUND = "Sub-category not found for the given ID";
+    public static final String ARTICLE_FILE_JSON = "/payloadValidation/articleValidationFile.json";
+    public static final String API_ARTICLE_CREATE = "api.article.create";
+    public static final String API_ARTICLE_UPDATE = "api.article.update";
+    public static final String ARTICLE_CREATED = "Article created successfully";
+    public static final String ARTICLE_UPDATED = "Article updated successfully";
+    public static final String ARTICLE_NOT_FOUND = "Article not found for the given ID";
+    public static final String SEARCHTAGS_KEYWORD = "searchTags.keyword";
+    public static final String SEARCH_MIN_LENGTH_ERROR_MESSAGE = "Minimum 3 characters are required to search";
+    public static final String TIME_ZONE = "Asia/Kolkata";
 
 
 
