@@ -50,7 +50,7 @@
     "type": {
       "type": "string",
       "enum": [
-        "ARTICLE"
+        "article"
       ]
     },
     "isPublic": {

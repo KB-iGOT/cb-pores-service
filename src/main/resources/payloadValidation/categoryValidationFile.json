@@ -37,7 +37,7 @@
     "type": {
       "type": "string",
       "enum": [
-        "CATEGORY"
+        "category"
       ]
     },
     "isPublic": {

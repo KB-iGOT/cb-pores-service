@@ -15,6 +15,7 @@ import com.igot.cb.knowledgecentre.repository.KnowledgeArticlesRepository;
 import com.igot.cb.knowledgecentre.repository.KnowledgeCategoryRepository;
 import com.igot.cb.knowledgecentre.repository.KnowledgeSubCategoryRepository;
 import com.igot.cb.knowledgecentre.service.KnowledgeService;
+import com.igot.cb.knowledgecentre.util.KnowledgeCentreUtil;
 import com.igot.cb.playlist.util.ProjectUtil;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
@@ -25,15 +26,12 @@ import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.PayloadValidation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -52,6 +50,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     private final CbServerProperties cbServerProperties;
     private final AccessTokenValidator accessTokenValidator;
     private final RedisTemplate<String, SearchResult> redisTemplate;
+    private final KnowledgeCentreUtil knowledgeCentreUtil;
 
     @Override
     public ApiResponse createCategory(JsonNode categoryDto, String token) {
@@ -62,9 +61,18 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             ProjectUtil.errorResponse(response, Constants.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
             return response;
         }
-        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
-        String isoTimestamp = formatTimestampForES(currentTime);
+
+        ((ObjectNode) categoryDto).put(Constants.STATUS, Constants.DRAFT_KEY);
         payloadValidation.validatePayload(Constants.CATEGORY_FILE_JSON, categoryDto);
+        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+        String isoTimestamp = knowledgeCentreUtil.formatTimestampForES(currentTime);
+        String title = categoryDto.path(Constants.TITLE).asText("");
+        if (StringUtils.isNotEmpty(title) && knowledgeCentreUtil.isDuplicateCategoryTitle(title, null)) {
+            log.error(Constants.DUPLICATE_CATEGORY_TITLE, title);
+            ProjectUtil.errorResponse(response, Constants.CATEGORY_TITLE_EXISTS, HttpStatus.BAD_REQUEST);
+            return response;
+        }
+
         String id = UUID.randomUUID().toString();
         ((ObjectNode) categoryDto).put(Constants.ID, id);
         ((ObjectNode) categoryDto).put(Constants.CREATED_BY, userId);
@@ -77,10 +85,12 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         knowledgeCategoryEntity.setCreatedOn(isoTimestamp);
         knowledgeCategoryEntity.setUpdatedOn(isoTimestamp);
         knowledgeCategoryRepository.save(knowledgeCategoryEntity);
-        Map<String, Object> map = objectMapper.convertValue(knowledgeCategoryEntity.getCategoryData(), Map.class);
+        Map<String, Object> map = objectMapper.convertValue(knowledgeCategoryEntity.getCategoryData(), new TypeReference<>() {
+        });
         esUtilService.addDocument(Constants.KNOWLEDGE_CENTRE_INDEX_NAME, Constants.INDEX_TYPE, id, map, Constants.KNOWLEDGE_ES_FILE_JSON);
         log.info(Constants.CATEGORY_CREATED);
-        response.setResult(objectMapper.convertValue(knowledgeCategoryEntity, Map.class));
+        response.setResult(objectMapper.convertValue(knowledgeCategoryEntity, new TypeReference<>() {
+        }));
         response.setResponseCode(HttpStatus.OK);
         return response;
     }
@@ -94,15 +104,24 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             ProjectUtil.errorResponse(response, Constants.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
             return response;
         }
-        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
-        String isoTimestamp = formatTimestampForES(currentTime);
+        ((ObjectNode) categoryDto).put(Constants.STATUS, Constants.DRAFT_KEY);
         payloadValidation.validatePayload(Constants.CATEGORY_FILE_JSON, categoryDto);
+        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+        String isoTimestamp = knowledgeCentreUtil.formatTimestampForES(currentTime);
         KnowledgeCategoryEntity existingEntity = knowledgeCategoryRepository.findById(id).orElse(null);
         if (existingEntity == null) {
             log.error(Constants.CATEGORY_NOT_FOUND);
             ProjectUtil.errorResponse(response, Constants.CATEGORY_NOT_FOUND, HttpStatus.NOT_FOUND);
             return response;
         }
+
+        String title = categoryDto.path(Constants.TITLE).asText("");
+        if (StringUtils.isNotBlank(title) && knowledgeCentreUtil.isDuplicateCategoryTitle(title, id)) {
+            log.error(Constants.DUPLICATE_CATEGORY_TITLE, title);
+            ProjectUtil.errorResponse(response, Constants.CATEGORY_TITLE_EXISTS, HttpStatus.BAD_REQUEST);
+            return response;
+        }
+
         ((ObjectNode) categoryDto).put(Constants.ID, id);
         ((ObjectNode) categoryDto).put(Constants.CREATED_BY, existingEntity.getCategoryData().get(Constants.CREATED_BY).asText());
         ((ObjectNode) categoryDto).put(Constants.UPDATED_BY, userId);
@@ -111,10 +130,93 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         existingEntity.setCategoryData(categoryDto);
         existingEntity.setUpdatedOn(isoTimestamp);
         knowledgeCategoryRepository.save(existingEntity);
-        Map<String, Object> map = objectMapper.convertValue(existingEntity.getCategoryData(), Map.class);
+        Map<String, Object> map = objectMapper.convertValue(existingEntity.getCategoryData(), new TypeReference<>() {
+        });
         esUtilService.updateDocument(Constants.KNOWLEDGE_CENTRE_INDEX_NAME, Constants.INDEX_TYPE, id, map, Constants.KNOWLEDGE_ES_FILE_JSON);
         log.info(Constants.CATEGORY_UPDATED);
-        response.setResult(objectMapper.convertValue(existingEntity, Map.class));
+        response.setResult(objectMapper.convertValue(existingEntity, new TypeReference<>() {
+        }));
+        response.setResponseCode(HttpStatus.OK);
+        return response;
+    }
+
+    @Override
+    public ApiResponse publishCategory(String id, String token) {
+        log.info("KnowledgeServiceImpl.publishCategory inside method for id: {}", id);
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_CATEGORY_PUBLISH);
+        String userId = accessTokenValidator.verifyUserToken(token);
+        if (userId.equalsIgnoreCase(Constants.UNAUTHORIZED)) {
+            ProjectUtil.errorResponse(response, Constants.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
+            return response;
+        }
+
+        KnowledgeCategoryEntity existingEntity = knowledgeCategoryRepository.findById(id).orElse(null);
+        if (existingEntity == null) {
+            log.error(Constants.CATEGORY_NOT_FOUND);
+            ProjectUtil.errorResponse(response, Constants.CATEGORY_NOT_FOUND, HttpStatus.NOT_FOUND);
+            return response;
+        }
+
+        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+        String isoTimestamp = knowledgeCentreUtil.formatTimestampForES(currentTime);
+
+        JsonNode categoryData = existingEntity.getCategoryData();
+        ((ObjectNode) categoryData).put(Constants.STATUS, Constants.PUBLISHED_KEY);
+        payloadValidation.validatePayload(Constants.CATEGORY_FILE_JSON, categoryData);
+        ((ObjectNode) categoryData).put(Constants.UPDATED_BY, userId);
+        ((ObjectNode) categoryData).put(Constants.UPDATED_ON, isoTimestamp);
+
+        existingEntity.setCategoryData(categoryData);
+        existingEntity.setUpdatedOn(isoTimestamp);
+        knowledgeCategoryRepository.save(existingEntity);
+
+        Map<String, Object> map = objectMapper.convertValue(existingEntity.getCategoryData(), new TypeReference<>() {
+        });
+        esUtilService.updateDocument(Constants.KNOWLEDGE_CENTRE_INDEX_NAME, Constants.INDEX_TYPE, id, map, Constants.KNOWLEDGE_ES_FILE_JSON);
+
+        log.info(Constants.CATEGORY_PUBLISHED);
+        response.setResult(objectMapper.convertValue(existingEntity, new TypeReference<>() {
+        }));
+        response.setResponseCode(HttpStatus.OK);
+        return response;
+    }
+
+    @Override
+    public ApiResponse deleteCategory(String id, String token) {
+        log.info("KnowledgeServiceImpl.deleteCategory inside method for id: {}", id);
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_CATEGORY_DELETE);
+        String userId = accessTokenValidator.verifyUserToken(token);
+        if (userId.equalsIgnoreCase(Constants.UNAUTHORIZED)) {
+            ProjectUtil.errorResponse(response, Constants.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
+            return response;
+        }
+
+        KnowledgeCategoryEntity existingEntity = knowledgeCategoryRepository.findById(id).orElse(null);
+        if (existingEntity == null) {
+            log.error(Constants.CATEGORY_NOT_FOUND);
+            ProjectUtil.errorResponse(response, Constants.CATEGORY_NOT_FOUND, HttpStatus.NOT_FOUND);
+            return response;
+        }
+        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+        String isoTimestamp = knowledgeCentreUtil.formatTimestampForES(currentTime);
+
+        // Archive instead of delete - update status to ARCHIVED
+        JsonNode categoryData = existingEntity.getCategoryData();
+        ((ObjectNode) categoryData).put(Constants.STATUS, Constants.ARCHIVED_KEY);
+        ((ObjectNode) categoryData).put(Constants.UPDATED_BY, userId);
+        ((ObjectNode) categoryData).put(Constants.UPDATED_ON, isoTimestamp);
+
+        existingEntity.setCategoryData(categoryData);
+        existingEntity.setUpdatedOn(isoTimestamp);
+        knowledgeCategoryRepository.save(existingEntity);
+
+        Map<String, Object> map = objectMapper.convertValue(existingEntity.getCategoryData(), new TypeReference<>() {
+        });
+        esUtilService.updateDocument(Constants.KNOWLEDGE_CENTRE_INDEX_NAME, Constants.INDEX_TYPE, id, map, Constants.KNOWLEDGE_ES_FILE_JSON);
+
+        log.info(Constants.CATEGORY_DELETED);
+        response.setResult(objectMapper.convertValue(existingEntity, new TypeReference<>() {
+        }));
         response.setResponseCode(HttpStatus.OK);
         return response;
     }
@@ -128,9 +230,17 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             ProjectUtil.errorResponse(response, Constants.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
             return response;
         }
-        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
-        String isoTimestamp = formatTimestampForES(currentTime);
+        ((ObjectNode) subCategoryDto).put(Constants.STATUS, Constants.DRAFT_KEY);
         payloadValidation.validatePayload(Constants.SUB_CATEGORY_FILE_JSON, subCategoryDto);
+        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+        String isoTimestamp = knowledgeCentreUtil.formatTimestampForES(currentTime);
+        String title = subCategoryDto.path(Constants.TITLE).asText("");
+        if (StringUtils.isNotBlank(title) && knowledgeCentreUtil.isDuplicateSubCategoryTitle(title, subCategoryDto.path(Constants.CATEGORYID).asText(), null)) {
+            log.error("Duplicate category title: {}", title);
+            ProjectUtil.errorResponse(response, Constants.CATEGORY_TITLE_EXISTS, HttpStatus.BAD_REQUEST);
+            return response;
+        }
+
         String id = UUID.randomUUID().toString();
         ((ObjectNode) subCategoryDto).put(Constants.ID, id);
         ((ObjectNode) subCategoryDto).put(Constants.CREATED_BY, userId);
@@ -143,10 +253,12 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         knowledgeCategoryEntity.setCreatedOn(isoTimestamp);
         knowledgeCategoryEntity.setUpdatedOn(isoTimestamp);
         knowledgeSubCategoryRepository.save(knowledgeCategoryEntity);
-        Map<String, Object> map = objectMapper.convertValue(knowledgeCategoryEntity.getSubCategoryData(), Map.class);
+        Map<String, Object> map = objectMapper.convertValue(knowledgeCategoryEntity.getSubCategoryData(), new TypeReference<>() {
+        });
         esUtilService.addDocument(Constants.KNOWLEDGE_CENTRE_INDEX_NAME, Constants.INDEX_TYPE, id, map, Constants.KNOWLEDGE_ES_FILE_JSON);
         log.info(Constants.SUB_CATEGORY_CREATED);
-        response.setResult(objectMapper.convertValue(knowledgeCategoryEntity, Map.class));
+        response.setResult(objectMapper.convertValue(knowledgeCategoryEntity, new TypeReference<>() {
+        }));
         response.setResponseCode(HttpStatus.OK);
         return response;
     }
@@ -160,15 +272,24 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             ProjectUtil.errorResponse(response, Constants.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
             return response;
         }
-        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
-        String isoTimestamp = formatTimestampForES(currentTime);
+        ((ObjectNode) subCategoryDto).put(Constants.STATUS, Constants.DRAFT_KEY);
         payloadValidation.validatePayload(Constants.SUB_CATEGORY_FILE_JSON, subCategoryDto);
+        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+        String isoTimestamp = knowledgeCentreUtil.formatTimestampForES(currentTime);
         KnowledgeSubCategoryEntity existingEntity = knowledgeSubCategoryRepository.findById(id).orElse(null);
         if (existingEntity == null) {
             log.error(Constants.SUB_CATEGORY_NOT_FOUND);
             ProjectUtil.errorResponse(response, Constants.SUB_CATEGORY_NOT_FOUND, HttpStatus.NOT_FOUND);
             return response;
         }
+
+        String title = subCategoryDto.path(Constants.TITLE).asText("");
+        if (StringUtils.isNotBlank(title) && knowledgeCentreUtil.isDuplicateSubCategoryTitle(title, subCategoryDto.path(Constants.CATEGORYID).asText(), id)) {
+            log.error("Duplicate subcategory title: {}", title);
+            ProjectUtil.errorResponse(response, Constants.SUB_CATEGORY_TITLE_EXISTS, HttpStatus.BAD_REQUEST);
+            return response;
+        }
+
         ((ObjectNode) subCategoryDto).put(Constants.ID, id);
         ((ObjectNode) subCategoryDto).put(Constants.CREATED_BY, existingEntity.getSubCategoryData().get(Constants.CREATED_BY).asText());
         ((ObjectNode) subCategoryDto).put(Constants.UPDATED_BY, userId);
@@ -177,10 +298,94 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         existingEntity.setSubCategoryData(subCategoryDto);
         existingEntity.setUpdatedOn(isoTimestamp);
         knowledgeSubCategoryRepository.save(existingEntity);
-        Map<String, Object> map = objectMapper.convertValue(existingEntity.getSubCategoryData(), Map.class);
+        Map<String, Object> map = objectMapper.convertValue(existingEntity.getSubCategoryData(), new TypeReference<>() {
+        });
         esUtilService.updateDocument(Constants.KNOWLEDGE_CENTRE_INDEX_NAME, Constants.INDEX_TYPE, id, map, Constants.KNOWLEDGE_ES_FILE_JSON);
         log.info(Constants.SUB_CATEGORY_UPDATED);
-        response.setResult(objectMapper.convertValue(existingEntity, Map.class));
+        response.setResult(objectMapper.convertValue(existingEntity, new TypeReference<>() {
+        }));
+        response.setResponseCode(HttpStatus.OK);
+        return response;
+    }
+
+    @Override
+    public ApiResponse publishSubCategory(String id, String token) {
+        log.info("KnowledgeServiceImpl.publishSubCategory inside method for id: {}", id);
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_SUB_CATEGORY_PUBLISH);
+        String userId = accessTokenValidator.verifyUserToken(token);
+        if (userId.equalsIgnoreCase(Constants.UNAUTHORIZED)) {
+            ProjectUtil.errorResponse(response, Constants.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
+            return response;
+        }
+
+        KnowledgeSubCategoryEntity existingEntity = knowledgeSubCategoryRepository.findById(id).orElse(null);
+        if (existingEntity == null) {
+            log.error(Constants.SUB_CATEGORY_NOT_FOUND);
+            ProjectUtil.errorResponse(response, Constants.SUB_CATEGORY_NOT_FOUND, HttpStatus.NOT_FOUND);
+            return response;
+        }
+
+        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+        String isoTimestamp = knowledgeCentreUtil.formatTimestampForES(currentTime);
+
+        JsonNode subCategoryData = existingEntity.getSubCategoryData();
+        ((ObjectNode) subCategoryData).put(Constants.STATUS, Constants.PUBLISHED_KEY);
+        payloadValidation.validatePayload(Constants.SUB_CATEGORY_FILE_JSON, subCategoryData);
+        ((ObjectNode) subCategoryData).put(Constants.UPDATED_BY, userId);
+        ((ObjectNode) subCategoryData).put(Constants.UPDATED_ON, isoTimestamp);
+
+        existingEntity.setSubCategoryData(subCategoryData);
+        existingEntity.setUpdatedOn(isoTimestamp);
+        knowledgeSubCategoryRepository.save(existingEntity);
+
+        Map<String, Object> map = objectMapper.convertValue(existingEntity.getSubCategoryData(), new TypeReference<>() {
+        });
+        esUtilService.updateDocument(Constants.KNOWLEDGE_CENTRE_INDEX_NAME, Constants.INDEX_TYPE, id, map, Constants.KNOWLEDGE_ES_FILE_JSON);
+
+        log.info(Constants.SUB_CATEGORY_PUBLISHED);
+        response.setResult(objectMapper.convertValue(existingEntity, new TypeReference<>() {
+        }));
+        response.setResponseCode(HttpStatus.OK);
+        return response;
+    }
+
+    @Override
+    public ApiResponse deleteSubCategory(String id, String token) {
+        log.info("KnowledgeServiceImpl.deleteSubCategory inside method for id: {}", id);
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_SUB_CATEGORY_DELETE);
+        String userId = accessTokenValidator.verifyUserToken(token);
+        if (userId.equalsIgnoreCase(Constants.UNAUTHORIZED)) {
+            ProjectUtil.errorResponse(response, Constants.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
+            return response;
+        }
+
+        KnowledgeSubCategoryEntity existingEntity = knowledgeSubCategoryRepository.findById(id).orElse(null);
+        if (existingEntity == null) {
+            log.error(Constants.SUB_CATEGORY_NOT_FOUND);
+            ProjectUtil.errorResponse(response, Constants.SUB_CATEGORY_NOT_FOUND, HttpStatus.NOT_FOUND);
+            return response;
+        }
+
+        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+        String isoTimestamp = knowledgeCentreUtil.formatTimestampForES(currentTime);
+
+        // Archive instead of delete - update status to ARCHIVED
+        JsonNode subCategoryData = existingEntity.getSubCategoryData();
+        ((ObjectNode) subCategoryData).put(Constants.STATUS, Constants.ARCHIVED_KEY);
+        ((ObjectNode) subCategoryData).put(Constants.UPDATED_BY, userId);
+        ((ObjectNode) subCategoryData).put(Constants.UPDATED_ON, isoTimestamp);
+
+        existingEntity.setSubCategoryData(subCategoryData);
+        existingEntity.setUpdatedOn(isoTimestamp);
+        knowledgeSubCategoryRepository.save(existingEntity);
+
+        Map<String, Object> map = objectMapper.convertValue(existingEntity.getSubCategoryData(), new TypeReference<>() {
+        });
+        esUtilService.updateDocument(Constants.KNOWLEDGE_CENTRE_INDEX_NAME, Constants.INDEX_TYPE, id, map, Constants.KNOWLEDGE_ES_FILE_JSON);
+
+        log.info(Constants.SUB_CATEGORY_DELETED);
+        response.setResult(objectMapper.convertValue(existingEntity, new TypeReference<>() {
+        }));
         response.setResponseCode(HttpStatus.OK);
         return response;
     }
@@ -194,9 +399,17 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             ProjectUtil.errorResponse(response, Constants.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
             return response;
         }
-        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
-        String isoTimestamp = formatTimestampForES(currentTime);
+        ((ObjectNode) articleDto).put(Constants.STATUS, Constants.DRAFT_KEY);
         payloadValidation.validatePayload(Constants.ARTICLE_FILE_JSON, articleDto);
+        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+        String isoTimestamp = knowledgeCentreUtil.formatTimestampForES(currentTime);
+        String title = articleDto.path(Constants.TITLE).asText("");
+        if (StringUtils.isNotBlank(title) && knowledgeCentreUtil.isDuplicateArticleTitle(title, articleDto.path(Constants.SUBCATEGORYID).asText(), null)) {
+            log.error(Constants.DUPLICATE_ARTICLE_TITLE, title);
+            ProjectUtil.errorResponse(response, Constants.ARTICLE_TITLE_EXISTS, HttpStatus.BAD_REQUEST);
+            return response;
+        }
+
         String id = UUID.randomUUID().toString();
         ((ObjectNode) articleDto).put(Constants.ID, id);
         ((ObjectNode) articleDto).put(Constants.CREATED_BY, userId);
@@ -209,10 +422,12 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         knowledgeCategoryEntity.setCreatedOn(isoTimestamp);
         knowledgeCategoryEntity.setUpdatedOn(isoTimestamp);
         knowledgeArticlesRepository.save(knowledgeCategoryEntity);
-        Map<String, Object> map = objectMapper.convertValue(knowledgeCategoryEntity.getArticles(), Map.class);
+        Map<String, Object> map = objectMapper.convertValue(knowledgeCategoryEntity.getArticles(), new TypeReference<>() {
+        });
         esUtilService.addDocument(Constants.KNOWLEDGE_CENTRE_INDEX_NAME, Constants.INDEX_TYPE, id, map, Constants.KNOWLEDGE_ES_FILE_JSON);
         log.info(Constants.ARTICLE_CREATED);
-        response.setResult(objectMapper.convertValue(knowledgeCategoryEntity, Map.class));
+        response.setResult(objectMapper.convertValue(knowledgeCategoryEntity, new TypeReference<>() {
+        }));
         response.setResponseCode(HttpStatus.OK);
         return response;
     }
@@ -226,15 +441,24 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             ProjectUtil.errorResponse(response, Constants.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
             return response;
         }
-        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
-        String isoTimestamp = formatTimestampForES(currentTime);
+        ((ObjectNode) articleDto).put(Constants.STATUS, Constants.DRAFT_KEY);
         payloadValidation.validatePayload(Constants.ARTICLE_FILE_JSON, articleDto);
+        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+        String isoTimestamp = knowledgeCentreUtil.formatTimestampForES(currentTime);
         KnowledgeArticleEntity existingEntity = knowledgeArticlesRepository.findById(id).orElse(null);
         if (existingEntity == null) {
             log.error(Constants.ARTICLE_NOT_FOUND);
             ProjectUtil.errorResponse(response, Constants.ARTICLE_NOT_FOUND, HttpStatus.NOT_FOUND);
             return response;
         }
+
+        String title = articleDto.get(Constants.TITLE).asText("");
+        if (StringUtils.isNotBlank(title) && knowledgeCentreUtil.isDuplicateArticleTitle(title, articleDto.path(Constants.SUBCATEGORYID).asText(), id)) {
+            log.error(Constants.DUPLICATE_ARTICLE_TITLE, title);
+            ProjectUtil.errorResponse(response, Constants.ARTICLE_TITLE_EXISTS, HttpStatus.BAD_REQUEST);
+            return response;
+        }
+
         ((ObjectNode) articleDto).put(Constants.ID, id);
         ((ObjectNode) articleDto).put(Constants.CREATED_BY, existingEntity.getArticles().get(Constants.CREATED_BY).asText());
         ((ObjectNode) articleDto).put(Constants.UPDATED_BY, userId);
@@ -243,10 +467,93 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         existingEntity.setArticles(articleDto);
         existingEntity.setUpdatedOn(isoTimestamp);
         knowledgeArticlesRepository.save(existingEntity);
-        Map<String, Object> map = objectMapper.convertValue(existingEntity.getArticles(), Map.class);
+        Map<String, Object> map = objectMapper.convertValue(existingEntity.getArticles(), new TypeReference<>() {
+        });
         esUtilService.updateDocument(Constants.KNOWLEDGE_CENTRE_INDEX_NAME, Constants.INDEX_TYPE, id, map, Constants.KNOWLEDGE_ES_FILE_JSON);
         log.info(Constants.ARTICLE_UPDATED);
-        response.setResult(objectMapper.convertValue(existingEntity, Map.class));
+        response.setResult(objectMapper.convertValue(existingEntity, new TypeReference<>() {
+        }));
+        response.setResponseCode(HttpStatus.OK);
+        return response;
+    }
+
+    @Override
+    public ApiResponse publishArticle(String id, String token) {
+        log.info("KnowledgeServiceImpl.publishArticle inside method for id: {}", id);
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_ARTICLE_PUBLISH);
+        String userId = accessTokenValidator.verifyUserToken(token);
+        if (userId.equalsIgnoreCase(Constants.UNAUTHORIZED)) {
+            ProjectUtil.errorResponse(response, Constants.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
+            return response;
+        }
+
+        KnowledgeArticleEntity existingEntity = knowledgeArticlesRepository.findById(id).orElse(null);
+        if (existingEntity == null) {
+            log.error(Constants.ARTICLE_NOT_FOUND);
+            ProjectUtil.errorResponse(response, Constants.ARTICLE_NOT_FOUND, HttpStatus.NOT_FOUND);
+            return response;
+        }
+
+        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+        String isoTimestamp = knowledgeCentreUtil.formatTimestampForES(currentTime);
+
+        JsonNode articleData = existingEntity.getArticles();
+        ((ObjectNode) articleData).put(Constants.STATUS, Constants.PUBLISHED_KEY);
+        payloadValidation.validatePayload(Constants.ARTICLE_FILE_JSON, articleData);
+        ((ObjectNode) articleData).put(Constants.UPDATED_BY, userId);
+        ((ObjectNode) articleData).put(Constants.UPDATED_ON, isoTimestamp);
+
+        existingEntity.setArticles(articleData);
+        existingEntity.setUpdatedOn(isoTimestamp);
+        knowledgeArticlesRepository.save(existingEntity);
+
+        Map<String, Object> map = objectMapper.convertValue(existingEntity.getArticles(), new TypeReference<>() {
+        });
+        esUtilService.updateDocument(Constants.KNOWLEDGE_CENTRE_INDEX_NAME, Constants.INDEX_TYPE, id, map, Constants.KNOWLEDGE_ES_FILE_JSON);
+
+        log.info(Constants.ARTICLE_PUBLISHED);
+        response.setResult(objectMapper.convertValue(existingEntity, new TypeReference<>() {
+        }));
+        response.setResponseCode(HttpStatus.OK);
+        return response;
+    }
+
+    @Override
+    public ApiResponse deleteArticle(String id, String token) {
+        log.info("KnowledgeServiceImpl.deleteArticle inside method for id: {}", id);
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_ARTICLE_DELETE);
+        String userId = accessTokenValidator.verifyUserToken(token);
+        if (userId.equalsIgnoreCase(Constants.UNAUTHORIZED)) {
+            ProjectUtil.errorResponse(response, Constants.UNAUTHORIZED, HttpStatus.UNAUTHORIZED);
+            return response;
+        }
+
+        KnowledgeArticleEntity existingEntity = knowledgeArticlesRepository.findById(id).orElse(null);
+        if (existingEntity == null) {
+            log.error(Constants.ARTICLE_NOT_FOUND);
+            ProjectUtil.errorResponse(response, Constants.ARTICLE_NOT_FOUND, HttpStatus.NOT_FOUND);
+            return response;
+        }
+
+        Timestamp currentTime = new Timestamp(System.currentTimeMillis());
+        String isoTimestamp = knowledgeCentreUtil.formatTimestampForES(currentTime);
+
+        JsonNode articleData = existingEntity.getArticles();
+        ((ObjectNode) articleData).put(Constants.STATUS, Constants.ARCHIVED_KEY);
+        ((ObjectNode) articleData).put(Constants.UPDATED_BY, userId);
+        ((ObjectNode) articleData).put(Constants.UPDATED_ON, isoTimestamp);
+
+        existingEntity.setArticles(articleData);
+        existingEntity.setUpdatedOn(isoTimestamp);
+        knowledgeArticlesRepository.save(existingEntity);
+
+        Map<String, Object> map = objectMapper.convertValue(existingEntity.getArticles(), new TypeReference<>() {
+        });
+        esUtilService.updateDocument(Constants.KNOWLEDGE_CENTRE_INDEX_NAME, Constants.INDEX_TYPE, id, map, Constants.KNOWLEDGE_ES_FILE_JSON);
+
+        log.info(Constants.ARTICLE_DELETED);
+        response.setResult(objectMapper.convertValue(existingEntity, new TypeReference<>() {
+        }));
         response.setResponseCode(HttpStatus.OK);
         return response;
     }
@@ -277,7 +584,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
                 log.info("KnowledgeServiceImpl::searchEntity: search result stored in redis cache");
             }
             Map<String, Object> jsonMap =
-                    objectMapper.convertValue(searchResult, new TypeReference<Map<String, Object>>() {
+                    objectMapper.convertValue(searchResult, new TypeReference<>() {
                     });
             response.setResult(jsonMap);
             response.setResponseCode(HttpStatus.OK);
@@ -302,14 +609,5 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             }
         }
         return "";
-    }
-
-    private String formatTimestampForES(Timestamp timestamp) {
-        if (timestamp == null) {
-            return null;
-        }
-        Instant instant = timestamp.toInstant();
-        ZonedDateTime istDateTime = instant.atZone(ZoneId.of(Constants.TIME_ZONE));
-        return DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(istDateTime);
     }
 }

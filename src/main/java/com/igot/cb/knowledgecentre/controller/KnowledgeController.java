@@ -2,11 +2,13 @@ package com.igot.cb.knowledgecentre.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.igot.cb.knowledgecentre.service.KnowledgeService;
+import com.igot.cb.knowledgecentre.util.KnowledgeCentreUtil;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,40 +19,89 @@ import org.springframework.web.bind.annotation.*;
 public class KnowledgeController {
 
     private final KnowledgeService knowledgeService;
+    private final KnowledgeCentreUtil knowledgeCentreUtil;
 
-    @PostMapping("/category/create")
-    public ResponseEntity<ApiResponse> createCategory(@RequestBody JsonNode dto, @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
-        ApiResponse response = knowledgeService.createCategory(dto, token);
+    @PostMapping("/create/{type}")
+    public ResponseEntity<ApiResponse> createType(@PathVariable String type, @RequestBody JsonNode dto, @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
+        ApiResponse response = new ApiResponse();
+        switch (type) {
+            case Constants.CATEGORY:
+                response = knowledgeService.createCategory(dto, token);
+                break;
+            case Constants.SUBCATEGORY:
+                response = knowledgeService.createSubCategory(dto, token);
+                break;
+            case Constants.ARTICLE:
+                response = knowledgeService.createArticle(dto, token);
+                break;
+            default:
+                knowledgeCentreUtil.handleInvalidType(type, response);
+                break;
+        }
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 
-    @PutMapping("/category/update/{id}")
-    public ResponseEntity<ApiResponse> updateCategory(@RequestBody JsonNode dto, @PathVariable String id,@RequestHeader(Constants.X_AUTH_TOKEN) String token) {
-        ApiResponse response = knowledgeService.updateCategory(id, dto, token);
+    @PutMapping("/update/{type}/{id}")
+    public ResponseEntity<ApiResponse> updateType(@PathVariable String type, @PathVariable String id, @RequestBody JsonNode dto, @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
+        ApiResponse response = new ApiResponse();
+        switch (type) {
+            case Constants.CATEGORY:
+                response = knowledgeService.updateCategory(id, dto, token);
+                break;
+            case Constants.SUBCATEGORY:
+                response = knowledgeService.updateSubCategory(id, dto, token);
+                break;
+            case Constants.ARTICLE:
+                response = knowledgeService.updateArticle(id, dto, token);
+                break;
+            default:
+                knowledgeCentreUtil.handleInvalidType(type, response);
+                break;
+        }
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 
-    @PostMapping("/subcategory/create")
-    public ResponseEntity<ApiResponse> createSubCategory(@RequestBody JsonNode dto,@RequestHeader(Constants.X_AUTH_TOKEN) String token) {
-        ApiResponse response = knowledgeService.createSubCategory(dto,token);
+    @PostMapping("/{type}/publish/{id}")
+    public ResponseEntity<ApiResponse> publishType(@PathVariable String type, @PathVariable String id, @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
+        ApiResponse response;
+        switch (type) {
+            case Constants.CATEGORY:
+                response = knowledgeService.publishCategory(id, token);
+                break;
+            case Constants.SUBCATEGORY:
+                response = knowledgeService.publishSubCategory(id, token);
+                break;
+            case Constants.ARTICLE:
+                response = knowledgeService.publishArticle(id, token);
+                break;
+            default:
+                response = new ApiResponse();
+                response.getParams().setErrMsg("Invalid type: " + type + ". Supported types are: category, subcategory, article");
+                response.setResponseCode(HttpStatus.BAD_REQUEST);
+                break;
+        }
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 
-    @PutMapping("/subcategory/update/{id}")
-    public ResponseEntity<ApiResponse> updateSubCategory(@RequestBody JsonNode dto, @PathVariable String id, @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
-        ApiResponse response = knowledgeService.updateSubCategory(id, dto, token);
-        return new ResponseEntity<>(response, response.getResponseCode());
-    }
-
-    @PostMapping("/article/create")
-    public ResponseEntity<ApiResponse> createArticle(@RequestBody JsonNode dto, @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
-        ApiResponse response = knowledgeService.createArticle(dto, token);
-        return new ResponseEntity<>(response, response.getResponseCode());
-    }
-
-    @PutMapping("/article/update/{id}")
-    public ResponseEntity<ApiResponse> updateArticle(@RequestBody JsonNode dto, @PathVariable String id, @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
-        ApiResponse response = knowledgeService.updateArticle(id, dto, token);
+    @DeleteMapping("/{type}/delete/{id}")
+    public ResponseEntity<ApiResponse> deleteType(@PathVariable String type, @PathVariable String id, @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
+        ApiResponse response;
+        switch (type.toLowerCase()) {
+            case Constants.CATEGORY:
+                response = knowledgeService.deleteCategory(id, token);
+                break;
+            case Constants.SUBCATEGORY:
+                response = knowledgeService.deleteSubCategory(id, token);
+                break;
+            case Constants.ARTICLE:
+                response = knowledgeService.deleteArticle(id, token);
+                break;
+            default:
+                response = new ApiResponse();
+                response.getParams().setErrMsg("Invalid type: " + type + ". Supported types are: category, subcategory, article");
+                response.setResponseCode(HttpStatus.BAD_REQUEST);
+                break;
+        }
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 
