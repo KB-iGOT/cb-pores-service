@@ -630,45 +630,158 @@ public class EsUtilServiceImpl implements EsUtilService {
 
         BoolQuery.Builder boolQuery = QueryBuilders.bool();
 
-        if (filterCriteriaMap == null) return boolQuery;
+        if (filterCriteriaMap == null) {
+            return boolQuery;
+        }
 
-        filterCriteriaMap.forEach((field, value) -> {
-            if (value instanceof Boolean boolValue) {
-                boolQuery.must(Query.of(q -> q.term(t -> t.field(field).value(boolValue))));
-            } else if (value instanceof String stringValue) {
-                boolQuery.must(Query.of(q -> q.term(t ->
-                        t.field(field).value(stringValue)
-                )));
-            } else if (value instanceof List) {
-                List<FieldValue> values = ((List<String>) value).stream()
-                        .map(FieldValue::of)
-                        .toList();
-
-                boolQuery.must(Query.of(q -> q.terms(t ->
-                        t.field(field).terms(terms -> terms.value(values))
-                )));
-            } else if (value instanceof Map) {
-                Map<String, Object> rangeMap = (Map<String, Object>) value;
-
-                RangeQuery.Builder rangeQuery = QueryBuilders.range().field(field);
-
-                rangeMap.forEach((operator, rangeValue) -> {
-                    switch (operator) {
-                        case "gte" -> rangeQuery.gte(JsonData.of(rangeValue));
-                        case "lte" -> rangeQuery.lte(JsonData.of(rangeValue));
-                        case "gt" -> rangeQuery.gt(JsonData.of(rangeValue));
-                        case "lt" -> rangeQuery.lt(JsonData.of(rangeValue));
-                        default ->
-                                throw new CustomException(Constants.ERROR, "Unsupported range operator: " + operator, HttpStatus.BAD_REQUEST);
-                    }
-                });
-
-                boolQuery.must(rangeQuery.build()._toQuery());
-            }
-
-        });
+        filterCriteriaMap.forEach((field, value) ->
+                processFilterField(boolQuery, field, value)
+        );
 
         return boolQuery;
+    }
+
+    private void processFilterField(BoolQuery.Builder boolQuery,
+                                    String field,
+                                    Object value) {
+
+        if (handleMustNot(boolQuery, field, value)) return;
+
+        if (value instanceof Boolean boolValue) {
+            addBooleanFilter(boolQuery, field, boolValue);
+            return;
+        }
+
+        if (value instanceof String stringValue) {
+            addStringFilter(boolQuery, field, stringValue);
+            return;
+        }
+
+        if (value instanceof List<?> listValue) {
+            addListFilter(boolQuery, field, listValue);
+            return;
+        }
+
+        if (value instanceof Map<?, ?> mapValue) {
+            handleMapFilter(boolQuery, field, (Map<String, Object>) mapValue);
+        }
+    }
+
+    private boolean handleMustNot(BoolQuery.Builder boolQuery,
+                                  String field,
+                                  Object value) {
+
+        if (!Constants.MUST_NOT.equals(field) || !(value instanceof Map<?, ?> mustNotMap)) {
+            return false;
+        }
+
+        mustNotMap.forEach((mustNotField, mustNotValue) ->
+                boolQuery.mustNot(Query.of(q -> q.term(t ->
+                        t.field(resolveField(mustNotField.toString()))
+                                .value(mustNotValue.toString())
+                )))
+        );
+
+        return true;
+    }
+
+    private void addBooleanFilter(BoolQuery.Builder boolQuery,
+                                  String field,
+                                  Boolean value) {
+
+        boolQuery.must(Query.of(q -> q.term(t ->
+                t.field(field).value(value)
+        )));
+    }
+
+    private void addStringFilter(BoolQuery.Builder boolQuery,
+                                 String field,
+                                 String value) {
+
+        boolQuery.must(Query.of(q -> q.term(t ->
+                t.field(resolveField(field))
+                        .value(value)
+        )));
+    }
+
+    private void addListFilter(BoolQuery.Builder boolQuery,
+                               String field,
+                               List<?> valuesList) {
+
+        List<FieldValue> values = valuesList.stream()
+                .map(v -> FieldValue.of(v.toString()))
+                .toList();
+
+        boolQuery.must(Query.of(q -> q.terms(t ->
+                t.field(resolveField(field))
+                        .terms(terms -> terms.value(values))
+        )));
+    }
+
+    private void handleMapFilter(BoolQuery.Builder boolQuery,
+                                 String field,
+                                 Map<String, Object> map) {
+
+        if (isRangeQuery(map)) {
+            addRangeWithNullSupport(boolQuery, field, map);
+            return;
+        }
+
+        addNestedFieldFilter(boolQuery, field, map);
+    }
+
+    private void addRangeWithNullSupport(BoolQuery.Builder boolQuery,
+                                         String field,
+                                         Map<String, Object> rangeMap) {
+
+        BoolQuery.Builder rangeOrNullQuery = QueryBuilders.bool();
+        RangeQuery.Builder rangeQuery = QueryBuilders.range().field(field);
+
+        rangeMap.forEach((operator, value) ->
+                applyRangeOperator(rangeQuery, operator, value)
+        );
+
+        rangeOrNullQuery.should(rangeQuery.build()._toQuery());
+
+        rangeOrNullQuery.should(Query.of(q ->
+                q.bool(b -> b.mustNot(
+                        Query.of(e -> e.exists(ex -> ex.field(field)))
+                ))
+        ));
+
+        boolQuery.must(rangeOrNullQuery.build()._toQuery());
+    }
+    private void applyRangeOperator(RangeQuery.Builder rangeQuery,
+                                    String operator,
+                                    Object value) {
+
+        switch (operator) {
+            case "gte" -> rangeQuery.gte(JsonData.of(value));
+            case "lte" -> rangeQuery.lte(JsonData.of(value));
+            case "gt"  -> rangeQuery.gt(JsonData.of(value));
+            case "lt"  -> rangeQuery.lt(JsonData.of(value));
+            default ->
+                    throw new CustomException(Constants.ERROR,
+                            "Unsupported range operator: " + operator,
+                            HttpStatus.BAD_REQUEST);
+        }
+    }
+    private void addNestedFieldFilter(BoolQuery.Builder boolQuery,
+                                      String field,
+                                      Map<String, Object> nestedMap) {
+
+        nestedMap.forEach((nestedField, nestedValue) -> {
+
+            String fullPath = field + "." + nestedField;
+
+            if (nestedValue instanceof String str) {
+                addStringFilter(boolQuery, fullPath, str);
+            }
+
+            if (nestedValue instanceof List<?> list) {
+                addListFilter(boolQuery, fullPath, list);
+            }
+        });
     }
 
     private void addSortV2(SearchCriteria searchCriteria,
@@ -676,11 +789,11 @@ public class EsUtilServiceImpl implements EsUtilService {
 
         if (isNotBlank(searchCriteria.getOrderBy())) {
 
-            SortOrder order = "asc".equalsIgnoreCase(searchCriteria.getOrderDirection())
+            SortOrder order = Constants.ASC.equalsIgnoreCase(searchCriteria.getOrderDirection())
                     ? SortOrder.Asc : SortOrder.Desc;
 
             builder.sort(s -> s.field(f -> f
-                    .field(searchCriteria.getOrderBy())
+                    .field(resolveField(searchCriteria.getOrderBy()))
                     .order(order)
             ));
         }
@@ -688,32 +801,28 @@ public class EsUtilServiceImpl implements EsUtilService {
 
     private void addFacetsV2(List<String> facets,
                              SearchRequest.Builder builder) {
-
         if (facets == null || facets.isEmpty()) return;
 
         Map<String, Aggregation> aggs = facets.stream()
                 .collect(Collectors.toMap(
-                        field -> field + "_agg",
+                        field -> field + Constants.AGG,
                         field -> Aggregation.of(a -> a.terms(t ->
-                                t.field(field).size(250)
+                                t.field(resolveFacetField(field))
+                                        .size(250)
                         ))
                 ));
 
         builder.aggregations(aggs);
     }
 
-    private void addQueryStringToFilterV2(String searchString,
-                                          BoolQuery.Builder boolQueryBuilder) {
+    private void addQueryStringToFilterV2(String searchString, BoolQuery.Builder boolQueryBuilder) {
 
         if (!isNotBlank(searchString)) {
             return;
         }
-
         String trimmedSearch = searchString.trim();
-
         Map<String, Float> fieldsWithBoost =
                 parseBoostConfig(cbServerProperties.getSearchFieldsWithBoost());
-
         if (fieldsWithBoost.isEmpty()) {
             log.warn("No search fields configured");
             return;
@@ -736,7 +845,7 @@ public class EsUtilServiceImpl implements EsUtilService {
         );
         List<String> boostedFields = fieldsWithBoost.entrySet()
                 .stream()
-                .map(entry -> entry.getKey() + "^" + entry.getValue())
+                .map(entry -> entry.getKey() + Constants.BOOST_SEPARATOR + entry.getValue())
                 .toList();
 
         boolQueryBuilder.should(Query.of(q -> q.multiMatch(m -> m
@@ -744,7 +853,7 @@ public class EsUtilServiceImpl implements EsUtilService {
                 .fields(boostedFields)
                 .type(TextQueryType.MostFields)
                 .operator(Operator.Or)
-                .fuzziness("AUTO")
+                .fuzziness(Constants.AUTO)
         )));
         boolQueryBuilder.minimumShouldMatch("1");
     }
@@ -770,6 +879,27 @@ public class EsUtilServiceImpl implements EsUtilService {
         return fieldBoostMap;
     }
 
+    private Set<String> getSearchableTextFields() {
 
+        Map<String, Float> fieldsWithBoost =
+                parseBoostConfig(cbServerProperties.getSearchFieldsWithBoost());
+
+        return fieldsWithBoost.keySet();
+    }
+
+    private String resolveFacetField(String field) {
+        Set<String> textFields = getSearchableTextFields();
+        if (textFields.contains(field)) {
+            return field + Constants.KEYWORD;
+        }
+        return field;
+    }
+
+    private String resolveField(String field) {
+        Set<String> textFields = getSearchableTextFields();
+        return textFields.contains(field)
+                ? field + Constants.KEYWORD
+                : field;
+    }
 
 }

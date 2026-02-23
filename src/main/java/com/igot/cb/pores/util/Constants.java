@@ -500,6 +500,9 @@ public class Constants {
     public static final String ARTICLE = "article";
     public static final String CATEGORYID = "categoryId";
     public static final String SUBCATEGORYID = "subCategoryId";
+    public static final String AGG = "_agg";
+    public static final String BOOST_SEPARATOR = "^";
+    public static final String AUTO = "AUTO";
 
 
     private Constants() {
