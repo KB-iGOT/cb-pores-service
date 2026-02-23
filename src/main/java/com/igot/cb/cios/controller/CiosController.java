@@ -28,7 +28,7 @@ public class CiosController {
     }
 
     @PostMapping(value = "/v1/search/content")
-    public ResponseEntity<?> searchContent(@RequestBody SearchCriteria searchCriteria) {
+    public ResponseEntity<SearchResult> searchContent(@RequestBody SearchCriteria searchCriteria) {
         SearchResult searchResult = ciosContentService.searchCotent(searchCriteria);
         return new ResponseEntity<>(searchResult, HttpStatus.OK);
     }
@@ -49,7 +49,7 @@ public class CiosController {
     }
 
     @PostMapping(value = "/read/v1/content")
-    public ResponseEntity<?> readContent(@RequestBody SearchCriteria searchCriteria) {
+    public ResponseEntity<SearchResult> readContent(@RequestBody SearchCriteria searchCriteria) {
         SearchResult searchResult = ciosContentService.readContent(searchCriteria);
         return new ResponseEntity<>(searchResult, HttpStatus.OK);
     }

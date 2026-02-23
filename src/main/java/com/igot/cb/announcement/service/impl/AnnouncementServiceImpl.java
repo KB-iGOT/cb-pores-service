@@ -225,7 +225,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
   @Override
   public CustomResponse updateAnnouncement(JsonNode announcementDetails) {
-    log.info("AnnouncementServiceImpl::read:inside the method");
+    log.info("AnnouncementServiceImpl::update:inside the method");
     CustomResponse response = new CustomResponse();
     if (announcementDetails.get(Constants.ANNOUNCEMENT_ID) == null) {
       throw new CustomException(Constants.ERROR,
@@ -313,7 +313,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
   @Override
   public CustomResponse deleteAnnouncement(String id) {
-    log.info("AnnouncementServiceImpl::read:inside the method");
+    log.info("AnnouncementServiceImpl::delete:inside the method");
     CustomResponse response = new CustomResponse();
     Optional<AnnouncementEntity> optSchemeDetails = announcementRepository.findById(
         id);

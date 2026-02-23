@@ -450,7 +450,13 @@ public class Constants {
     public static final String LOG_ES_UPDATE_FAILURE = "ES update failed for contentId={}";
     public static final String LOG_DB_BULK_UPDATE_SUCCESS = "DB bulk update successful for receivedContentIdsSize={} and updatedRecordsCount={}";
     public static final String LOG_DB_BULK_UPDATE_FAILURE = "DB bulk update failed for contentIds={}";
-
+    public static final String DEMAND_DATA_NOT_FOUND = "Demand Data not Found with this ID";
+    public static final String DESIGNATION_PAYLOAD = "Designation";
+    public static final String PROCESSING_ERROR= "Error while processing file: {}";
+    public static final String DATE_FORMAT_PATTERN = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'";
+    public static final String COPY_FRAMEWORK= "copy framework id : {}";
+    public static final String NULL_PLAYLIST = "[null]";
+    public static final String CACHED_PLAYLIST_LOG = "Cached PlayList: {}";
 
 
     private Constants() {
