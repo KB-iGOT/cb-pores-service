@@ -22,36 +22,36 @@ public class ContentPartnerController {
     }
 
     @PostMapping("/v1/update")
-    public ResponseEntity<?> update(@RequestBody JsonNode contentPartnerDetails) {
+    public ResponseEntity<ApiResponse> update(@RequestBody JsonNode contentPartnerDetails) {
         ApiResponse response = partnerService.createOrUpdate(contentPartnerDetails);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 
     @GetMapping("/v1/read/{id}")
-    public ResponseEntity<?> read(@PathVariable String id) {
+    public ResponseEntity<ApiResponse> read(@PathVariable String id) {
         ApiResponse response = partnerService.read(id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
     @PostMapping("/v1/search")
-    public ResponseEntity<?> search(@RequestBody SearchCriteria searchCriteria) {
+    public ResponseEntity<ApiResponse> search(@RequestBody SearchCriteria searchCriteria) {
         ApiResponse response = partnerService.searchEntity(searchCriteria);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 
     @DeleteMapping("/v1/delete/{id}")
-    public ResponseEntity<?> delete(@PathVariable String id) {
+    public ResponseEntity<ApiResponse> delete(@PathVariable String id) {
         ApiResponse response = partnerService.delete(id);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @PutMapping("/v1/activate")
-    public ResponseEntity<?> activate(@RequestBody JsonNode partnerDetails) {
+    public ResponseEntity<ApiResponse> activate(@RequestBody JsonNode partnerDetails) {
         ApiResponse response = partnerService.activate(partnerDetails);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 
     @GetMapping("/v1/readbypartnercode/{partnercode}")
-    public ResponseEntity<?> fetchContentDetailsByName(@PathVariable String partnercode) {
+    public ResponseEntity<ApiResponse> fetchContentDetailsByName(@PathVariable String partnercode) {
         ApiResponse response = partnerService.getContentDetailsByPartnerCode(partnercode);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }

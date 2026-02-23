@@ -262,7 +262,7 @@ public class PlayListServiceImpl implements PlayListSerive {
         log.info("Cached PlayList for orgId: " + orgId);
 
       }
-      if (playListStringFromRedis == null || "[null]".equals(playListStringFromRedis)
+      if (playListStringFromRedis == null || Constants.NULL_PLAYLIST.equals(playListStringFromRedis)
           || playListStringFromRedis.isEmpty()) {
         // Fetch from postgres and add fetched playlist into redis
         Optional<PlayListEntity> optionalJsonNodeEntity = Optional.ofNullable(
@@ -281,7 +281,7 @@ public class PlayListServiceImpl implements PlayListSerive {
           for (String contextType : contextTypes) {
             playListStringFromRedis =
                 redisCacheMngr.hget(orgId + contextType, redisInsightIndex, orgId).toString();
-            log.info("Cached PlayList: " + playListStringFromRedis);
+            log.info(Constants.CACHED_PLAYLIST_LOG , playListStringFromRedis);
 
           }
         } else {
@@ -496,7 +496,7 @@ public class PlayListServiceImpl implements PlayListSerive {
           redisCacheMngr.hget(id,
               redisInsightIndex, orgId).toString();
       log.info("Cached PlayList for orgId: " + orgId);
-      if (playListStringFromRedis == null || "[null]".equals(playListStringFromRedis)
+      if (playListStringFromRedis == null || Constants.NULL_PLAYLIST.equals(playListStringFromRedis)
           || playListStringFromRedis.isEmpty()) {
         String requestType = "";
         if (id.startsWith(orgId)) {
@@ -519,7 +519,7 @@ public class PlayListServiceImpl implements PlayListSerive {
 
           playListStringFromRedis =
               redisCacheMngr.hget(id, redisInsightIndex, orgId).toString();
-          log.info("Cached PlayList: " + playListStringFromRedis);
+          log.info(Constants.CACHED_PLAYLIST_LOG , playListStringFromRedis);
 
         } else {
           logger.error("Failed to Fetch PlayList: ");
@@ -759,7 +759,7 @@ public class PlayListServiceImpl implements PlayListSerive {
 
           playListStringFromRedis =
               redisCacheMngr.hget(id, redisInsightIndex, orgId).toString();
-          log.info("Cached PlayList: " + playListStringFromRedis);
+          log.info(Constants.CACHED_PLAYLIST_LOG , playListStringFromRedis);
 
         } else {
           logger.error("Failed to Fetch PlayList: ");

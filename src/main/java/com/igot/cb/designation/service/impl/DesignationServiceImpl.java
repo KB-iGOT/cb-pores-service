@@ -156,11 +156,11 @@ public class DesignationServiceImpl implements DesignationService {
       }
       designationJson.forEach(
           eachDesignation -> {
-            if (!eachDesignation.isNull() && eachDesignation.has("Designation") && !eachDesignation.get("Designation").isNull()) {
-              if (eachDesignation.has("Designation") && !eachDesignation.get(
-                  "Designation").isNull()) {
+            if (!eachDesignation.isNull() && eachDesignation.has(Constants.DESIGNATION_PAYLOAD) && !eachDesignation.get(Constants.DESIGNATION_PAYLOAD).isNull()) {
+              if (eachDesignation.has(Constants.DESIGNATION_PAYLOAD) && !eachDesignation.get(
+                      Constants.DESIGNATION_PAYLOAD).isNull()) {
                 ((ObjectNode) eachDesignation).put(Constants.DESIGNATION,
-                    eachDesignation.get("Designation"));
+                    eachDesignation.get(Constants.DESIGNATION_PAYLOAD));
               }
               if (eachDesignation.has(Constants.UPDATED_DESIGNATION) && !eachDesignation.get(
                   Constants.UPDATED_DESIGNATION).isNull()) {
@@ -449,7 +449,7 @@ public class DesignationServiceImpl implements DesignationService {
         return response;
       }
     } catch (Exception e) {
-      log.error("Error while processing file: {}", e.getMessage());
+      log.error(Constants.PROCESSING_ERROR, e.getMessage());
       throw new RuntimeException(e.getMessage());
     }
   }
@@ -672,7 +672,7 @@ public class DesignationServiceImpl implements DesignationService {
                   && DateUtil.isCellDateFormatted(valueCell)) {
                 // Handle date format
                 Date date = valueCell.getDateCellValue();
-                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+                SimpleDateFormat dateFormat = new SimpleDateFormat(Constants.DATE_FORMAT_PATTERN);
                 cellValue = dateFormat.format(date);
               } else {
                 cellValue = formatter.formatCellValue(valueCell).replace("\n", ",").trim();
@@ -712,7 +712,7 @@ public class DesignationServiceImpl implements DesignationService {
           if (cellValue != null && !cellValue.trim().isEmpty()) {
             // Handle date format (assuming date is in a specific format)
             if (isDate(cellValue)) {
-              SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+              SimpleDateFormat dateFormat = new SimpleDateFormat(Constants.DATE_FORMAT_PATTERN);
               cellValue = dateFormat.format(parseDate(cellValue));
             } else {
               cellValue = cellValue.replace("\n", ",").trim();
@@ -746,7 +746,7 @@ public class DesignationServiceImpl implements DesignationService {
 
   private Date parseDate(String value) throws Exception {
     // Customize this date parsing logic based on the expected date format in your CSV
-    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
+    SimpleDateFormat dateFormat = new SimpleDateFormat(Constants.DATE_FORMAT_PATTERN);
     return dateFormat.parse(value);
   }
   public ApiResponse readTerm(String Id, String framework, String category) {
@@ -867,7 +867,7 @@ public class DesignationServiceImpl implements DesignationService {
         }
       }
     } catch (Exception e) {
-      log.error("Error while processing file: {}", e.getMessage());
+      log.error(Constants.PROCESSING_ERROR, e.getMessage());
       throw new RuntimeException(e.getMessage());
     }
     return response;

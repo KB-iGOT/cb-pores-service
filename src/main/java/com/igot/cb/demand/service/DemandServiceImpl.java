@@ -207,7 +207,7 @@ public class DemandServiceImpl implements DemandService {
                         .add(searchTagsArray);
                 }
             } else {
-                logger.error("Demand Data not Found with this ID");
+                logger.error(Constants.DEMAND_DATA_NOT_FOUND);
                 throw new CustomException(Constants.ERROR, Constants.INVALID_DATA,
                     HttpStatus.NOT_FOUND);
             }
@@ -434,7 +434,7 @@ public class DemandServiceImpl implements DemandService {
                             .add(searchTagsArray);
                     }
                 } else {
-                    logger.error("Demand Data not Found with this ID");
+                    logger.error(Constants.DEMAND_DATA_NOT_FOUND);
                     throw new CustomException(Constants.ERROR, Constants.INVALID_DATA,
                         HttpStatus.NOT_FOUND);
                 }
@@ -457,7 +457,7 @@ public class DemandServiceImpl implements DemandService {
                 response.setResult(map);
                 response.setResponseCode(HttpStatus.OK);
             } else {
-                logger.error("Demand Data not Found with this ID");
+                logger.error(Constants.DEMAND_DATA_NOT_FOUND);
                 throw new CustomException(Constants.ERROR, Constants.INVALID_ID, HttpStatus.NOT_FOUND);
             }
         } catch (Exception e) {
