@@ -53,7 +53,7 @@ class CacheServiceTest {
         when(objectMapper.writeValueAsString(any())).thenThrow(new RuntimeException("fail"));
 
         // Should log and swallow the exception
-        cacheService.putCache("key", new Object());
+        assertDoesNotThrow(() -> cacheService.putCache("key", new Object()));
     }
 
     @Test

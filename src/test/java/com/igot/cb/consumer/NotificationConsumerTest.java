@@ -48,13 +48,6 @@ class NotificationConsumerTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        notificationConsumer = new NotificationConsumer();
-
-        // Inject mocks
-        injectField(notificationConsumer, "requestHandlerService", requestHandlerService);
-        injectField(notificationConsumer, "configuration", cbServerProperties);
-        setField(notificationConsumer, "mapper", objectMapper);
-
         record = new ConsumerRecord<>("topic", 0, 0L, null, "");
     }
 
@@ -78,6 +71,7 @@ class NotificationConsumerTest {
                         runnable.run();
                         return CompletableFuture.completedFuture(null);
                     });
+            assertDoesNotThrow(() -> notificationConsumer.demandContentConsumer(record));
 
             notificationConsumer.demandContentConsumer(record);
         }
@@ -87,6 +81,7 @@ class NotificationConsumerTest {
     void testDemandContentConsumer_invalidPayload_shouldLogError() {
         ConsumerRecord<String, String> record = new ConsumerRecord<>("test", 0, 0L, "key", "{invalidJson");
         notificationConsumer.demandContentConsumer(record);
+        verifyNoInteractions(requestHandlerService);
     }
 
     @Test
@@ -327,35 +322,36 @@ class NotificationConsumerTest {
         ReflectionTestUtils.invokeMethod(spyConsumer, "sendNotification", request, urlPath);
 
         // If no exceptions thrown, success
+        verify(requestHandlerService).fetchResultUsingPost(eq("http://notifyhost/notifyAsync"), anyMap(), any());
     }
 
     @Test
     void testDemandContentConsumer_success() throws Exception {
         // Given
         String json = """
-    {
-        "data": {
-            "status": "Unassigned",
-            "rootOrgId": "root-123",
-            "demand_id": "d1",
-            "preferredProvider": [{"providerId": "prov-123"}],
-            "competencies": [{
-                "area": "Area1",
-                "theme": "Theme1",
-                "subTheme": "SubTheme1"
-            }],
-            "objective": "Improve skills"
-        },
-        "isSpvRequest": false
-    }
-    """;
+                {
+                    "data": {
+                        "status": "Unassigned",
+                        "rootOrgId": "root-123",
+                        "demand_id": "d1",
+                        "preferredProvider": [{"providerId": "prov-123"}],
+                        "competencies": [{
+                            "area": "Area1",
+                            "theme": "Theme1",
+                            "subTheme": "SubTheme1"
+                        }],
+                        "objective": "Improve skills"
+                    },
+                    "isSpvRequest": false
+                }
+                """;
 
         ConsumerRecord<String, String> record = new ConsumerRecord<>("test-topic", 0, 0L, "key", json);
 
         // Inject dependencies via reflection
         ReflectionTestUtils.setField(notificationConsumer, "requestHandlerService", requestHandlerService);
         ReflectionTestUtils.setField(notificationConsumer, "cassandraOperation", cassandraOperation);
-       // ReflectionTestUtils.setField(notificationConsumer, "cbServerProperties", cbServerProperties);
+        // ReflectionTestUtils.setField(notificationConsumer, "cbServerProperties", cbServerProperties);
 
         // ✅ Mock email template Cassandra fetch
         Map<String, Object> template1 = new HashMap<>();
@@ -413,9 +409,20 @@ class NotificationConsumerTest {
         when(cbServerProperties.getNotificationAsyncPath()).thenReturn("/v1/notify");
 
 
-
-        // When
-        notificationConsumer.demandContentConsumer(record);
+        try (MockedStatic<CompletableFuture> mockStatic = mockStatic(CompletableFuture.class)) {
+            mockStatic.when(() -> CompletableFuture.runAsync(any(Runnable.class)))
+                    .thenAnswer(invocation -> {
+                        Runnable runnable = invocation.getArgument(0);
+                        runnable.run(); // run synchronously
+                        return CompletableFuture.completedFuture(null);
+                    });
+            // When
+            notificationConsumer.demandContentConsumer(record);
+            verify(requestHandlerService, atLeastOnce())
+                    .fetchResultUsingPost(anyString(), anyMap(), any());
+            verify(requestHandlerService, atLeastOnce())
+                    .fetchResultUsingPost(anyString(), anyMap(), any());
+        }
     }
 
 

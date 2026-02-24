@@ -252,9 +252,9 @@ class PlayListServiceImplTest {
         ApiResponse response = playListService.delete(id);
 
         // Assert
-        assert response.getResponseCode() == HttpStatus.OK;
-        assert response.getResult().get(Constants.STATUS).equals(Constants.DELETED_SUCCESSFULLY);
-        assert response.getResult().get(Constants.ID).equals(id);
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(Constants.DELETED_SUCCESSFULLY, response.getResult().get(Constants.STATUS));
+        assertEquals(id, response.getResult().get(Constants.ID));
     }
 
     /**
