@@ -61,7 +61,7 @@ public class KnowledgeController {
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 
-    @PostMapping("/{type}/publish/{id}")
+    @PostMapping("/publish/{type}/{id}")
     public ResponseEntity<ApiResponse> publishType(@PathVariable String type, @PathVariable String id, @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
         ApiResponse response;
         switch (type) {
@@ -83,7 +83,7 @@ public class KnowledgeController {
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 
-    @DeleteMapping("/{type}/delete/{id}")
+    @DeleteMapping("/delete/{type}/{id}")
     public ResponseEntity<ApiResponse> deleteType(@PathVariable String type, @PathVariable String id, @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
         ApiResponse response;
         switch (type.toLowerCase()) {
