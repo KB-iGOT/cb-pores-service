@@ -21,7 +21,7 @@
         "type": "string"
       }
     },
-    "show_under_developer_docs": {
+    "showUnderDeveloperDocs": {
       "type": "boolean"
     },
     "createdBy": {
@@ -73,7 +73,7 @@
           "summary",
           "appIcon",
           "tags",
-          "show_under_developer_docs",
+          "showUnderDeveloperDocs",
           "createdBy",
           "updatedBy",
           "status",

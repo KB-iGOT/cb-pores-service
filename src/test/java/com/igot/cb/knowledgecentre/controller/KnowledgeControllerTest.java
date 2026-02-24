@@ -122,11 +122,60 @@ class KnowledgeControllerTest {
 
         // Act
         ResponseEntity<ApiResponse> response = knowledgeController.publishType(
-                Constants.CATEGORY, testId, authToken);
+                Constants.CATEGORY, Map.of(Constants.ID, testId), authToken);
 
         // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         verify(knowledgeService).publishCategory(testId, authToken);
+    }
+
+    @Test
+    void testPublishCategory_WithMissingId_ShouldReturnBadRequest() {
+        // Arrange - Empty map without ID
+        Map<String, String> emptyMap = Map.of();
+
+        // Act
+        ResponseEntity<ApiResponse> response = knowledgeController.publishType(
+                Constants.CATEGORY, emptyMap, authToken);
+
+        // Assert
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(Constants.FAILED, response.getBody().getParams().getStatus());
+        verify(knowledgeService, never()).publishCategory(any(), any());
+    }
+
+    @Test
+    void testPublishCategory_WithEmptyId_ShouldReturnBadRequest() {
+        // Arrange - Map with empty string ID
+        Map<String, String> mapWithEmptyId = Map.of(Constants.ID, "   ");
+
+        // Act
+        ResponseEntity<ApiResponse> response = knowledgeController.publishType(
+                Constants.CATEGORY, mapWithEmptyId, authToken);
+
+        // Assert
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        verify(knowledgeService, never()).publishCategory(any(), any());
+    }
+
+    @Test
+    void testPublishType_WithInvalidType_ShouldReturnBadRequest() {
+        // Arrange
+        String invalidType = "invalid_type";
+
+        // Act
+        ResponseEntity<ApiResponse> response = knowledgeController.publishType(
+                invalidType, Map.of(Constants.ID, testId), authToken);
+
+        // Assert
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().getParams().getErrMsg().contains("Invalid type"));
+        verify(knowledgeService, never()).publishCategory(any(), any());
+        verify(knowledgeService, never()).publishSubCategory(any(), any());
+        verify(knowledgeService, never()).publishArticle(any(), any());
     }
 
     @Test
@@ -198,7 +247,7 @@ class KnowledgeControllerTest {
 
         // Act
         ResponseEntity<ApiResponse> response = knowledgeController.publishType(
-                Constants.SUBCATEGORY, testId, authToken);
+                Constants.SUBCATEGORY, Map.of(Constants.ID, testId), authToken);
 
         // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
@@ -274,7 +323,7 @@ class KnowledgeControllerTest {
 
         // Act
         ResponseEntity<ApiResponse> response = knowledgeController.publishType(
-                Constants.ARTICLE, testId, authToken);
+                Constants.ARTICLE, Map.of(Constants.ID, testId), authToken);
 
         // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());

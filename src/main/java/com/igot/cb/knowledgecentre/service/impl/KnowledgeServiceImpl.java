@@ -32,6 +32,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.sql.Timestamp;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -560,6 +561,53 @@ public class KnowledgeServiceImpl implements KnowledgeService {
 
     @Override
     public ApiResponse searchEntity(SearchCriteria searchCriteria) {
+        log.info("KnowledgeServiceImpl::searchEntity: searching knowledge centre entities");
+        String searchString = searchCriteria.getSearchString();
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_SEARCH);
+        if (searchString != null && searchString.length() < 2) {
+            response.getParams().setErrMsg(Constants.SEARCH_MIN_LENGTH_ERROR_MESSAGE);
+            response.getParams().setStatus(Constants.FAILED);
+            response.setResponseCode(HttpStatus.BAD_REQUEST);
+            return response;
+        }
+        try {
+            HashMap<String, Object> filterCriteriaMap = searchCriteria.getFilterCriteriaMap();
+            if (filterCriteriaMap == null) {
+                filterCriteriaMap = new HashMap<>();
+                searchCriteria.setFilterCriteriaMap(filterCriteriaMap);
+            }
+            filterCriteriaMap.put(Constants.STATUS, Constants.PUBLISHED_KEY);
+            filterCriteriaMap.put(Constants.SHOW_UNDER_DEVELOPER_DOC, Constants.ACTIVE_STATUS);
+            filterCriteriaMap.put(Constants.IS_PUBLIC, Boolean.TRUE);
+            SearchResult cachedResult = redisTemplate.opsForValue()
+                    .get(generateRedisJwtTokenKey(searchCriteria));
+
+            SearchResult searchResult;
+            if (cachedResult != null) {
+                log.info("KnowledgeServiceImpl::searchEntity: search result fetched from redis cache");
+                searchResult = cachedResult;
+            } else {
+                searchResult = esUtilService.searchDocumentsV2(Constants.KNOWLEDGE_CENTRE_INDEX_NAME, searchCriteria);
+                redisTemplate.opsForValue()
+                        .set(generateRedisJwtTokenKey(searchCriteria), searchResult, cbServerProperties.getSearchResultRedisTtl(), TimeUnit.SECONDS);
+                log.info("KnowledgeServiceImpl::searchEntity: search result stored in redis cache");
+            }
+            Map<String, Object> jsonMap =
+                    objectMapper.convertValue(searchResult, new TypeReference<>() {
+                    });
+            response.setResult(jsonMap);
+            response.setResponseCode(HttpStatus.OK);
+        } catch (Exception e) {
+            log.error("Error while processing to search", e);
+            response.getParams().setErrMsg(e.getMessage());
+            response.getParams().setStatus(Constants.FAILED);
+            response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        return response;
+    }
+
+    @Override
+    public ApiResponse spvSearchEntity(SearchCriteria searchCriteria) {
         log.info("KnowledgeServiceImpl::searchEntity: searching knowledge centre entities");
         String searchString = searchCriteria.getSearchString();
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_SEARCH);

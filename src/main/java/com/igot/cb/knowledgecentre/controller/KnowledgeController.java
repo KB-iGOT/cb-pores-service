@@ -8,9 +8,12 @@ import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/knowledge/centre")
@@ -61,9 +64,19 @@ public class KnowledgeController {
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 
-    @PostMapping("/publish/{type}/{id}")
-    public ResponseEntity<ApiResponse> publishType(@PathVariable String type, @PathVariable String id, @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
+    @PostMapping("/publish/{type}")
+    public ResponseEntity<ApiResponse> publishType(@PathVariable String type, @RequestBody Map<String,String> requestBody, @RequestHeader(Constants.X_AUTH_TOKEN) String token) {
         ApiResponse response;
+        String id = requestBody.get(Constants.ID);
+
+        if (StringUtils.isBlank(id)) {
+            response = new ApiResponse();
+            response.getParams().setErrMsg(Constants.ID_MISSING);
+            response.getParams().setStatus(Constants.FAILED);
+            response.setResponseCode(HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(response, response.getResponseCode());
+        }
+
         switch (type) {
             case Constants.CATEGORY:
                 response = knowledgeService.publishCategory(id, token);
@@ -108,6 +121,12 @@ public class KnowledgeController {
     @PostMapping("/search")
     public ResponseEntity<ApiResponse> searchEntity(@RequestBody SearchCriteria searchCriteria) {
         ApiResponse response = knowledgeService.searchEntity(searchCriteria);
+        return new ResponseEntity<>(response, response.getResponseCode());
+    }
+
+    @PostMapping("/spv/search")
+    public ResponseEntity<ApiResponse> spvSearchEntity(@RequestBody SearchCriteria searchCriteria) {
+        ApiResponse response = knowledgeService.spvSearchEntity(searchCriteria);
         return new ResponseEntity<>(response, response.getResponseCode());
     }
 

@@ -427,6 +427,145 @@ class KnowledgeServiceImplTest {
         verify(esUtilService, never()).searchDocumentsV2(anyString(), any());
     }
 
+    // ========================= SPV Search Tests =========================
+
+    @Test
+    void testSpvSearchEntity_WithValidCriteria_ShouldReturnResults() {
+        // Arrange
+        SearchCriteria criteria = new SearchCriteria();
+        criteria.setSearchString("test query");
+        SearchResult searchResult = new SearchResult();
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(esUtilService.searchDocumentsV2(eq(Constants.KNOWLEDGE_CENTRE_INDEX_NAME), any(SearchCriteria.class)))
+                .thenReturn(searchResult);
+        when(cbServerProperties.getJwtSecretKey()).thenReturn("test-secret-key");
+        when(cbServerProperties.getSearchResultRedisTtl()).thenReturn(3600L);
+
+        // Act
+        ApiResponse response = knowledgeService.spvSearchEntity(criteria);
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        verify(esUtilService).searchDocumentsV2(eq(Constants.KNOWLEDGE_CENTRE_INDEX_NAME), any(SearchCriteria.class));
+        verify(valueOperations).set(anyString(), eq(searchResult), eq(3600L), any());
+    }
+
+    @Test
+    void testSpvSearchEntity_WithMinimumCharacters_ShouldReturnError() {
+        // Arrange
+        SearchCriteria criteria = new SearchCriteria();
+        criteria.setSearchString("a"); // Less than 2 characters
+
+        // Act
+        ApiResponse response = knowledgeService.spvSearchEntity(criteria);
+
+        // Assert
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertEquals(Constants.SEARCH_MIN_LENGTH_ERROR_MESSAGE, response.getParams().getErrMsg());
+        verify(esUtilService, never()).searchDocumentsV2(anyString(), any());
+    }
+
+    @Test
+    void testSpvSearchEntity_WithCachedResult_ShouldReturnFromRedis() {
+        // Arrange
+        SearchCriteria criteria = new SearchCriteria();
+        criteria.setSearchString("cached query");
+        SearchResult cachedResult = new SearchResult();
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(cachedResult);
+        when(cbServerProperties.getJwtSecretKey()).thenReturn("test-secret-key");
+
+        // Act
+        ApiResponse response = knowledgeService.spvSearchEntity(criteria);
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        verify(esUtilService, never()).searchDocumentsV2(anyString(), any());
+        verify(valueOperations, never()).set(anyString(), any(), anyLong(), any());
+    }
+
+    @Test
+    void testSpvSearchEntity_WithNullSearchString_ShouldSearchSuccessfully() {
+        // Arrange
+        SearchCriteria criteria = new SearchCriteria();
+        criteria.setSearchString(null); // null search string should be allowed
+        SearchResult searchResult = new SearchResult();
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(esUtilService.searchDocumentsV2(eq(Constants.KNOWLEDGE_CENTRE_INDEX_NAME), any(SearchCriteria.class)))
+                .thenReturn(searchResult);
+        when(cbServerProperties.getJwtSecretKey()).thenReturn("test-secret-key");
+        when(cbServerProperties.getSearchResultRedisTtl()).thenReturn(3600L);
+
+        // Act
+        ApiResponse response = knowledgeService.spvSearchEntity(criteria);
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        verify(esUtilService).searchDocumentsV2(eq(Constants.KNOWLEDGE_CENTRE_INDEX_NAME), any(SearchCriteria.class));
+    }
+
+    @Test
+    void testSpvSearchEntity_WithEmptySearchString_ShouldReturnError() {
+        // Arrange
+        SearchCriteria criteria = new SearchCriteria();
+        criteria.setSearchString(""); // Empty string
+
+        // Act
+        ApiResponse response = knowledgeService.spvSearchEntity(criteria);
+
+        // Assert
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        verify(esUtilService, never()).searchDocumentsV2(anyString(), any());
+    }
+
+    @Test
+    void testSpvSearchEntity_WithExactlyTwoCharacters_ShouldSearchSuccessfully() {
+        // Arrange
+        SearchCriteria criteria = new SearchCriteria();
+        criteria.setSearchString("ab"); // Exactly 2 characters
+        SearchResult searchResult = new SearchResult();
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenReturn(null);
+        when(esUtilService.searchDocumentsV2(eq(Constants.KNOWLEDGE_CENTRE_INDEX_NAME), any(SearchCriteria.class)))
+                .thenReturn(searchResult);
+        when(cbServerProperties.getJwtSecretKey()).thenReturn("test-secret-key");
+        when(cbServerProperties.getSearchResultRedisTtl()).thenReturn(3600L);
+
+        // Act
+        ApiResponse response = knowledgeService.spvSearchEntity(criteria);
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        verify(esUtilService).searchDocumentsV2(eq(Constants.KNOWLEDGE_CENTRE_INDEX_NAME), any(SearchCriteria.class));
+    }
+
+    @Test
+    void testSpvSearchEntity_WithException_ShouldReturnInternalServerError() {
+        // Arrange
+        SearchCriteria criteria = new SearchCriteria();
+        criteria.setSearchString("test");
+
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(valueOperations.get(anyString())).thenThrow(new RuntimeException("Redis error"));
+        when(cbServerProperties.getJwtSecretKey()).thenReturn("test-secret-key");
+
+        // Act
+        ApiResponse response = knowledgeService.spvSearchEntity(criteria);
+
+        // Assert
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+        assertEquals(Constants.FAILED, response.getParams().getStatus());
+        assertNotNull(response.getParams().getErrMsg());
+    }
+
     private JsonNode createValidCategoryNode() {
         ObjectNode node = realObjectMapper.createObjectNode();
         node.put("title", "Test Category");

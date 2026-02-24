@@ -503,6 +503,8 @@ public class Constants {
     public static final String AGG = "_agg";
     public static final String BOOST_SEPARATOR = "^";
     public static final String AUTO = "AUTO";
+    public static final String SHOW_UNDER_DEVELOPER_DOC = "showUnderDeveloperDocs";
+    public static final String IS_PUBLIC = "isPublic";
 
 
     private Constants() {

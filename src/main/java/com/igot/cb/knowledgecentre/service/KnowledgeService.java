@@ -31,4 +31,6 @@ public interface KnowledgeService {
     ApiResponse deleteArticle(String id, String token);
 
     ApiResponse searchEntity(SearchCriteria searchCriteria);
+
+    ApiResponse spvSearchEntity(SearchCriteria searchCriteria);
 }
