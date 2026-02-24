@@ -450,6 +450,7 @@ public class Constants {
     public static final String LOG_ES_UPDATE_FAILURE = "ES update failed for contentId={}";
     public static final String LOG_DB_BULK_UPDATE_SUCCESS = "DB bulk update successful for receivedContentIdsSize={} and updatedRecordsCount={}";
     public static final String LOG_DB_BULK_UPDATE_FAILURE = "DB bulk update failed for contentIds={}";
+    public static final String DESC = "desc";
     // Knowledge Centre Constants
     public static final String KNOWLEDGE_CENTRE_INDEX_NAME = "knowledge_centre_alias";
     public static final String API_CATEGORY_CREATE = "api.category.create";
