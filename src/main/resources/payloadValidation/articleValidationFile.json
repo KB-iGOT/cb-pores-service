@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
-    "id": {
+    "articleId": {
       "type": "string"
     },
     "title": {
@@ -13,10 +13,6 @@
     },
     "content": {
       "type": "string"
-    },
-    "appIcon": {
-      "type": "string",
-      "format": "uri"
     },
     "tags": {
       "type": "array",
@@ -83,11 +79,10 @@
       },
       "then": {
         "required": [
-          "id",
+          "articleId",
           "title",
           "summary",
           "content",
-          "appIcon",
           "tags",
           "categoryId",
           "subCategoryId",

@@ -594,7 +594,7 @@ class KnowledgeServiceImplTest {
 
     private KnowledgeCategoryEntity createMockCategoryEntity() {
         KnowledgeCategoryEntity entity = new KnowledgeCategoryEntity();
-        entity.setId(entityId);
+        entity.setCategoryId(entityId);
         ObjectNode data = realObjectMapper.createObjectNode();
         data.put("title", "Test Category");
         data.put("createdBy", userId);
@@ -607,7 +607,7 @@ class KnowledgeServiceImplTest {
 
     private KnowledgeSubCategoryEntity createMockSubCategoryEntity() {
         KnowledgeSubCategoryEntity entity = new KnowledgeSubCategoryEntity();
-        entity.setId(entityId);
+        entity.setSubCategoryId(entityId);
         ObjectNode data = realObjectMapper.createObjectNode();
         data.put("title", "Test SubCategory");
         data.put("createdBy", userId);
@@ -620,7 +620,7 @@ class KnowledgeServiceImplTest {
 
     private KnowledgeArticleEntity createMockArticleEntity() {
         KnowledgeArticleEntity entity = new KnowledgeArticleEntity();
-        entity.setId(entityId);
+        entity.setArticleId(entityId);
         ObjectNode data = realObjectMapper.createObjectNode();
         data.put("title", "Test Article");
         data.put("createdBy", userId);

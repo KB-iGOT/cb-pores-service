@@ -75,13 +75,13 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         }
 
         String id = UUID.randomUUID().toString();
-        ((ObjectNode) categoryDto).put(Constants.ID, id);
+        ((ObjectNode) categoryDto).put(Constants.CATEGORY_ID, id);
         ((ObjectNode) categoryDto).put(Constants.CREATED_BY, userId);
         ((ObjectNode) categoryDto).put(Constants.UPDATED_BY, userId);
         ((ObjectNode) categoryDto).put(Constants.CREATED_ON, isoTimestamp);
         ((ObjectNode) categoryDto).put(Constants.UPDATED_ON, isoTimestamp);
         KnowledgeCategoryEntity knowledgeCategoryEntity = new KnowledgeCategoryEntity();
-        knowledgeCategoryEntity.setId(id);
+        knowledgeCategoryEntity.setCategoryId(id);
         knowledgeCategoryEntity.setCategoryData(categoryDto);
         knowledgeCategoryEntity.setCreatedOn(isoTimestamp);
         knowledgeCategoryEntity.setUpdatedOn(isoTimestamp);
@@ -123,7 +123,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             return response;
         }
 
-        ((ObjectNode) categoryDto).put(Constants.ID, id);
+        ((ObjectNode) categoryDto).put(Constants.CATEGORY_ID, id);
         ((ObjectNode) categoryDto).put(Constants.CREATED_BY, existingEntity.getCategoryData().get(Constants.CREATED_BY).asText());
         ((ObjectNode) categoryDto).put(Constants.UPDATED_BY, userId);
         ((ObjectNode) categoryDto).put(Constants.CREATED_ON, existingEntity.getCategoryData().get(Constants.CREATED_ON).asText());
@@ -243,13 +243,13 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         }
 
         String id = UUID.randomUUID().toString();
-        ((ObjectNode) subCategoryDto).put(Constants.ID, id);
+        ((ObjectNode) subCategoryDto).put(Constants.SUB_CATEGORY_ID, id);
         ((ObjectNode) subCategoryDto).put(Constants.CREATED_BY, userId);
         ((ObjectNode) subCategoryDto).put(Constants.UPDATED_BY, userId);
         ((ObjectNode) subCategoryDto).put(Constants.CREATED_ON, isoTimestamp);
         ((ObjectNode) subCategoryDto).put(Constants.UPDATED_ON, isoTimestamp);
         KnowledgeSubCategoryEntity knowledgeCategoryEntity = new KnowledgeSubCategoryEntity();
-        knowledgeCategoryEntity.setId(id);
+        knowledgeCategoryEntity.setSubCategoryId(id);
         knowledgeCategoryEntity.setSubCategoryData(subCategoryDto);
         knowledgeCategoryEntity.setCreatedOn(isoTimestamp);
         knowledgeCategoryEntity.setUpdatedOn(isoTimestamp);
@@ -291,7 +291,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             return response;
         }
 
-        ((ObjectNode) subCategoryDto).put(Constants.ID, id);
+        ((ObjectNode) subCategoryDto).put(Constants.SUB_CATEGORY_ID, id);
         ((ObjectNode) subCategoryDto).put(Constants.CREATED_BY, existingEntity.getSubCategoryData().get(Constants.CREATED_BY).asText());
         ((ObjectNode) subCategoryDto).put(Constants.UPDATED_BY, userId);
         ((ObjectNode) subCategoryDto).put(Constants.CREATED_ON, existingEntity.getSubCategoryData().get(Constants.CREATED_ON).asText());
@@ -412,13 +412,13 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         }
 
         String id = UUID.randomUUID().toString();
-        ((ObjectNode) articleDto).put(Constants.ID, id);
+        ((ObjectNode) articleDto).put(Constants.ARTICLE_ID, id);
         ((ObjectNode) articleDto).put(Constants.CREATED_BY, userId);
         ((ObjectNode) articleDto).put(Constants.UPDATED_BY, userId);
         ((ObjectNode) articleDto).put(Constants.CREATED_ON, isoTimestamp);
         ((ObjectNode) articleDto).put(Constants.UPDATED_ON, isoTimestamp);
         KnowledgeArticleEntity knowledgeCategoryEntity = new KnowledgeArticleEntity();
-        knowledgeCategoryEntity.setId(id);
+        knowledgeCategoryEntity.setArticleId(id);
         knowledgeCategoryEntity.setArticles(articleDto);
         knowledgeCategoryEntity.setCreatedOn(isoTimestamp);
         knowledgeCategoryEntity.setUpdatedOn(isoTimestamp);
@@ -460,7 +460,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             return response;
         }
 
-        ((ObjectNode) articleDto).put(Constants.ID, id);
+        ((ObjectNode) articleDto).put(Constants.ARTICLE_ID, id);
         ((ObjectNode) articleDto).put(Constants.CREATED_BY, existingEntity.getArticles().get(Constants.CREATED_BY).asText());
         ((ObjectNode) articleDto).put(Constants.UPDATED_BY, userId);
         ((ObjectNode) articleDto).put(Constants.CREATED_ON, existingEntity.getArticles().get(Constants.CREATED_ON).asText());

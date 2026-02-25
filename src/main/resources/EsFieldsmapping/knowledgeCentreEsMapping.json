@@ -1,5 +1,5 @@
 {
-  "id": {
+  "articleId": {
     "type": "keyword"
   },
   "type": {
@@ -13,9 +13,6 @@
   },
   "content": {
     "type": "text"
-  },
-  "appIcon": {
-    "type": "keyword"
   },
   "tags": {
     "type": "text"

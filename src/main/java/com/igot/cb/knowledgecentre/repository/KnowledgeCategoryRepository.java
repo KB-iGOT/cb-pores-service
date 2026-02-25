@@ -14,6 +14,6 @@ public interface KnowledgeCategoryRepository extends JpaRepository<KnowledgeCate
     @Query(value = "SELECT * FROM knowledge_category WHERE category_data->>'title' = :title", nativeQuery = true)
     Optional<KnowledgeCategoryEntity> findByTitle(@Param("title") String title);
 
-    @Query(value = "SELECT * FROM knowledge_category WHERE category_data->>'title' = :title AND id != :id", nativeQuery = true)
+    @Query(value = "SELECT * FROM knowledge_category WHERE category_data->>'title' = :title AND category_id != :id", nativeQuery = true)
     Optional<KnowledgeCategoryEntity> findByTitleAndIdNot(@Param("title") String title, @Param("id") String id);
 }

@@ -25,7 +25,7 @@ public interface KnowledgeSubCategoryRepository extends JpaRepository<KnowledgeS
         SELECT * FROM knowledge_sub_category
         WHERE sub_category_data->>'title' = :title
         AND sub_category_data->>'categoryId' = :categoryId
-        AND id != :id
+        AND sub_category_id != :id
         """, nativeQuery = true)
     Optional<KnowledgeSubCategoryEntity> findByTitleAndCategoryIdAndIdNot(
             @Param("title") String title,

@@ -25,7 +25,7 @@ public interface KnowledgeArticlesRepository extends JpaRepository<KnowledgeArti
         SELECT * FROM knowledge_articles
         WHERE articles->>'title' = :title
         AND articles->>'subCategoryId' = :subCategoryId
-        AND id != :id
+        AND article_id != :id
         """, nativeQuery = true)
     Optional<KnowledgeArticleEntity> findByTitleAndSubCategoryIdAndIdNot(
             @Param("title") String title,

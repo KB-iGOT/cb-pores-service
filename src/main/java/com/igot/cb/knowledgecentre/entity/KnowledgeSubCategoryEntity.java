@@ -24,7 +24,8 @@ import org.hibernate.annotations.Type;
 public class KnowledgeSubCategoryEntity {
 
     @Id
-    private String id;
+    @Column(name = "subCategoryId")
+    private String subCategoryId;
 
     @Type(JsonType.class)
     @Column(columnDefinition = "jsonb")

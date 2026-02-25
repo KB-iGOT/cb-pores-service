@@ -506,6 +506,9 @@ public class Constants {
     public static final String AUTO = "AUTO";
     public static final String SHOW_UNDER_DEVELOPER_DOC = "showUnderDeveloperDocs";
     public static final String IS_PUBLIC = "isPublic";
+    public static final String CATEGORY_ID = "categoryId";
+    public static final String SUB_CATEGORY_ID = "subCategoryId";
+    public static final String ARTICLE_ID = "articleId";
 
 
     private Constants() {

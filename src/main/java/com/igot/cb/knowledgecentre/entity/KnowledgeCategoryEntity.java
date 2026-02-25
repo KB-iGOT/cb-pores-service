@@ -20,7 +20,8 @@ import org.hibernate.annotations.Type;
 public class KnowledgeCategoryEntity {
 
     @Id
-    private String id;
+    @Column(name = "categoryId")
+    private String categoryId;
 
     @Type(JsonType.class)
     @Column(columnDefinition = "jsonb")
