@@ -15,6 +15,7 @@ import com.igot.cb.knowledgecentre.repository.KnowledgeArticlesRepository;
 import com.igot.cb.knowledgecentre.repository.KnowledgeCategoryRepository;
 import com.igot.cb.knowledgecentre.repository.KnowledgeSubCategoryRepository;
 import com.igot.cb.knowledgecentre.service.KnowledgeService;
+import com.igot.cb.knowledgecentre.service.UserService;
 import com.igot.cb.knowledgecentre.util.KnowledgeCentreUtil;
 import com.igot.cb.playlist.util.ProjectUtil;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
@@ -31,11 +32,11 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.util.*;
+
 import java.sql.Timestamp;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -52,6 +53,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     private final AccessTokenValidator accessTokenValidator;
     private final RedisTemplate<String, SearchResult> redisTemplate;
     private final KnowledgeCentreUtil knowledgeCentreUtil;
+    private final UserService userService;
 
     @Override
     public ApiResponse createCategory(JsonNode categoryDto, String token) {
@@ -634,6 +636,28 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             Map<String, Object> jsonMap =
                     objectMapper.convertValue(searchResult, new TypeReference<>() {
                     });
+            List<Map<String, Object>> resultList = (List<Map<String, Object>>) jsonMap.get(Constants.DATA);
+            Set<String> userListWithPrefix = new HashSet<>();
+            for (Map<String, Object> entity : resultList) {
+                if (entity.get(Constants.CREATED_BY) != null) {
+                    userListWithPrefix.add(Constants.USER_PREFIX + entity.get(Constants.CREATED_BY));
+                }
+                if (entity.get(Constants.UPDATED_BY) != null) {
+                    userListWithPrefix.add(Constants.USER_PREFIX + entity.get(Constants.UPDATED_BY));
+                }
+            }
+            List<String> userListWithOutPrefix = userListWithPrefix.stream()
+                    .map(id -> id.replace(Constants.USER_PREFIX, ""))
+                    .collect(Collectors.toList());
+            List<Object> userList = userListWithOutPrefix.isEmpty()
+                    ? Collections.emptyList()
+                    : userService.fetchUserFromPrimary(userListWithOutPrefix);
+            Map<String, Object> userInfoList = userList.stream().map(user -> (Map<String, Object>) user).collect(Collectors.toMap(
+                    user -> Constants.USER_PREFIX + user.get(Constants.USER_ID_KEY).toString(),
+                    user -> user
+            ));
+            jsonMap.put(Constants.USER_DETAILS, objectMapper.convertValue(userList, new TypeReference<Object>() {
+            }));
             response.setResult(jsonMap);
             response.setResponseCode(HttpStatus.OK);
         } catch (Exception e) {
