@@ -516,7 +516,6 @@ public class Constants {
     public static final String CATEGORY_DETAILS = "categoryDetails";
 
 
-
     private Constants() {
     }
 }
