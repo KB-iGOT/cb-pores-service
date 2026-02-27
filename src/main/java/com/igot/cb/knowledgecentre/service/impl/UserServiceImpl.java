@@ -2,6 +2,7 @@ package com.igot.cb.knowledgecentre.service.impl;
 import com.igot.cb.knowledgecentre.service.UserService;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.transactional.cassandrautils.CassandraOperation;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,9 +14,10 @@ import java.util.stream.Collectors;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
-    @Autowired
-    CassandraOperation cassandraOperation;
+
+    private final CassandraOperation cassandraOperation;
 
     private Logger logger = LoggerFactory.getLogger(UserServiceImpl.class);
 
