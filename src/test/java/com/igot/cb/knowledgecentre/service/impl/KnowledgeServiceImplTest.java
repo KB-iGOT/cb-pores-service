@@ -21,6 +21,9 @@ import com.igot.cb.pores.util.PayloadValidation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -30,6 +33,7 @@ import org.springframework.http.HttpStatus;
 
 import java.sql.Timestamp;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -429,122 +433,67 @@ class KnowledgeServiceImplTest {
 
     // ========================= SPV Search Tests =========================
 
-    @Test
-    void testSpvSearchEntity_WithValidCriteria_ShouldReturnResults() {
+    /**
+     * Parameterized test for successful search scenarios
+     */
+    @ParameterizedTest(name = "Search with searchString=''{0}'' should return OK")
+    @MethodSource("provideValidSearchStrings")
+    void testSpvSearchEntity_WithValidSearchString_ShouldReturnResults(String searchString, String description) {
         // Arrange
         SearchCriteria criteria = new SearchCriteria();
-        criteria.setSearchString("test query");
+        criteria.setSearchString(searchString);
         SearchResult searchResult = new SearchResult();
 
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(anyString())).thenReturn(null);
         when(esUtilService.searchDocumentsV2(eq(Constants.KNOWLEDGE_CENTRE_INDEX_NAME), any(SearchCriteria.class)))
                 .thenReturn(searchResult);
-        when(cbServerProperties.getJwtSecretKey()).thenReturn("test-secret-key");
-        when(cbServerProperties.getSearchResultRedisTtl()).thenReturn(3600L);
 
         // Act
         ApiResponse response = knowledgeService.spvSearchEntity(criteria);
 
         // Assert
-        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(HttpStatus.OK, response.getResponseCode(),
+            "Should return OK for: " + description);
         verify(esUtilService).searchDocumentsV2(eq(Constants.KNOWLEDGE_CENTRE_INDEX_NAME), any(SearchCriteria.class));
-        verify(valueOperations).set(anyString(), eq(searchResult), eq(3600L), any());
     }
 
-    @Test
-    void testSpvSearchEntity_WithMinimumCharacters_ShouldReturnError() {
+    private static Stream<Arguments> provideValidSearchStrings() {
+        return Stream.of(
+            Arguments.of("test query", "valid search query with multiple words"),
+            Arguments.of("ab", "exactly 2 characters (minimum boundary)"),
+            Arguments.of(null, "null search string"),
+            Arguments.of("test", "simple search term")
+        );
+    }
+
+    /**
+     * Parameterized test for invalid search scenarios that should return BAD_REQUEST
+     */
+    @ParameterizedTest(name = "Search with searchString=''{0}'' should return BAD_REQUEST")
+    @MethodSource("provideInvalidSearchStrings")
+    void testSpvSearchEntity_WithInvalidSearchString_ShouldReturnBadRequest(String searchString, String description) {
         // Arrange
         SearchCriteria criteria = new SearchCriteria();
-        criteria.setSearchString("a"); // Less than 2 characters
+        criteria.setSearchString(searchString);
 
         // Act
         ApiResponse response = knowledgeService.spvSearchEntity(criteria);
 
         // Assert
-        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode(),
+            "Should return BAD_REQUEST for: " + description);
         assertEquals(Constants.FAILED, response.getParams().getStatus());
-        assertEquals(Constants.SEARCH_MIN_LENGTH_ERROR_MESSAGE, response.getParams().getErrMsg());
+        if (searchString != null && !searchString.isEmpty()) {
+            assertEquals(Constants.SEARCH_MIN_LENGTH_ERROR_MESSAGE, response.getParams().getErrMsg());
+        }
         verify(esUtilService, never()).searchDocumentsV2(anyString(), any());
     }
 
-    @Test
-    void testSpvSearchEntity_WithCachedResult_ShouldReturnFromRedis() {
-        // Arrange
-        SearchCriteria criteria = new SearchCriteria();
-        criteria.setSearchString("cached query");
-        SearchResult cachedResult = new SearchResult();
-
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(anyString())).thenReturn(cachedResult);
-        when(cbServerProperties.getJwtSecretKey()).thenReturn("test-secret-key");
-
-        // Act
-        ApiResponse response = knowledgeService.spvSearchEntity(criteria);
-
-        // Assert
-        assertEquals(HttpStatus.OK, response.getResponseCode());
-        verify(esUtilService, never()).searchDocumentsV2(anyString(), any());
-        verify(valueOperations, never()).set(anyString(), any(), anyLong(), any());
-    }
-
-    @Test
-    void testSpvSearchEntity_WithNullSearchString_ShouldSearchSuccessfully() {
-        // Arrange
-        SearchCriteria criteria = new SearchCriteria();
-        criteria.setSearchString(null); // null search string should be allowed
-        SearchResult searchResult = new SearchResult();
-
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(anyString())).thenReturn(null);
-        when(esUtilService.searchDocumentsV2(eq(Constants.KNOWLEDGE_CENTRE_INDEX_NAME), any(SearchCriteria.class)))
-                .thenReturn(searchResult);
-        when(cbServerProperties.getJwtSecretKey()).thenReturn("test-secret-key");
-        when(cbServerProperties.getSearchResultRedisTtl()).thenReturn(3600L);
-
-        // Act
-        ApiResponse response = knowledgeService.spvSearchEntity(criteria);
-
-        // Assert
-        assertEquals(HttpStatus.OK, response.getResponseCode());
-        verify(esUtilService).searchDocumentsV2(eq(Constants.KNOWLEDGE_CENTRE_INDEX_NAME), any(SearchCriteria.class));
-    }
-
-    @Test
-    void testSpvSearchEntity_WithEmptySearchString_ShouldReturnError() {
-        // Arrange
-        SearchCriteria criteria = new SearchCriteria();
-        criteria.setSearchString(""); // Empty string
-
-        // Act
-        ApiResponse response = knowledgeService.spvSearchEntity(criteria);
-
-        // Assert
-        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertEquals(Constants.FAILED, response.getParams().getStatus());
-        verify(esUtilService, never()).searchDocumentsV2(anyString(), any());
-    }
-
-    @Test
-    void testSpvSearchEntity_WithExactlyTwoCharacters_ShouldSearchSuccessfully() {
-        // Arrange
-        SearchCriteria criteria = new SearchCriteria();
-        criteria.setSearchString("ab"); // Exactly 2 characters
-        SearchResult searchResult = new SearchResult();
-
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(anyString())).thenReturn(null);
-        when(esUtilService.searchDocumentsV2(eq(Constants.KNOWLEDGE_CENTRE_INDEX_NAME), any(SearchCriteria.class)))
-                .thenReturn(searchResult);
-        when(cbServerProperties.getJwtSecretKey()).thenReturn("test-secret-key");
-        when(cbServerProperties.getSearchResultRedisTtl()).thenReturn(3600L);
-
-        // Act
-        ApiResponse response = knowledgeService.spvSearchEntity(criteria);
-
-        // Assert
-        assertEquals(HttpStatus.OK, response.getResponseCode());
-        verify(esUtilService).searchDocumentsV2(eq(Constants.KNOWLEDGE_CENTRE_INDEX_NAME), any(SearchCriteria.class));
+    private static Stream<Arguments> provideInvalidSearchStrings() {
+        return Stream.of(
+            Arguments.of("a", "single character (less than minimum 2)"),
+            Arguments.of("", "empty string"),
+            Arguments.of("x", "single character 'x'")
+        );
     }
 
     @Test
@@ -553,9 +502,8 @@ class KnowledgeServiceImplTest {
         SearchCriteria criteria = new SearchCriteria();
         criteria.setSearchString("test");
 
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(anyString())).thenThrow(new RuntimeException("Redis error"));
-        when(cbServerProperties.getJwtSecretKey()).thenReturn("test-secret-key");
+        when(esUtilService.searchDocumentsV2(eq(Constants.KNOWLEDGE_CENTRE_INDEX_NAME), any(SearchCriteria.class)))
+                .thenThrow(new RuntimeException("Search error"));
 
         // Act
         ApiResponse response = knowledgeService.spvSearchEntity(criteria);

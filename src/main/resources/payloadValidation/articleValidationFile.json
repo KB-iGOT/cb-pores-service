@@ -81,9 +81,7 @@
         "required": [
           "articleId",
           "title",
-          "summary",
           "content",
-          "tags",
           "categoryId",
           "subCategoryId",
           "showUnderDeveloperDocs",

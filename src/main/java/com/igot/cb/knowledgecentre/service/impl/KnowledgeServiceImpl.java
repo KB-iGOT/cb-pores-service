@@ -608,7 +608,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
 
     @Override
     public ApiResponse spvSearchEntity(SearchCriteria searchCriteria) {
-        log.info("KnowledgeServiceImpl::searchEntity: searching knowledge centre entities");
+        log.info("KnowledgeServiceImpl::spvSearchEntity: searching knowledge centre entities");
         String searchString = searchCriteria.getSearchString();
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_SEARCH);
         if (searchString != null && searchString.length() < 2) {
@@ -618,19 +618,8 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             return response;
         }
         try {
-            SearchResult cachedResult = redisTemplate.opsForValue()
-                    .get(generateRedisJwtTokenKey(searchCriteria));
+            SearchResult searchResult = esUtilService.searchDocumentsV2(Constants.KNOWLEDGE_CENTRE_INDEX_NAME, searchCriteria);
 
-            SearchResult searchResult;
-            if (cachedResult != null) {
-                log.info("KnowledgeServiceImpl::searchEntity: search result fetched from redis cache");
-                searchResult = cachedResult;
-            } else {
-                searchResult = esUtilService.searchDocumentsV2(Constants.KNOWLEDGE_CENTRE_INDEX_NAME, searchCriteria);
-                redisTemplate.opsForValue()
-                        .set(generateRedisJwtTokenKey(searchCriteria), searchResult, cbServerProperties.getSearchResultRedisTtl(), TimeUnit.SECONDS);
-                log.info("KnowledgeServiceImpl::searchEntity: search result stored in redis cache");
-            }
             Map<String, Object> jsonMap =
                     objectMapper.convertValue(searchResult, new TypeReference<>() {
                     });

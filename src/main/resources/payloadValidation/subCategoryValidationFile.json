@@ -78,8 +78,6 @@
           "subCategoryId",
           "title",
           "summary",
-          "content",
-          "tags",
           "categoryId",
           "showUnderDeveloperDocs",
           "createdBy",
