@@ -652,7 +652,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         return response;
     }
     private List<Object> fetchUserDetails(Set<String> userListWithPrefix) {
-        if (userListWithPrefix == null || userListWithPrefix.isEmpty()) {
+        if (userListWithPrefix.isEmpty()) {
             return Collections.emptyList();
         }
         List<Object> userList = new ArrayList<>();
@@ -669,7 +669,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
                             new TypeReference<Map<String, Object>>() {
                             });
                 }
-                if (user == null || !user.containsKey(Constants.USER_ID_KEY)) {
+                if (Objects.isNull(user) || !user.containsKey(Constants.USER_ID_KEY)) {
                     continue;
                 }
                 userList.add(user);
@@ -678,10 +678,12 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             }
         }
         // Identify missing users
-        List<String> missingUserIds = redisKeys.stream()
-                .map(id -> id.replace(Constants.USER_PREFIX, ""))
-                .filter(id -> !userInfoMap.containsKey(Constants.USER_PREFIX + id))
-                .toList();
+        List<String> missingUserIds = new ArrayList<>();
+        for (String key : redisKeys) {
+            if (!userInfoMap.containsKey(key)) {
+                missingUserIds.add(key.substring(Constants.USER_PREFIX.length()));
+            }
+        }
         if (!missingUserIds.isEmpty()) {
             processCassandraUsers(missingUserIds, userList);
         }
