@@ -27,6 +27,7 @@ import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.PayloadValidation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
@@ -689,12 +690,13 @@ public class KnowledgeServiceImpl implements KnowledgeService {
 
     private void processCassandraUsers(List<String> missingUserIds, List<Object> userList) {
         List<Object> cassandraUsers = userService.fetchUserFromPrimary(missingUserIds);
-        if (cassandraUsers == null) {
+        if (CollectionUtils.isEmpty(cassandraUsers)) {
             return;
         }
         for (Object obj : cassandraUsers) {
             Map<String, Object> user = (Map<String, Object>) obj;
-            if (user == null || !user.containsKey(Constants.USER_ID_KEY)) {
+            Object userId = MapUtils.getObject(user, Constants.USER_ID_KEY);
+            if (userId == null) {
                 continue;
             }
             userList.add(user);
