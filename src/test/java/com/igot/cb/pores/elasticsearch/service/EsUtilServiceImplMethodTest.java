@@ -104,6 +104,10 @@ class EsUtilServiceImplMethodTest {
         Method method = EsUtilServiceImpl.class.getDeclaredMethod("addRequestedFieldsToSearchSourceBuilder", SearchCriteria.class, SearchRequest.Builder.class);
         method.setAccessible(true);
         method.invoke(esUtilService, searchCriteria, builder);
+        SearchRequest request = builder.build();
+        // Assert
+        assertNotNull(request.source(), "Source config should not be null");
+        assertTrue(request.source().filter().includes().isEmpty(), "Includes list should be empty when requestedFields is empty");
     }
 
     @Test
@@ -114,6 +118,14 @@ class EsUtilServiceImplMethodTest {
         Method method = EsUtilServiceImpl.class.getDeclaredMethod("addFacetsToSearchSourceBuilder", List.class, SearchRequest.Builder.class);
         method.setAccessible(true);
         method.invoke(esUtilService, facets, builder);
+        SearchRequest request = builder.build();
+        assertNotNull(request.aggregations());
+        assertFalse(request.aggregations().isEmpty());
+        assertTrue(
+                request.aggregations().keySet().stream()
+                        .anyMatch(key -> key.contains("communityId")),
+                "Aggregation key should contain communityId"
+        );
     }
 
     @Test

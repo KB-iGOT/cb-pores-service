@@ -608,7 +608,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
 
     @Override
     public ApiResponse spvSearchEntity(SearchCriteria searchCriteria) {
-        log.info("KnowledgeServiceImpl::searchEntity: searching knowledge centre entities");
+        log.info("KnowledgeServiceImpl::spvSearchEntity: searching knowledge centre entities");
         String searchString = searchCriteria.getSearchString();
         ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_PARTNER_SEARCH);
         if (searchString != null && searchString.length() < 2) {

@@ -2,7 +2,6 @@ package com.igot.cb.announcement.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.vladmihalcea.hibernate.type.json.JsonBinaryType;
 import java.sql.Timestamp;
 import com.vladmihalcea.hibernate.type.json.JsonType;
 import jakarta.persistence.*;

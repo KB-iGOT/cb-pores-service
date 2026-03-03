@@ -39,30 +39,34 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 public class AnnouncementServiceImpl implements AnnouncementService {
-
-  @Autowired
-  private PayloadValidation payloadValidation;
-
   private Logger logger = LoggerFactory.getLogger(AnnouncementServiceImpl.class);
-  
-  @Autowired
-  private AnnouncementRepository announcementRepository;
+  private final PayloadValidation payloadValidation;
+  private final AnnouncementRepository announcementRepository;
+  private final EsUtilService esUtilService;
+  private final CacheService cacheService;
+  private final ObjectMapper objectMapper;
+  private final RedisTemplate<String, SearchResult> redisTemplate;
+  private final CbServerProperties serverProperties;
 
-  @Autowired
-  private EsUtilService esUtilService;
+  private final String requiredJsonFilePath = "/EsFieldsmapping/announcementEsMapping.json";
 
-  @Autowired
-  private CacheService cacheService;
-  @Autowired
-  private ObjectMapper objectMapper;
+  public AnnouncementServiceImpl(
+          PayloadValidation payloadValidation,
+          AnnouncementRepository announcementRepository,
+          EsUtilService esUtilService,
+          CacheService cacheService,
+          ObjectMapper objectMapper,
+          RedisTemplate<String, SearchResult> redisTemplate,
+          CbServerProperties serverProperties) {
 
-  private String requiredJsonFilePath = "/EsFieldsmapping/announcementEsMapping.json";
-
-  @Autowired
-  private RedisTemplate<String, SearchResult> redisTemplate;
-
-  @Autowired
-  private CbServerProperties serverProperties;
+    this.payloadValidation = payloadValidation;
+    this.announcementRepository = announcementRepository;
+    this.esUtilService = esUtilService;
+    this.cacheService = cacheService;
+    this.objectMapper = objectMapper;
+    this.redisTemplate = redisTemplate;
+    this.serverProperties = serverProperties;
+  }
 
   @Value("${search.result.redis.ttl}")
   private long searchResultRedisTtl;

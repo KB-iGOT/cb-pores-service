@@ -23,6 +23,9 @@ import com.igot.cb.pores.util.PayloadValidation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -473,19 +476,26 @@ class KnowledgeServiceImplTest {
         verify(valueOperations).set(anyString(), eq(searchResult), eq(3600L), any());
     }
 
-    @Test
-    void testSpvSearchEntity_WithMinimumCharacters_ShouldReturnError() {
+    /**
+     * Parameterized test for invalid search scenarios that should return BAD_REQUEST
+     */
+    @ParameterizedTest(name = "Search with searchString=''{0}'' should return BAD_REQUEST")
+    @MethodSource("provideInvalidSearchStrings")
+    void testSpvSearchEntity_WithInvalidSearchString_ShouldReturnBadRequest(String searchString, String description) {
         // Arrange
         SearchCriteria criteria = new SearchCriteria();
-        criteria.setSearchString("a"); // Less than 2 characters
+        criteria.setSearchString(searchString);
 
         // Act
         ApiResponse response = knowledgeService.spvSearchEntity(criteria);
 
         // Assert
-        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode(),
+            "Should return BAD_REQUEST for: " + description);
         assertEquals(Constants.FAILED, response.getParams().getStatus());
-        assertEquals(Constants.SEARCH_MIN_LENGTH_ERROR_MESSAGE, response.getParams().getErrMsg());
+        if (searchString != null && !searchString.isEmpty()) {
+            assertEquals(Constants.SEARCH_MIN_LENGTH_ERROR_MESSAGE, response.getParams().getErrMsg());
+        }
         verify(esUtilService, never()).searchDocumentsV2(anyString(), any());
     }
 
@@ -582,11 +592,12 @@ class KnowledgeServiceImplTest {
 
     @Test
     void testSpvSearchEntity_WithException_ShouldReturnInternalServerError() {
-
+        // Arrange
         SearchCriteria criteria = new SearchCriteria();
         criteria.setSearchString("test");
 
-        when(redisTemplate.opsForValue()).thenThrow(new RuntimeException("Redis error"));
+        when(esUtilService.searchDocumentsV2(eq(Constants.KNOWLEDGE_CENTRE_INDEX_NAME), any(SearchCriteria.class)))
+                .thenThrow(new RuntimeException("Search error"));
 
         ApiResponse response = knowledgeService.spvSearchEntity(criteria);
 

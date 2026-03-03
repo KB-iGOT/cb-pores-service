@@ -67,7 +67,6 @@
           "categoryId",
           "title",
           "summary",
-          "tags",
           "showUnderDeveloperDocs",
           "createdBy",
           "updatedBy",
