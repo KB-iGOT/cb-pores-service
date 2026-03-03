@@ -31,6 +31,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import java.util.*;
 import java.sql.Timestamp;
@@ -618,17 +619,9 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             return response;
         }
         try {
-            String redisKey = generateRedisJwtTokenKey(searchCriteria);
-            SearchResult searchResult = redisTemplate.opsForValue().get(redisKey);
-            if (searchResult != null) {
-                log.info("KnowledgeServiceImpl::searchEntity: search result fetched from redis cache");
-            } else {
-                searchResult = esUtilService.searchDocumentsV2(Constants.KNOWLEDGE_CENTRE_INDEX_NAME, searchCriteria);
-                redisTemplate.opsForValue().set(redisKey, searchResult, cbServerProperties.getSearchResultRedisTtl(), TimeUnit.SECONDS);
-                log.info("KnowledgeServiceImpl::searchEntity: search result stored in redis cache");
-            }
-            Map<String, Object> jsonMap = objectMapper.convertValue(searchResult, new TypeReference<Map<String, Object>>() {
-            });
+            SearchResult searchResult = esUtilService.searchDocumentsV2(Constants.KNOWLEDGE_CENTRE_INDEX_NAME, searchCriteria);
+            Map<String, Object> jsonMap = objectMapper.convertValue(searchResult, new TypeReference<Map<String, Object>>() {}
+            );
             List<Map<String, Object>> resultList = (List<Map<String, Object>>) jsonMap.get(Constants.DATA);
             Set<String> userListWithPrefix = new HashSet<>();
             Set<String> categoryIds = new HashSet<>();
@@ -645,8 +638,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             }
             List<Object> userList = fetchUserDetails(userListWithPrefix);
             List<Object> categoryDetails = fetchCategoryDetails(categoryIds);
-            jsonMap.put(Constants.USER_DETAILS, objectMapper.convertValue(userList, new TypeReference<Object>() {
-            }));
+            jsonMap.put(Constants.USER_DETAILS, userList);
             jsonMap.put(Constants.CATEGORY_DETAILS, categoryDetails);
             response.setResult(jsonMap);
             response.setResponseCode(HttpStatus.OK);
@@ -658,7 +650,6 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         }
         return response;
     }
-
     private List<Object> fetchUserDetails(Set<String> userListWithPrefix) {
         if (userListWithPrefix == null || userListWithPrefix.isEmpty()) {
             return Collections.emptyList();
@@ -668,7 +659,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         List<String> redisKeys = new ArrayList<>(userListWithPrefix);
         // Fetch users from Redis
         List<SearchResult> redisUsers = redisTemplate.opsForValue().multiGet(redisKeys);
-        if (redisUsers != null) {
+        if (!CollectionUtils.isEmpty(redisUsers)) {
             for (SearchResult userResult : redisUsers) {
                 Map<String, Object> user = null;
                 if (userResult != null) {
