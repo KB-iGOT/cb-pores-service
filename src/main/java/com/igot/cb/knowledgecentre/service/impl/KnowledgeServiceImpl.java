@@ -669,7 +669,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
                             new TypeReference<Map<String, Object>>() {
                             });
                 }
-                if (Objects.isNull(user) || !user.containsKey(Constants.USER_ID_KEY)) {
+                if (MapUtils.isEmpty(user) || !user.containsKey(Constants.USER_ID_KEY)) {
                     continue;
                 }
                 userList.add(user);
