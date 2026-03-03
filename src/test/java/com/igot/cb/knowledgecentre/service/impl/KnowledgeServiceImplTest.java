@@ -1,5 +1,6 @@
 package com.igot.cb.knowledgecentre.service.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -18,6 +19,7 @@ import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.PayloadValidation;
+import com.igot.cb.knowledgecentre.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,12 +29,14 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.http.HttpStatus;
 
 import java.sql.Timestamp;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -44,6 +48,7 @@ import static org.mockito.Mockito.*;
  * Tests cover create, update, publish, delete, and search operations for all entity types
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class KnowledgeServiceImplTest {
 
     @InjectMocks
@@ -82,6 +87,9 @@ class KnowledgeServiceImplTest {
     @Mock
     private ValueOperations<String, SearchResult> valueOperations;
 
+    @Mock
+    private UserService userService;
+
     private ObjectMapper realObjectMapper;
     private String authToken;
     private String userId;
@@ -97,6 +105,9 @@ class KnowledgeServiceImplTest {
         // Setup ObjectMapper to return ApiResponse with OK status
         ApiResponse defaultResponse = new ApiResponse();
         defaultResponse.setResponseCode(HttpStatus.OK);
+        // Global stubs used by multiple tests (prevents JWT secret null errors)
+        lenient().when(cbServerProperties.getJwtSecretKey()).thenReturn("test-secret-key");
+        lenient().when(cbServerProperties.getSearchResultRedisTtl()).thenReturn(3600L);
     }
 
     // ========================= Category Tests =========================
@@ -444,24 +455,46 @@ class KnowledgeServiceImplTest {
         criteria.setSearchString(searchString);
         SearchResult searchResult = new SearchResult();
 
+        // Redis and JWT stubs - service expects these during the search flow
+        lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        lenient().when(valueOperations.get(anyString())).thenReturn(null);
+        // Ensure JWT secret and serialization are available so generateRedisJwtTokenKey doesn't fail
+        lenient().when(cbServerProperties.getJwtSecretKey()).thenReturn("test-secret-key");
+        lenient().when(cbServerProperties.getSearchResultRedisTtl()).thenReturn(3600L);
+        // The service uses objectMapper.writeValueAsString internally to create the JWT claim - mock it
+        try {
+            lenient().when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            // won't happen - mock
+        }
+
+        // Stub ES util to return a SearchResult
         when(esUtilService.searchDocumentsV2(eq(Constants.KNOWLEDGE_CENTRE_INDEX_NAME), any(SearchCriteria.class)))
                 .thenReturn(searchResult);
+
+        // Ensure objectMapper and user service conversions return expected shapes
+        Map<String, Object> jsonMap = new HashMap<>();
+        jsonMap.put(Constants.DATA, new ArrayList<>());
+        when(objectMapper.convertValue(eq(searchResult), any(TypeReference.class))).thenReturn(jsonMap);
+        List<Object> userList = Collections.emptyList();
+        lenient().when(userService.fetchUserFromPrimary(anyList())).thenReturn(userList);
+        lenient().when(objectMapper.convertValue(eq(userList), any(TypeReference.class))).thenReturn(userList);
 
         // Act
         ApiResponse response = knowledgeService.spvSearchEntity(criteria);
 
         // Assert
         assertEquals(HttpStatus.OK, response.getResponseCode(),
-            "Should return OK for: " + description);
+                "Should return OK for: " + description);
         verify(esUtilService).searchDocumentsV2(eq(Constants.KNOWLEDGE_CENTRE_INDEX_NAME), any(SearchCriteria.class));
     }
 
     private static Stream<Arguments> provideValidSearchStrings() {
         return Stream.of(
-            Arguments.of("test query", "valid search query with multiple words"),
-            Arguments.of("ab", "exactly 2 characters (minimum boundary)"),
-            Arguments.of(null, "null search string"),
-            Arguments.of("test", "simple search term")
+                Arguments.of("test query", "valid search query with multiple words"),
+                Arguments.of("ab", "exactly 2 characters (minimum boundary)"),
+                Arguments.of(null, "null search string"),
+                Arguments.of("test", "simple search term")
         );
     }
 
@@ -480,7 +513,7 @@ class KnowledgeServiceImplTest {
 
         // Assert
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode(),
-            "Should return BAD_REQUEST for: " + description);
+                "Should return BAD_REQUEST for: " + description);
         assertEquals(Constants.FAILED, response.getParams().getStatus());
         if (searchString != null && !searchString.isEmpty()) {
             assertEquals(Constants.SEARCH_MIN_LENGTH_ERROR_MESSAGE, response.getParams().getErrMsg());
@@ -490,9 +523,9 @@ class KnowledgeServiceImplTest {
 
     private static Stream<Arguments> provideInvalidSearchStrings() {
         return Stream.of(
-            Arguments.of("a", "single character (less than minimum 2)"),
-            Arguments.of("", "empty string"),
-            Arguments.of("x", "single character 'x'")
+                Arguments.of("a", "single character (less than minimum 2)"),
+                Arguments.of("", "empty string"),
+                Arguments.of("x", "single character 'x'")
         );
     }
 
@@ -501,6 +534,17 @@ class KnowledgeServiceImplTest {
         // Arrange
         SearchCriteria criteria = new SearchCriteria();
         criteria.setSearchString("test");
+
+        // Ensure JWT secret and serialization are available so JWT generation doesn't throw
+        lenient().when(cbServerProperties.getJwtSecretKey()).thenReturn("test-secret-key");
+        lenient().when(cbServerProperties.getSearchResultRedisTtl()).thenReturn(3600L);
+        lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        lenient().when(valueOperations.get(anyString())).thenReturn(null);
+        try {
+            lenient().when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            // won't happen - mock
+        }
 
         when(esUtilService.searchDocumentsV2(eq(Constants.KNOWLEDGE_CENTRE_INDEX_NAME), any(SearchCriteria.class)))
                 .thenThrow(new RuntimeException("Search error"));
@@ -579,4 +623,3 @@ class KnowledgeServiceImplTest {
         return entity;
     }
 }
-

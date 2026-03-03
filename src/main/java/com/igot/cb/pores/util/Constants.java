@@ -509,6 +509,11 @@ public class Constants {
     public static final String CATEGORY_ID = "categoryId";
     public static final String SUB_CATEGORY_ID = "subCategoryId";
     public static final String ARTICLE_ID = "articleId";
+    public static final String USER_PREFIX = "user:";
+    public static final String USER_ID_KEY = "user_id";
+    public static final String FIRST_NAME_KEY = "first_name";
+    public static final String USER_DETAILS = "userDetails";
+    public static final String CATEGORY_DETAILS = "categoryDetails";
 
 
     private Constants() {
