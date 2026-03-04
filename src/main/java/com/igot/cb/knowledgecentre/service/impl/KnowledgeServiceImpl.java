@@ -18,6 +18,7 @@ import com.igot.cb.knowledgecentre.service.KnowledgeService;
 import com.igot.cb.knowledgecentre.service.UserService;
 import com.igot.cb.knowledgecentre.util.KnowledgeCentreUtil;
 import com.igot.cb.playlist.util.ProjectUtil;
+import com.igot.cb.pores.cache.CacheService;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
@@ -54,6 +55,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     private final RedisTemplate<String, SearchResult> redisTemplate;
     private final KnowledgeCentreUtil knowledgeCentreUtil;
     private final UserService userService;
+    private final CacheService cacheService;
 
     @Override
     public ApiResponse createCategory(JsonNode categoryDto, String token) {
@@ -628,10 +630,10 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             Set<String> categoryIds = new HashSet<>();
             for (Map<String, Object> entity : resultList) {
                 if (entity.get(Constants.CREATED_BY) != null) {
-                    userListWithPrefix.add(Constants.USER_PREFIX + entity.get(Constants.CREATED_BY));
+                    userListWithPrefix.add(Constants.BASIC_PROFILE_CACHE_PREFIX + entity.get(Constants.CREATED_BY));
                 }
                 if (entity.get(Constants.UPDATED_BY) != null) {
-                    userListWithPrefix.add(Constants.USER_PREFIX + entity.get(Constants.UPDATED_BY));
+                    userListWithPrefix.add(Constants.BASIC_PROFILE_CACHE_PREFIX + entity.get(Constants.UPDATED_BY));
                 }
                 if (entity.get(Constants.CATEGORYID) != null) {
                     categoryIds.add(entity.get(Constants.CATEGORYID).toString());
@@ -651,6 +653,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         }
         return response;
     }
+
     private List<Object> fetchUserDetails(Set<String> userListWithPrefix) {
         if (userListWithPrefix.isEmpty()) {
             return Collections.emptyList();
@@ -659,29 +662,28 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         Map<String, Object> userInfoMap = new HashMap<>();
         List<String> redisKeys = new ArrayList<>(userListWithPrefix);
         // Fetch users from Redis
-        List<SearchResult> redisUsers = redisTemplate.opsForValue().multiGet(redisKeys);
-        if (!CollectionUtils.isEmpty(redisUsers)) {
-            for (SearchResult userResult : redisUsers) {
-                Map<String, Object> user = null;
-                if (userResult != null) {
-                    user = objectMapper.convertValue(
-                            userResult,
-                            new TypeReference<Map<String, Object>>() {
-                            });
-                }
+        for (String key : redisKeys) {
+            String cachedUser = cacheService.getCache(key);
+            if (cachedUser == null) {
+                continue;
+            }
+            try {
+                JsonNode userNode = objectMapper.readTree(cachedUser);
+                Map<String, Object> user = objectMapper.convertValue(userNode, new TypeReference<>() {});
                 if (MapUtils.isEmpty(user) || !user.containsKey(Constants.USER_ID_KEY)) {
                     continue;
                 }
                 userList.add(user);
-                String key = Constants.USER_PREFIX + user.get(Constants.USER_ID_KEY).toString();
                 userInfoMap.put(key, user);
+            } catch (Exception e) {
+                log.error("Error parsing cached user data for key: {}", key, e);
             }
         }
         // Identify missing users
         List<String> missingUserIds = new ArrayList<>();
         for (String key : redisKeys) {
             if (!userInfoMap.containsKey(key)) {
-                missingUserIds.add(key.substring(Constants.USER_PREFIX.length()));
+                missingUserIds.add(key.substring(Constants.BASIC_PROFILE_CACHE_PREFIX.length()));
             }
         }
         if (!missingUserIds.isEmpty()) {
@@ -702,10 +704,6 @@ public class KnowledgeServiceImpl implements KnowledgeService {
                 continue;
             }
             userList.add(user);
-            String key = Constants.USER_PREFIX + user.get(Constants.USER_ID_KEY).toString();
-            SearchResult searchResultUser = objectMapper.convertValue(user, SearchResult.class);
-
-            redisTemplate.opsForValue().set(key, searchResultUser);
         }
     }
 

@@ -852,8 +852,6 @@ public class EsUtilServiceImpl implements EsUtilService {
                 .query(trimmedSearch)
                 .fields(boostedFields)
                 .type(TextQueryType.MostFields)
-                .operator(Operator.Or)
-                .fuzziness(Constants.AUTO)
         )));
         boolQueryBuilder.minimumShouldMatch("1");
     }
