@@ -514,8 +514,6 @@ public class Constants {
     public static final String FIRST_NAME_KEY = "first_name";
     public static final String USER_DETAILS = "userDetails";
     public static final String CATEGORY_DETAILS = "categoryDetails";
-    public static final String KC_USER_CACHE_PREFIX = "kc:user:";
-
 
     private Constants() {
     }

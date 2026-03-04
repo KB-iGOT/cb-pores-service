@@ -23,7 +23,7 @@ public class UserServiceImpl implements UserService {
         propertyMap.put(Constants.ID, userIds);
         List<Map<String, Object>> userInfoList = cassandraOperation.getRecordsByPropertiesWithoutFiltering(
                 Constants.KEYSPACE_SUNBIRD, Constants.TABLE_USER, propertyMap,
-                Arrays.asList(Constants.PROFILE_DETAILS, Constants.FIRST_NAME, Constants.ID, Constants.CHANNEL), null);
+                Arrays.asList(Constants.FIRST_NAME, Constants.ID), null);
         return userInfoList.stream()
                 .map(userInfo -> {
                     Map<String, Object> userMap = new HashMap<>();

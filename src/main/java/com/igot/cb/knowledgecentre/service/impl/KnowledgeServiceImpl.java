@@ -630,10 +630,10 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             Set<String> categoryIds = new HashSet<>();
             for (Map<String, Object> entity : resultList) {
                 if (entity.get(Constants.CREATED_BY) != null) {
-                    userListWithPrefix.add(Constants.KC_USER_CACHE_PREFIX + entity.get(Constants.CREATED_BY));
+                    userListWithPrefix.add(Constants.USER_PREFIX + entity.get(Constants.CREATED_BY));
                 }
                 if (entity.get(Constants.UPDATED_BY) != null) {
-                    userListWithPrefix.add(Constants.KC_USER_CACHE_PREFIX + entity.get(Constants.UPDATED_BY));
+                    userListWithPrefix.add(Constants.USER_PREFIX + entity.get(Constants.UPDATED_BY));
                 }
                 if (entity.get(Constants.CATEGORYID) != null) {
                     categoryIds.add(entity.get(Constants.CATEGORYID).toString());
@@ -662,30 +662,28 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         Map<String, Object> userInfoMap = new HashMap<>();
         List<String> redisKeys = new ArrayList<>(userListWithPrefix);
         // Fetch users from Redis
-        List<String> cachedUsers = cacheService.getCacheBulk(redisKeys);
-        if (!CollectionUtils.isEmpty(cachedUsers)) {
-            for (int i = 0; i < redisKeys.size(); i++) {
-                String cachedUser = cachedUsers.get(i);
-                if (cachedUser != null) {
-                    try {
-                        JsonNode userNode = objectMapper.readTree(cachedUser);
-                        Map<String, Object> user = objectMapper.convertValue(userNode, new TypeReference<>() {});
-                        if (MapUtils.isEmpty(user) || !user.containsKey(Constants.USER_ID_KEY)) {
-                            continue;
-                        }
-                        userList.add(user);
-                        userInfoMap.put(redisKeys.get(i), user);
-                    } catch (Exception e) {
-                        log.error("Error parsing cached user data for key: {}", redisKeys.get(i), e);
-                    }
+        for (String key : redisKeys) {
+            String cachedUser = cacheService.getCache(key);
+            if (cachedUser == null) {
+                continue;
+            }
+            try {
+                JsonNode userNode = objectMapper.readTree(cachedUser);
+                Map<String, Object> user = objectMapper.convertValue(userNode, new TypeReference<>() {});
+                if (MapUtils.isEmpty(user) || !user.containsKey(Constants.USER_ID_KEY)) {
+                    continue;
                 }
+                userList.add(user);
+                userInfoMap.put(key, user);
+            } catch (Exception e) {
+                log.error("Error parsing cached user data for key: {}", key, e);
             }
         }
         // Identify missing users
         List<String> missingUserIds = new ArrayList<>();
         for (String key : redisKeys) {
             if (!userInfoMap.containsKey(key)) {
-                missingUserIds.add(key.substring(Constants.KC_USER_CACHE_PREFIX.length()));
+                missingUserIds.add(key.substring(Constants.USER_PREFIX.length()));
             }
         }
         if (!missingUserIds.isEmpty()) {
@@ -706,10 +704,6 @@ public class KnowledgeServiceImpl implements KnowledgeService {
                 continue;
             }
             userList.add(user);
-            String key = Constants.KC_USER_CACHE_PREFIX + user.get(Constants.USER_ID_KEY).toString();
-            Object searchResultUser = objectMapper.convertValue(user, Object.class);
-
-            cacheService.putCache(key, searchResultUser);
         }
     }
 
