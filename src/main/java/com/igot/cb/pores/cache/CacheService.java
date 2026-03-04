@@ -51,12 +51,4 @@ public class CacheService {
     return null;
   }
 
-  public List<String> getCacheBulk(List<String> keys) {
-    try {
-      return redisTemplate.opsForValue().multiGet(keys);
-    } catch (Exception e) {
-      log.error("Error while getting bulk data from Redis cache: {} ", e.getMessage());
-      return null;
-    }
-  }
 }
