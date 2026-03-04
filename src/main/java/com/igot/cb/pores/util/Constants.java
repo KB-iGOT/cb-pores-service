@@ -514,13 +514,7 @@ public class Constants {
     public static final String FIRST_NAME_KEY = "first_name";
     public static final String USER_DETAILS = "userDetails";
     public static final String CATEGORY_DETAILS = "categoryDetails";
-    public static final String DEPARTMENT = "department";
-    public static final String PROFILE_IMG_KEY = "user_profile_img_url";
-    public static final String DESIGNATION_KEY = "designation";
-    public static final String PROFILE_STATUS = "userProfileStatus";
-    public static final String PROFILE_IMG = "profileImageUrl";
-    public static final String PROFESSIONAL_DETAILS = "professionalDetails";
-    public static final String PROFILE_STATUS_KEY = "profileStatus";
+    public static final String KC_USER_CACHE_PREFIX = "kc:user:";
 
 
     private Constants() {

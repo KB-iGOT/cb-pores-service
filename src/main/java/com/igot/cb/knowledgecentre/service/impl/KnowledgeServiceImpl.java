@@ -630,10 +630,10 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             Set<String> categoryIds = new HashSet<>();
             for (Map<String, Object> entity : resultList) {
                 if (entity.get(Constants.CREATED_BY) != null) {
-                    userListWithPrefix.add(Constants.USER_PREFIX + entity.get(Constants.CREATED_BY));
+                    userListWithPrefix.add(Constants.KC_USER_CACHE_PREFIX + entity.get(Constants.CREATED_BY));
                 }
                 if (entity.get(Constants.UPDATED_BY) != null) {
-                    userListWithPrefix.add(Constants.USER_PREFIX + entity.get(Constants.UPDATED_BY));
+                    userListWithPrefix.add(Constants.KC_USER_CACHE_PREFIX + entity.get(Constants.UPDATED_BY));
                 }
                 if (entity.get(Constants.CATEGORYID) != null) {
                     categoryIds.add(entity.get(Constants.CATEGORYID).toString());
@@ -641,17 +641,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             }
             List<Object> userList = fetchUserDetails(userListWithPrefix);
             List<Object> categoryDetails = fetchCategoryDetails(categoryIds);
-            List<Map<String, Object>> filteredUsers = userList.stream()
-                    .map(obj -> {
-                        Map<String, Object> user = (Map<String, Object>) obj;
-                        Map<String, Object> filtered = new HashMap<>();
-                        filtered.put(Constants.USER_ID_KEY, user.get(Constants.USER_ID_KEY));
-                        filtered.put(Constants.FIRST_NAME_KEY, user.get(Constants.FIRST_NAME_KEY));
-                        return filtered;
-                    })
-                    .toList();
-
-            jsonMap.put(Constants.USER_DETAILS, filteredUsers);
+            jsonMap.put(Constants.USER_DETAILS, userList);
             jsonMap.put(Constants.CATEGORY_DETAILS, categoryDetails);
             response.setResult(jsonMap);
             response.setResponseCode(HttpStatus.OK);
@@ -695,7 +685,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         List<String> missingUserIds = new ArrayList<>();
         for (String key : redisKeys) {
             if (!userInfoMap.containsKey(key)) {
-                missingUserIds.add(key.substring(Constants.USER_PREFIX.length()));
+                missingUserIds.add(key.substring(Constants.KC_USER_CACHE_PREFIX.length()));
             }
         }
         if (!missingUserIds.isEmpty()) {
@@ -716,7 +706,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
                 continue;
             }
             userList.add(user);
-            String key = Constants.USER_PREFIX + user.get(Constants.USER_ID_KEY).toString();
+            String key = Constants.KC_USER_CACHE_PREFIX + user.get(Constants.USER_ID_KEY).toString();
             Object searchResultUser = objectMapper.convertValue(user, Object.class);
 
             cacheService.putCache(key, searchResultUser);
