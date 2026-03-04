@@ -18,6 +18,7 @@ import com.igot.cb.knowledgecentre.service.KnowledgeService;
 import com.igot.cb.knowledgecentre.service.UserService;
 import com.igot.cb.knowledgecentre.util.KnowledgeCentreUtil;
 import com.igot.cb.playlist.util.ProjectUtil;
+import com.igot.cb.pores.cache.CacheService;
 import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.elasticsearch.service.EsUtilService;
@@ -54,6 +55,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     private final RedisTemplate<String, SearchResult> redisTemplate;
     private final KnowledgeCentreUtil knowledgeCentreUtil;
     private final UserService userService;
+    private final CacheService cacheService;
 
     @Override
     public ApiResponse createCategory(JsonNode categoryDto, String token) {
@@ -639,7 +641,17 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             }
             List<Object> userList = fetchUserDetails(userListWithPrefix);
             List<Object> categoryDetails = fetchCategoryDetails(categoryIds);
-            jsonMap.put(Constants.USER_DETAILS, userList);
+            List<Map<String, Object>> filteredUsers = userList.stream()
+                    .map(obj -> {
+                        Map<String, Object> user = (Map<String, Object>) obj;
+                        Map<String, Object> filtered = new HashMap<>();
+                        filtered.put(Constants.USER_ID_KEY, user.get(Constants.USER_ID_KEY));
+                        filtered.put(Constants.FIRST_NAME_KEY, user.get(Constants.FIRST_NAME_KEY));
+                        return filtered;
+                    })
+                    .toList();
+
+            jsonMap.put(Constants.USER_DETAILS, filteredUsers);
             jsonMap.put(Constants.CATEGORY_DETAILS, categoryDetails);
             response.setResult(jsonMap);
             response.setResponseCode(HttpStatus.OK);
@@ -651,6 +663,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         }
         return response;
     }
+
     private List<Object> fetchUserDetails(Set<String> userListWithPrefix) {
         if (userListWithPrefix.isEmpty()) {
             return Collections.emptyList();
@@ -659,22 +672,23 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         Map<String, Object> userInfoMap = new HashMap<>();
         List<String> redisKeys = new ArrayList<>(userListWithPrefix);
         // Fetch users from Redis
-        List<SearchResult> redisUsers = redisTemplate.opsForValue().multiGet(redisKeys);
-        if (!CollectionUtils.isEmpty(redisUsers)) {
-            for (SearchResult userResult : redisUsers) {
-                Map<String, Object> user = null;
-                if (userResult != null) {
-                    user = objectMapper.convertValue(
-                            userResult,
-                            new TypeReference<Map<String, Object>>() {
-                            });
+        List<String> cachedUsers = cacheService.getCacheBulk(redisKeys);
+        if (!CollectionUtils.isEmpty(cachedUsers)) {
+            for (int i = 0; i < redisKeys.size(); i++) {
+                String cachedUser = cachedUsers.get(i);
+                if (cachedUser != null) {
+                    try {
+                        JsonNode userNode = objectMapper.readTree(cachedUser);
+                        Map<String, Object> user = objectMapper.convertValue(userNode, new TypeReference<>() {});
+                        if (MapUtils.isEmpty(user) || !user.containsKey(Constants.USER_ID_KEY)) {
+                            continue;
+                        }
+                        userList.add(user);
+                        userInfoMap.put(redisKeys.get(i), user);
+                    } catch (Exception e) {
+                        log.error("Error parsing cached user data for key: {}", redisKeys.get(i), e);
+                    }
                 }
-                if (MapUtils.isEmpty(user) || !user.containsKey(Constants.USER_ID_KEY)) {
-                    continue;
-                }
-                userList.add(user);
-                String key = Constants.USER_PREFIX + user.get(Constants.USER_ID_KEY).toString();
-                userInfoMap.put(key, user);
             }
         }
         // Identify missing users
@@ -703,9 +717,9 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             }
             userList.add(user);
             String key = Constants.USER_PREFIX + user.get(Constants.USER_ID_KEY).toString();
-            SearchResult searchResultUser = objectMapper.convertValue(user, SearchResult.class);
+            Object searchResultUser = objectMapper.convertValue(user, Object.class);
 
-            redisTemplate.opsForValue().set(key, searchResultUser);
+            cacheService.putCache(key, searchResultUser);
         }
     }
 

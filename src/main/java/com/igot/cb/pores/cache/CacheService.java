@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.data.redis.core.RedisTemplate;
+
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -48,5 +50,14 @@ public class CacheService {
       log.warn("Field not found in key {}.", key);
     }
     return null;
+  }
+
+  public List<String> getCacheBulk(List<String> keys) {
+    try {
+      return redisTemplate.opsForValue().multiGet(keys);
+    } catch (Exception e) {
+      log.error("Error while getting bulk data from Redis cache: {} ", e.getMessage());
+      return null;
+    }
   }
 }
