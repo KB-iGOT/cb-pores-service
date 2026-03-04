@@ -630,10 +630,10 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             Set<String> categoryIds = new HashSet<>();
             for (Map<String, Object> entity : resultList) {
                 if (entity.get(Constants.CREATED_BY) != null) {
-                    userListWithPrefix.add(Constants.USER_PREFIX + entity.get(Constants.CREATED_BY));
+                    userListWithPrefix.add(Constants.BASIC_PROFILE_CACHE_PREFIX + entity.get(Constants.CREATED_BY));
                 }
                 if (entity.get(Constants.UPDATED_BY) != null) {
-                    userListWithPrefix.add(Constants.USER_PREFIX + entity.get(Constants.UPDATED_BY));
+                    userListWithPrefix.add(Constants.BASIC_PROFILE_CACHE_PREFIX + entity.get(Constants.UPDATED_BY));
                 }
                 if (entity.get(Constants.CATEGORYID) != null) {
                     categoryIds.add(entity.get(Constants.CATEGORYID).toString());
@@ -683,7 +683,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         List<String> missingUserIds = new ArrayList<>();
         for (String key : redisKeys) {
             if (!userInfoMap.containsKey(key)) {
-                missingUserIds.add(key.substring(Constants.USER_PREFIX.length()));
+                missingUserIds.add(key.substring(Constants.BASIC_PROFILE_CACHE_PREFIX.length()));
             }
         }
         if (!missingUserIds.isEmpty()) {
