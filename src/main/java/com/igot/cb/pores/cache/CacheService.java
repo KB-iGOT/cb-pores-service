@@ -49,4 +49,15 @@ public class CacheService {
     }
     return null;
   }
+
+  public boolean isRedisHealthy() {
+    try {
+      String pong = redisTemplate.getConnectionFactory()
+              .getConnection()
+              .ping();
+      return "PONG".equalsIgnoreCase(pong);
+    } catch (Exception e) {
+      return false;
+    }
+  }
 }

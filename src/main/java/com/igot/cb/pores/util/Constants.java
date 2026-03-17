@@ -513,7 +513,15 @@ public class Constants {
     public static final String USER_ID_KEY = "user_id";
     public static final String FIRST_NAME_KEY = "first_name";
     public static final String USER_DETAILS = "userDetails";
+    public static final String API_HEALTH_CHECK = "api.health.check";
+    public static final String HEALTHY = "healthy";
+    public static final String CHECKS = "checks";
+    public static final String CASSANDRA_DB = "cassandra db";
+    public static final String TABLE_SYSTEM_SETTINGS = "system_settings";
 
+    // Redis
+    public static final String REDIS_CACHE = "redis cache";
+    public static final String POSTGRES_DB = "postgres db";
 
     private Constants() {
     }
