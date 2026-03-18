@@ -3,6 +3,7 @@ package com.igot.cb.health.controller;
 
 import com.igot.cb.health.service.HealthService;
 import com.igot.cb.pores.util.ApiResponse;
+import org.checkerframework.checker.units.qual.A;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -12,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -24,19 +26,24 @@ class HealthControllerTest {
     private HealthController healthController;
 
     @Test
-    void healthCheck_ShouldReturnApiResponse() throws Exception {
+    void testHealthCheck_success() throws Exception {
+        // Arrange
+        ApiResponse mockResponse = new ApiResponse();
+        mockResponse.setResponseCode(HttpStatus.OK);
 
-        ApiResponse response = new ApiResponse();
-        response.setResponseCode(HttpStatus.OK);
+        when(healthService.checkHealthStatus(anyString()))
+                .thenReturn(mockResponse);
 
-        when(healthService.checkHealthStatus()).thenReturn(response);
+        // Act
+        ResponseEntity<ApiResponse> response = healthController.healthCheck();
 
-        ResponseEntity<ApiResponse> result = healthController.healthCheck();
+        // Assert
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(mockResponse, response.getBody());
 
-        assertEquals(HttpStatus.OK, result.getStatusCode());
-        assertEquals(response, result.getBody());
-
-        verify(healthService, times(1)).checkHealthStatus();
+        // Verify UUID was passed
+        verify(healthService).checkHealthStatus(anyString());
     }
 
 
