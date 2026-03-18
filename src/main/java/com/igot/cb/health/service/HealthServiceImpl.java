@@ -128,7 +128,7 @@ public class HealthServiceImpl implements HealthService {
     private void elasticsearchHealthStatus(ApiResponse response) {
 
         Map<String, Object> result = new HashMap<>();
-        result.put(Constants.NAME, Constants.REDIS_CACHE);
+        result.put(Constants.NAME, Constants.ELASTIC_SEARCH);
         boolean isHealthy = true;
         try {
             isHealthy = esClientService.isElasticsearchHealthy();
