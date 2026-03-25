@@ -17,7 +17,7 @@ public class HealthController {
     private HealthService healthService;
 
     @GetMapping("/health")
-    public ResponseEntity<ApiResponse> healthCheck() throws Exception {
+    public ResponseEntity<?> healthCheck() throws Exception {
         String requestId = UUID.randomUUID().toString();
         ApiResponse response = healthService.checkHealthStatus(requestId);
         return new ResponseEntity<>(response, response.getResponseCode());

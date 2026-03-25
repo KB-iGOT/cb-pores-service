@@ -18,7 +18,7 @@ public class ApiResponse {
     private ApiRespParam params;
     private HttpStatus responseCode;
 
-    private transient Map<String, Object> response = new HashMap<>();
+    private transient Map<String, Object> result = new HashMap<>();
 
     public ApiResponse() {
         this.ver = "v1";
@@ -72,27 +72,27 @@ public class ApiResponse {
     }
 
     public Map<String, Object> getResult() {
-        return response;
+        return this.result;
     }
 
     public void setResult(Map<String, Object> result) {
-        response = result;
+        this.result = result;
     }
 
     public Object get(String key) {
-        return response.get(key);
+        return result.get(key);
     }
 
     public void put(String key, Object vo) {
-        response.put(key, vo);
+        result.put(key, vo);
     }
 
     public void putAll(Map<String, Object> map) {
-        response.putAll(map);
+        result.putAll(map);
     }
 
     public boolean containsKey(String key) {
-        return response.containsKey(key);
+        return result.containsKey(key);
     }
 
 }

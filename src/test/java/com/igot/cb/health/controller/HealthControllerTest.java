@@ -35,7 +35,7 @@ class HealthControllerTest {
                 .thenReturn(mockResponse);
 
         // Act
-        ResponseEntity<ApiResponse> response = healthController.healthCheck();
+        ResponseEntity<ApiResponse> response = (ResponseEntity<ApiResponse>) healthController.healthCheck();
 
         // Assert
         assertNotNull(response);

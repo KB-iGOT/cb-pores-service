@@ -523,6 +523,11 @@ public class Constants {
     public static final String REDIS_CACHE = "Redis cache";
     public static final String POSTGRES_DB = "Postgres Service";
     public static final String ELASTIC_SEARCH = "Elastic search service";
+    public static final Boolean FALSE = false;
+    public static final Boolean TRUE = true;
+    public static final String ERR = "err";
+    public static final String ALL_HEALTH_CHECK = "Complete health check api";
+    public static final String KAFKA_SERVICE = "Kafka Service";
 
     private Constants() {
     }

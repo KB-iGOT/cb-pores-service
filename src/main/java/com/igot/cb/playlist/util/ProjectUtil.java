@@ -4,6 +4,7 @@ import com.igot.cb.pores.util.ApiRespParam;
 import com.igot.cb.pores.util.ApiResponse;
 import com.igot.cb.pores.util.Constants;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.joda.time.DateTime;
@@ -33,4 +34,13 @@ public class ProjectUtil {
         response.getParams().setErrMsg(errorMessage);
         response.getParams().setStatus(Constants.FAILED);
     }
+
+  public static Map<String, Object> createDefaultMapResponse(String api, String err, String errMsg) {
+    Map<String, Object> response = new HashMap<>();
+    response.put(Constants.HEALTHY, Constants.TRUE);
+    response.put(Constants.NAME, api);
+    response.put(Constants.ERR, err != null ? err : "");
+    response.put(Constants.ERROR_MESSAGE, errMsg != null ? errMsg : "");
+    return response;
+  }
 }
