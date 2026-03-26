@@ -27,4 +27,6 @@ public interface EsUtilService {
 
   SearchResult searchDocumentsV2(String esIndexName, SearchCriteria searchCriteria);
 
+  boolean isElasticsearchHealthy();
+
 }

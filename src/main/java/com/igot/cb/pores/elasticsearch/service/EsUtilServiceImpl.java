@@ -1,15 +1,13 @@
 package com.igot.cb.pores.elasticsearch.service;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.FieldValue;
-import co.elastic.clients.elasticsearch._types.Refresh;
-import co.elastic.clients.elasticsearch._types.SortOptions;
-import co.elastic.clients.elasticsearch._types.SortOrder;
+import co.elastic.clients.elasticsearch._types.*;
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregate;
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregation;
 import co.elastic.clients.elasticsearch._types.aggregations.StringTermsBucket;
 import co.elastic.clients.elasticsearch._types.aggregations.TermsAggregation;
 import co.elastic.clients.elasticsearch._types.query_dsl.*;
+import co.elastic.clients.elasticsearch.cluster.HealthResponse;
 import co.elastic.clients.elasticsearch.core.*;
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation;
 import co.elastic.clients.elasticsearch.core.search.Hit;
@@ -900,6 +898,19 @@ public class EsUtilServiceImpl implements EsUtilService {
         return textFields.contains(field)
                 ? field + Constants.KEYWORD
                 : field;
+    }
+
+    public boolean isElasticsearchHealthy() {
+        try {
+
+            HealthResponse healthResponse = elasticsearchClient.cluster().health();
+            HealthStatus status = healthResponse.status();
+            return HealthStatus.Green.equals(status) || HealthStatus.Yellow.equals(status);
+
+        } catch (Exception e) {
+            log.error("ElasticSearch health check failed", e);
+            return false;
+        }
     }
 
 }
