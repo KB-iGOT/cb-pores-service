@@ -29,6 +29,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import com.igot.cb.producer.Producer;
+import java.security.SecureRandom;
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -57,6 +58,9 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
 
     @Autowired
     private Producer kafkaProducer;
+
+    @Autowired
+    private SecureRandom secureRandom;
 
     @Value("${search.result.redis.ttl}")
     private long searchResultRedisTtl;
@@ -251,7 +255,7 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
         do {
             StringBuilder randomCode = new StringBuilder(5);
             for (int i = 0; i < 5; i++) {
-                randomCode.append(Constants.PARTNER_CODE_CHARS.charAt(Constants.SECURE_RANDOM.nextInt(Constants.PARTNER_CODE_CHARS.length())));
+                randomCode.append(Constants.PARTNER_CODE_CHARS.charAt(secureRandom.nextInt(Constants.PARTNER_CODE_CHARS.length())));
             }
             partnerCode = Constants.APPLICATION_ID_PREFIX + firstWord + "-" + randomCode;
         } while (entityRepository.findByPartnerCode(partnerCode).isPresent());
