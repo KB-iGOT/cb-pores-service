@@ -32,6 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import com.igot.cb.producer.Producer;
 
+import java.security.SecureRandom;
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -64,7 +65,8 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
     @Value("${search.result.redis.ttl}")
     private long searchResultRedisTtl;
 
-    private Logger logger = LoggerFactory.getLogger(ContentPartnerServiceImpl.class);
+    private static final String PARTNER_CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     @Override
     public ApiResponse createOrUpdate(JsonNode partnerDetails) {
@@ -249,11 +251,15 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
         response.setResponseCode(HttpStatus.OK);
         return response;
     }
+
     private String generatePartnerCode(String partnerName, String id) {
         String firstWord = partnerName.trim().split("\\s+")[0].toUpperCase().replaceAll("[^A-Z]", "");
         String partnerCode;
         do {
-            String randomCode = id.replace("-", "").substring(0, 5).toUpperCase();
+            StringBuilder randomCode = new StringBuilder(5);
+            for (int i = 0; i < 5; i++) {
+                randomCode.append(PARTNER_CODE_CHARS.charAt(SECURE_RANDOM.nextInt(PARTNER_CODE_CHARS.length())));
+            }
             partnerCode = Constants.APPLICATION_ID_PREFIX + firstWord + "-" + randomCode;
         } while (entityRepository.findByPartnerCode(partnerCode).isPresent());
         return partnerCode;
@@ -359,7 +365,7 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
             response.setResult(jsonMap);
             response.setResponseCode(HttpStatus.OK);
         } catch (Exception e) {
-            logger.error("Error while processing to search", e);
+            log.error("Error while processing to search", e);
             response.getParams().setErrMsg(e.getMessage());
             response.getParams().setStatus(Constants.FAILED);
             response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
