@@ -1,7 +1,5 @@
 package com.igot.cb.pores.util;
 
-import java.security.SecureRandom;
-
 /**
  * @author Mahesh RV
  */
@@ -519,8 +517,6 @@ public class Constants {
     public static final String BASIC_PROFILE_CACHE_PREFIX = Constants.USER + ":basicProfile:";
     public static final String STATE_ADMIN = "STATE_ADMIN";
     public static final String BADGE_DETAILS_V1 = "badgeDetails_v1";
-    public static final String PARTNER_CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
 
     private Constants() {
     }

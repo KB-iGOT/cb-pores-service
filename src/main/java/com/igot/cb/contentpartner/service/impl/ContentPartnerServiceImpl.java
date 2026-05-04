@@ -255,7 +255,7 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
         do {
             StringBuilder randomCode = new StringBuilder(5);
             for (int i = 0; i < 5; i++) {
-                randomCode.append(Constants.PARTNER_CODE_CHARS.charAt(secureRandom.nextInt(Constants.PARTNER_CODE_CHARS.length())));
+                randomCode.append(cbServerProperties.getPartnerCodeChar().charAt(secureRandom.nextInt(cbServerProperties.getPartnerCodeChar().length())));
             }
             partnerCode = Constants.APPLICATION_ID_PREFIX + firstWord + "-" + randomCode;
         } while (entityRepository.findByPartnerCode(partnerCode).isPresent());
