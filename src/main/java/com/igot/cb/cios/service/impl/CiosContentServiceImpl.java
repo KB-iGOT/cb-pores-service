@@ -219,7 +219,9 @@ public class CiosContentServiceImpl implements CiosContentService {
                     contentNode.put(Constants.IS_ACTIVE, Constants.ACTIVE_STATUS);
                     contentNode.put(Constants.PUBLISHED_ON, timestamp.toString());
                     contentNode.put(Constants.UPDATED_DATE, timestamp.toString());
-                    applyPublishTimeLicenceRules(contentNode, eachData, partnerCode);
+                    if (!applyPublishTimeLicenceRules(contentNode, eachData, partnerCode, apiResponse)) {
+                        return apiResponse;
+                    }
                     apiCallToCiosSecondaryDbForUpdateData(jsonNode);
                     CiosContentEntity ciosContentEntity = createNewContent(jsonNode);
                     ciosRepository.save(ciosContentEntity);
@@ -240,6 +242,11 @@ public class CiosContentServiceImpl implements CiosContentService {
             Map<String, Object> result = new HashMap<>();
             result.put("ApiResponse", "All data curated successfully");
             apiResponse.setResult(result);
+            return apiResponse;
+        } catch (CustomException e) {
+            apiResponse.getParams().setErrMsg(e.getMessage());
+            apiResponse.getParams().setStatus(Constants.FAILED);
+            apiResponse.setResponseCode(e.getHttpStatusCode() != null ? e.getHttpStatusCode() : HttpStatus.BAD_REQUEST);
             return apiResponse;
         } catch (Exception e) {
             apiResponse.getParams().setErrMsg(e.getMessage());
@@ -269,8 +276,16 @@ public class CiosContentServiceImpl implements CiosContentService {
      *   provider's karmaPoints for a "paid" course (same outcome as the User-licence case).
      * - If the provider hasn't configured a licenceType yet, this is a no-op beyond the
      *   provider-karma-points gate above, preserving prior default-only behaviour.
+     *
+     * Returns false (with apiResponse already populated as a BAD_REQUEST validation failure) when
+     * the supplied courseEnrolLimit/requiredKarmaPoints is invalid against the partner's
+     * overAllLimit/karmaPoints; the caller must return apiResponse immediately in that case rather
+     * than continuing to persist the content. This is a direct response, not an exception, so it
+     * doesn't touch onboardContent's generic catch block or the status code of any other error.
+     * Returns true otherwise.
      */
-    private void applyPublishTimeLicenceRules(ObjectNode contentNode, ObjectDto eachData, String partnerCode) {
+    private boolean applyPublishTimeLicenceRules(ObjectNode contentNode, ObjectDto eachData, String partnerCode,
+                                                  ApiResponse apiResponse) {
         // Capture whatever requiredKarmaPoints was actually submitted for this course - whether it
         // arrived as the top-level ObjectDto field or already nested inside contentData.content -
         // before the placeholder write below overwrites contentNode with just the ObjectDto field.
@@ -295,7 +310,7 @@ public class CiosContentServiceImpl implements CiosContentService {
         ApiResponse partnerResponse = contentPartnerService.getContentDetailsByPartnerCode(partnerCode);
         if (partnerResponse == null || partnerResponse.getResult() == null
                 || partnerResponse.getResult().get(Constants.DATA) == null) {
-            return;
+            return true;
         }
 
         @SuppressWarnings("unchecked")
@@ -322,16 +337,18 @@ public class CiosContentServiceImpl implements CiosContentService {
                 // regardless of any value supplied on this request.
                 contentNode.put(Constants.COURSE_ENROL_LIMIT, overAllLimit);
             } else {
-                int resolvedCourseEnrolLimit;
-                if (enteredCourseEnrolLimit != null && enteredCourseEnrolLimit <= overAllLimit) {
-                    // Supplied and within the partner's overall limit - honour it.
-                    resolvedCourseEnrolLimit = enteredCourseEnrolLimit;
-                } else {
-                    // Not supplied, or supplied but above the partner's overall limit -
-                    // fall back to the overall limit itself.
-                    resolvedCourseEnrolLimit = overAllLimit;
+                if (enteredCourseEnrolLimit != null && enteredCourseEnrolLimit > overAllLimit) {
+                    // Supplied, but above the partner's overall limit - this is an invalid input,
+                    // not something to silently correct by substituting the partner's value.
+                    apiResponse.getParams().setErrMsg("courseEnrolLimit (" + enteredCourseEnrolLimit
+                            + ") cannot exceed the partner's overall limit (" + overAllLimit + ")");
+                    apiResponse.getParams().setStatus(Constants.FAILED);
+                    apiResponse.setResponseCode(HttpStatus.BAD_REQUEST);
+                    return false;
                 }
-                contentNode.put(Constants.COURSE_ENROL_LIMIT, resolvedCourseEnrolLimit);
+                // Not supplied - default to the overall limit; supplied and within it - honour it.
+                contentNode.put(Constants.COURSE_ENROL_LIMIT,
+                        enteredCourseEnrolLimit != null ? enteredCourseEnrolLimit : overAllLimit);
             }
 
             if (isFree || !providerHasKarmaPoints) {
@@ -339,18 +356,24 @@ public class CiosContentServiceImpl implements CiosContentService {
                 // points configured at all, no course under it can require any either.
                 contentNode.put(Constants.REQUIRED_KARMA_POINTS, 0);
             } else {
-                // Paid course under a Course-licence provider: honour a course-level value only
-                // if it meets or exceeds the provider's own karmaPoints floor. If no course-level
-                // value was supplied, or the supplied value is below the provider's floor, fall
-                // back to the provider's karmaPoints instead of applying the (missing/too-low) value.
+                if (enteredKarmaPoints != null && enteredKarmaPoints < partnerKarmaPoints) {
+                    // Supplied, but below the provider's karmaPoints floor - invalid input, not
+                    // something to silently correct by substituting the provider's value.
+                    apiResponse.getParams().setErrMsg("requiredKarmaPoints (" + enteredKarmaPoints
+                            + ") cannot be below the provider's karmaPoints (" + partnerKarmaPoints + ")");
+                    apiResponse.getParams().setStatus(Constants.FAILED);
+                    apiResponse.setResponseCode(HttpStatus.BAD_REQUEST);
+                    return false;
+                }
+                // Not supplied - default to the provider's karmaPoints; supplied and at or above
+                // the floor - honour it.
                 contentNode.put(Constants.REQUIRED_KARMA_POINTS,
-                        (enteredKarmaPoints != null && enteredKarmaPoints >= partnerKarmaPoints)
-                                ? enteredKarmaPoints
-                                : partnerKarmaPoints);
+                        enteredKarmaPoints != null ? enteredKarmaPoints : partnerKarmaPoints);
             }
         } else if (!providerHasKarmaPoints) {
             contentNode.put(Constants.REQUIRED_KARMA_POINTS, 0);
         }
+        return true;
     }
 
     private void fetchAndUpdateContentCountsInPartnerDb(String partnerCode) {
