@@ -15,7 +15,8 @@
           "maximum": 5000
         },
         "summary": {
-          "type": "string"
+          "type": "string",
+          "maximum": 5000
         },
         "duration": {
           "type": "string",
@@ -87,8 +88,19 @@
         "description",
         "redirectUrl",
         "appIcon",
-        "externalId"
-      ]
+        "externalId",
+        "objectives",
+        "courseType"
+      ],
+      "if": {
+        "properties": {
+          "courseType": { "const": "paid" }
+        },
+        "required": ["courseType"]
+      },
+      "then": {
+        "required": ["courseEnrolLimit", "requiredKarmaPoints"]
+      }
     }
   },
   "additionalProperties": false

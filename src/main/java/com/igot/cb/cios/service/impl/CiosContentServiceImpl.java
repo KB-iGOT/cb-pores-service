@@ -14,8 +14,6 @@ import com.igot.cb.cios.dto.ObjectDto;
 import com.igot.cb.cios.entity.CiosContentEntity;
 import com.igot.cb.cios.repository.CiosRepository;
 import com.igot.cb.cios.service.CiosContentService;
-import com.igot.cb.cios.util.CiosRequestPayloadValidation;
-import com.igot.cb.contentpartner.repository.ContentPartnerRepository;
 import com.igot.cb.contentpartner.service.ContentPartnerService;
 import com.igot.cb.playlist.util.ProjectUtil;
 import com.igot.cb.pores.cache.CacheService;
@@ -30,9 +28,9 @@ import com.igot.cb.pores.util.PayloadValidation;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.ValidationMessage;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.*;
@@ -50,44 +48,32 @@ import org.springframework.util.CollectionUtils;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class CiosContentServiceImpl implements CiosContentService {
     private static long environmentId = 10000000;
     private static String shardId = "1";
     private static AtomicInteger aInteger = new AtomicInteger(1);
 
-    @Autowired
-    private CiosRepository ciosRepository;
-    @Autowired
-    ObjectMapper objectMapper;
-    @Autowired
-    EsUtilService esUtilService;
-
-    @Autowired
-    private PayloadValidation payloadValidation;
-
-    @Autowired
-    private RedisTemplate<String, SearchResult> redisTemplate;
-
     @Value("${search.result.redis.ttl}")
     private long searchResultRedisTtl;
 
-    @Autowired
-    private CbServerProperties cbServerProperties;
+    private final CiosRepository ciosRepository;
 
-    @Autowired
-    private CacheService cacheService;
+    private final ObjectMapper objectMapper;
 
-    @Autowired
-    private CiosRequestPayloadValidation ciosRequestPayloadValidation;
+    private final EsUtilService esUtilService;
 
-    @Autowired
-    private ContentPartnerRepository contentPartnerRepository;
+    private final PayloadValidation payloadValidation;
 
-    @Autowired
-    private RestTemplate restTemplate;
+    private final RedisTemplate<String, SearchResult> redisTemplate;
 
-    @Autowired
-    private ContentPartnerService contentPartnerService;
+    private final CbServerProperties cbServerProperties;
+
+    private final CacheService cacheService;
+
+    private final RestTemplate restTemplate;
+
+    private final ContentPartnerService contentPartnerService;
 
     public String generateId() {
         long env = environmentId / 10000000;
@@ -202,10 +188,10 @@ public class CiosContentServiceImpl implements CiosContentService {
         try {
             Timestamp timestamp = new Timestamp(System.currentTimeMillis());
             String partnerCode = null;
+            Integer successCount = 0;
             for (ObjectDto eachData : data) {
                 partnerCode = eachData.getContentPartner().get("partnerCode").asText();
                 JsonNode jsonNode = eachData.getContentData();
-                payloadValidation.validatePayload(Constants.CIOS_CONTENT_VALIDATION_FILE_JSON, jsonNode);
                 ObjectNode contentNode = (ObjectNode) jsonNode.path(Constants.CONTENT);
                 updateContentWithRequiredFields(contentNode, timestamp, eachData);
                 if (Constants.DRAFT.equalsIgnoreCase(eachData.getStatus())) {
@@ -216,14 +202,16 @@ public class CiosContentServiceImpl implements CiosContentService {
                     apiCallToCiosSecondaryDbForUpdateData(jsonNode);
                 } else if (eachData.getStatus().equals("live")) {
                     log.info("Status of the data {}", eachData.getStatus());
+                    payloadValidation.validatePayload(Constants.CIOS_CONTENT_VALIDATION_FILE_JSON, jsonNode);
                     contentNode.put(Constants.IS_ACTIVE, Constants.ACTIVE_STATUS);
                     contentNode.put(Constants.PUBLISHED_ON, timestamp.toString());
                     contentNode.put(Constants.UPDATED_DATE, timestamp.toString());
-                    if (!applyPublishTimeLicenceRules(contentNode, eachData, partnerCode, apiResponse)) {
-                        return apiResponse;
+                    if (!applyPublishTimeLicenceRules(contentNode, partnerCode)) {
+                        log.warn("Content validation failed for contentId: {}", contentNode.path(Constants.CONTENT_ID).asText());
+                        continue;
                     }
                     apiCallToCiosSecondaryDbForUpdateData(jsonNode);
-                    CiosContentEntity ciosContentEntity = createNewContent(jsonNode);
+                    CiosContentEntity ciosContentEntity = createNewContent(jsonNode, Constants.ACTIVE_STATUS, Constants.LIVE);
                     ciosRepository.save(ciosContentEntity);
                     log.info("Id of content created: {}", ciosContentEntity.getContentId());
                     Map<String, Object> map = objectMapper.convertValue(ciosContentEntity.getCiosData().get(Constants.CONTENT), Map.class);
@@ -231,6 +219,7 @@ public class CiosContentServiceImpl implements CiosContentService {
                     cacheService.putCache(ciosContentEntity.getContentId(), ciosContentEntity.getCiosData());
                     cacheService.putCache(ciosContentEntity.getExternalId() + "_" + ciosContentEntity.getPartnerId(), ciosContentEntity.getCiosData());
                     esUtilService.addDocument(Constants.CIOS_INDEX_NAME, Constants.INDEX_TYPE, ciosContentEntity.getContentId(), map, cbServerProperties.getElasticCiosJsonPath());
+                    successCount++;
                 } else {
                     apiResponse.getParams().setErrMsg(Constants.STATUS_NOT_VALID);
                     apiResponse.getParams().setStatus(Constants.FAILED);
@@ -240,7 +229,9 @@ public class CiosContentServiceImpl implements CiosContentService {
             }
             fetchAndUpdateContentCountsInPartnerDb(partnerCode);
             Map<String, Object> result = new HashMap<>();
-            result.put("ApiResponse", "All data curated successfully");
+            String message = String.format("Out of %d records, %d record%s published successfully.", data.size(), successCount, successCount == 1 ? " was" : "s were"
+            );
+            result.put("ApiResponse", message + "published successfully");
             apiResponse.setResult(result);
             return apiResponse;
         } catch (CustomException e) {
@@ -284,94 +275,41 @@ public class CiosContentServiceImpl implements CiosContentService {
      * doesn't touch onboardContent's generic catch block or the status code of any other error.
      * Returns true otherwise.
      */
-    private boolean applyPublishTimeLicenceRules(ObjectNode contentNode, ObjectDto eachData, String partnerCode,
-                                                  ApiResponse apiResponse) {
-        // Capture whatever requiredKarmaPoints was actually submitted for this course - whether it
-        // arrived as the top-level ObjectDto field or already nested inside contentData.content -
-        // before the placeholder write below overwrites contentNode with just the ObjectDto field.
-        Integer enteredKarmaPoints = eachData.getRequiredKarmaPoints();
-        if (enteredKarmaPoints == null && contentNode.hasNonNull(Constants.REQUIRED_KARMA_POINTS)) {
-            enteredKarmaPoints = contentNode.path(Constants.REQUIRED_KARMA_POINTS).asInt();
-        }
-
-        // Same fallback for courseEnrolLimit - it's just as likely to arrive only nested inside
-        // contentData.content as the top-level ObjectDto field, and must be captured here too,
-        // before the placeholder write below overwrites contentNode with just the ObjectDto field.
-        Integer enteredCourseEnrolLimit = eachData.getCourseEnrolLimit();
-        if (enteredCourseEnrolLimit == null && contentNode.hasNonNull(Constants.COURSE_ENROL_LIMIT)) {
-            enteredCourseEnrolLimit = contentNode.path(Constants.COURSE_ENROL_LIMIT).asInt();
-        }
-
-        contentNode.put(Constants.REQUIRED_KARMA_POINTS, enteredKarmaPoints != null ? enteredKarmaPoints : 0);
-        if (Constants.COURSE_TYPE_PAID.equalsIgnoreCase(contentNode.path(Constants.COURSE_TYPE).asText())) {
-            contentNode.put(Constants.COURSE_ENROL_LIMIT, enteredCourseEnrolLimit != null ? enteredCourseEnrolLimit : 0);
-        }
-
+    private boolean applyPublishTimeLicenceRules(ObjectNode contentNode, String partnerCode) {
         ApiResponse partnerResponse = contentPartnerService.getContentDetailsByPartnerCode(partnerCode);
         if (partnerResponse == null || partnerResponse.getResult() == null
                 || partnerResponse.getResult().get(Constants.DATA) == null) {
-            return true;
+            log.error("Failed to retrieve partner details for code: {}", partnerCode);
+            return false;
         }
 
         @SuppressWarnings("unchecked")
         Map<String, Object> partnerData = (Map<String, Object>) partnerResponse.getResult().get(Constants.DATA);
         String partnerLicenceType = (String) partnerData.get(Constants.LICENCE_TYPE);
-        boolean addKarmaPointEnabled = Boolean.TRUE.equals(partnerData.get(Constants.ADD_KARMA_POINT_ENABLED));
         Number partnerKarmaPointsNum = (Number) partnerData.get(Constants.KARMA_POINTS);
         int partnerKarmaPoints = partnerKarmaPointsNum != null ? partnerKarmaPointsNum.intValue() : 0;
-        boolean providerHasKarmaPoints = addKarmaPointEnabled && partnerKarmaPoints > 0;
-        int karmaPointsToApply = providerHasKarmaPoints ? partnerKarmaPoints : 0;
+
+
+        Number overAllLimitNum = (Number) partnerData.get(Constants.OVER_ALL_LIMIT);
+        int overAllLimit = overAllLimitNum != null ? overAllLimitNum.intValue() : 0;
+
 
         if (Constants.LICENCE_TYPE_USER.equalsIgnoreCase(partnerLicenceType)) {
-            contentNode.put(Constants.COURSE_TYPE, Constants.COURSE_TYPE_PAID);
-            contentNode.put(Constants.COURSE_ENROL_LIMIT, 0);
-            contentNode.put(Constants.REQUIRED_KARMA_POINTS, karmaPointsToApply);
+            if(contentNode.path(Constants.COURSE_TYPE).asText().equalsIgnoreCase(Constants.COURSE_TYPE_FREE)) {
+                return false;
+            }
+           return validateKarmapointsAndCourseEnrolLimit(contentNode, partnerKarmaPoints, overAllLimit);
         } else if (Constants.LICENCE_TYPE_COURSE.equalsIgnoreCase(partnerLicenceType)) {
-            Number overAllLimitNum = (Number) partnerData.get(Constants.OVER_ALL_LIMIT);
-            int overAllLimit = overAllLimitNum != null ? overAllLimitNum.intValue() : 0;
-            boolean isFree = Constants.COURSE_TYPE_FREE.equalsIgnoreCase(
+            boolean isPaid = Constants.COURSE_TYPE_PAID.equalsIgnoreCase(
                     contentNode.path(Constants.COURSE_TYPE).asText());
-
-            if (isFree) {
-                // Free courses are always tied directly to the partner's overall limit,
-                // regardless of any value supplied on this request.
-                contentNode.put(Constants.COURSE_ENROL_LIMIT, overAllLimit);
-            } else {
-                if (enteredCourseEnrolLimit != null && enteredCourseEnrolLimit > overAllLimit) {
-                    // Supplied, but above the partner's overall limit - this is an invalid input,
-                    // not something to silently correct by substituting the partner's value.
-                    apiResponse.getParams().setErrMsg("courseEnrolLimit (" + enteredCourseEnrolLimit
-                            + ") cannot exceed the partner's overall limit (" + overAllLimit + ")");
-                    apiResponse.getParams().setStatus(Constants.FAILED);
-                    apiResponse.setResponseCode(HttpStatus.BAD_REQUEST);
-                    return false;
-                }
-                // Not supplied - default to the overall limit; supplied and within it - honour it.
-                contentNode.put(Constants.COURSE_ENROL_LIMIT,
-                        enteredCourseEnrolLimit != null ? enteredCourseEnrolLimit : overAllLimit);
+            if (isContentAlreadyPublished(contentNode)) {
+                log.warn("Cannot change courseType for already published contentId: {}",
+                        contentNode.path(Constants.CONTENT_ID).asText());
+                return false;
             }
-
-            if (isFree || !providerHasKarmaPoints) {
-                // Free courses never require karma points; and if the provider has no karma
-                // points configured at all, no course under it can require any either.
-                contentNode.put(Constants.REQUIRED_KARMA_POINTS, 0);
-            } else {
-                if (enteredKarmaPoints != null && enteredKarmaPoints < partnerKarmaPoints) {
-                    // Supplied, but below the provider's karmaPoints floor - invalid input, not
-                    // something to silently correct by substituting the provider's value.
-                    apiResponse.getParams().setErrMsg("requiredKarmaPoints (" + enteredKarmaPoints
-                            + ") cannot be below the provider's karmaPoints (" + partnerKarmaPoints + ")");
-                    apiResponse.getParams().setStatus(Constants.FAILED);
-                    apiResponse.setResponseCode(HttpStatus.BAD_REQUEST);
-                    return false;
-                }
-                // Not supplied - default to the provider's karmaPoints; supplied and at or above
-                // the floor - honour it.
-                contentNode.put(Constants.REQUIRED_KARMA_POINTS,
-                        enteredKarmaPoints != null ? enteredKarmaPoints : partnerKarmaPoints);
+            if (isPaid) {
+                return validateKarmapointsAndCourseEnrolLimit(contentNode, partnerKarmaPoints, overAllLimit);
             }
-        } else if (!providerHasKarmaPoints) {
-            contentNode.put(Constants.REQUIRED_KARMA_POINTS, 0);
         }
         return true;
     }
@@ -443,7 +381,7 @@ public class CiosContentServiceImpl implements CiosContentService {
         return response.getBody();
     }
 
-    private CiosContentEntity createNewContent(JsonNode ciosRequestInput) {
+    private CiosContentEntity createNewContent(JsonNode ciosRequestInput, boolean isActive, String status) {
         log.info("SidJobServiceImpl::createOrUpdateContent:updating the content");
         try {
             Timestamp currentTime = new Timestamp(System.currentTimeMillis());
@@ -456,24 +394,24 @@ public class CiosContentServiceImpl implements CiosContentService {
                 igotContent.setExternalId(externalId);
                 igotContent.setCreatedOn(currentTime);
                 igotContent.setLastUpdatedOn(currentTime);
-                igotContent.setIsActive(Constants.ACTIVE_STATUS);
+                igotContent.setIsActive(isActive);
                 igotContent.setPartnerId(partnerId);
                 ((ObjectNode) ciosRequestInput.path(Constants.CONTENT)).put("contentId", igotContent.getContentId());
                 ((ObjectNode) ciosRequestInput.path(Constants.CONTENT)).put(Constants.CREATED_ON, String.valueOf(currentTime));
                 ((ObjectNode) ciosRequestInput.path(Constants.CONTENT)).put(Constants.LAST_UPDATED_ON, String.valueOf(currentTime));
-                ((ObjectNode) ciosRequestInput.path(Constants.CONTENT)).put(Constants.STATUS, Constants.LIVE);
+                ((ObjectNode) ciosRequestInput.path(Constants.CONTENT)).put(Constants.STATUS, status);
                 igotContent.setCiosData(ciosRequestInput);
             } else {
                 igotContent.setContentId(ciosContentEntity.get().getContentId());
                 igotContent.setExternalId(ciosContentEntity.get().getExternalId());
                 igotContent.setCreatedOn(ciosContentEntity.get().getCreatedOn());
                 igotContent.setLastUpdatedOn(currentTime);
-                igotContent.setIsActive(Constants.ACTIVE_STATUS);
+                igotContent.setIsActive(isActive);
                 igotContent.setPartnerId(partnerId);
                 ((ObjectNode) ciosRequestInput.path(Constants.CONTENT)).put("contentId", ciosContentEntity.get().getContentId());
                 ((ObjectNode) ciosRequestInput.path(Constants.CONTENT)).put(Constants.CREATED_ON, String.valueOf(igotContent.getCreatedOn()));
                 ((ObjectNode) ciosRequestInput.path(Constants.CONTENT)).put(Constants.LAST_UPDATED_ON, String.valueOf(currentTime));
-                ((ObjectNode) ciosRequestInput.path(Constants.CONTENT)).put(Constants.STATUS, Constants.LIVE);
+                ((ObjectNode) ciosRequestInput.path(Constants.CONTENT)).put(Constants.STATUS, status);
                 igotContent.setCiosData(ciosRequestInput);
             }
             return igotContent;
@@ -603,6 +541,12 @@ public class CiosContentServiceImpl implements CiosContentService {
         } else if (StringUtils.isBlank(contentNode.path(Constants.COURSE_TYPE).asText(null))) {
             contentNode.put(Constants.COURSE_TYPE, Constants.COURSE_TYPE_PAID);
         }
+        if(eachData.getCourseEnrolLimit() != null) {
+            contentNode.put(Constants.COURSE_ENROL_LIMIT, eachData.getCourseEnrolLimit());
+        }
+        if(eachData.getRequiredKarmaPoints() != null) {
+            contentNode.put(Constants.REQUIRED_KARMA_POINTS, eachData.getRequiredKarmaPoints());
+        }
     }
 
     @Override
@@ -723,5 +667,36 @@ public class CiosContentServiceImpl implements CiosContentService {
         Map<String, Object> filteredContent = new LinkedHashMap<>();
         filteredContent.put(Constants.CONTENT, filteredInnerContent);
         return filteredContent;
+    }
+
+    private boolean validateKarmapointsAndCourseEnrolLimit(ObjectNode contentNode, int partnerKarmaPoints, int overAllLimit) {
+        if(contentNode.path(Constants.COURSE_ENROL_LIMIT).asInt(0) > overAllLimit) {
+            return false;
+        }
+        if(contentNode.path(Constants.REQUIRED_KARMA_POINTS).asInt(0) < partnerKarmaPoints) {
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isContentAlreadyPublished(ObjectNode contentNode) {
+        String contentId = contentNode.path(Constants.CONTENT_ID).asText(null);
+
+        if (StringUtils.isEmpty(contentId)) {
+            return false;
+        }
+
+        try {
+            Object existingContent = fetchDataByContentId(contentId);
+
+            if (existingContent == null) {
+                return false;
+            }
+            JsonNode existingContentNode = objectMapper.convertValue(existingContent, JsonNode.class);
+            return Constants.LIVE.equalsIgnoreCase(existingContentNode.path(Constants.CONTENT).path(Constants.STATUS).asText(null));
+
+        } catch (CustomException e) {
+            return false;
+        }
     }
 }
