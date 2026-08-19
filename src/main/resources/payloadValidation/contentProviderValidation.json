@@ -127,6 +127,21 @@
     },
     "isTrainingInstitution": {
       "type": "boolean"
+    },
+    "karmaPointsExcemptionEnabled": {
+      "type": "boolean"
+    },
+    "karmaPointsExcemption": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
     }
   },
   "required": [
