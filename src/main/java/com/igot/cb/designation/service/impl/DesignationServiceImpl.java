@@ -459,6 +459,12 @@ public class DesignationServiceImpl implements DesignationService {
     log.info("DesignationServiceImpl::createDesignation");
     payloadValidation.validatePayload(Constants.DESIGNATION_PAYLOAD_VALIDATION,designationDetails);
     CustomResponse response = new CustomResponse();
+    String designation = designationDetails.get(Constants.DESIGNATION).asText();
+    if (designation.isBlank()
+        || !designation.matches(cbServerProperties.getDesignationValidationRegex())) {
+      response.setResponseCode(HttpStatus.BAD_REQUEST);
+      return response;
+    }
     SearchCriteria searchCriteria = new SearchCriteria();
     searchCriteria.setPageNumber(0);
     searchCriteria.setPageSize(5000);
