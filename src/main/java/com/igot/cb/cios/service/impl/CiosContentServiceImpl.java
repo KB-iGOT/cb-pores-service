@@ -229,7 +229,7 @@ public class CiosContentServiceImpl implements CiosContentService {
             }
             fetchAndUpdateContentCountsInPartnerDb(partnerCode);
             Map<String, Object> result = new HashMap<>();
-            String message = String.format("Out of %d records, %d record%s published successfully.", data.size(), successCount, successCount == 1 ? " was" : "s were"
+            String message = String.format("Out of %d records, %d record%s ", data.size(), successCount, successCount == 1 ? " was" : "s were"
             );
             result.put("ApiResponse", message + "published successfully");
             apiResponse.setResult(result);
