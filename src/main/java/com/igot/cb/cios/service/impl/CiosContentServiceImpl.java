@@ -693,7 +693,14 @@ public class CiosContentServiceImpl implements CiosContentService {
                 return false;
             }
             JsonNode existingContentNode = objectMapper.convertValue(existingContent, JsonNode.class);
-            return Constants.LIVE.equalsIgnoreCase(existingContentNode.path(Constants.CONTENT).path(Constants.STATUS).asText(null));
+            String existingCourseType = existingContentNode
+                    .path(Constants.CONTENT)
+                    .path(Constants.COURSE_TYPE)
+                    .asText("");
+            String requestedCourseType = contentNode
+                    .path(Constants.COURSE_TYPE)
+                    .asText("");
+            return !existingCourseType.equalsIgnoreCase(requestedCourseType);
 
         } catch (CustomException e) {
             return false;
