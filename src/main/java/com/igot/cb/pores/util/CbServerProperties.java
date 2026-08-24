@@ -122,6 +122,9 @@ public class CbServerProperties {
   @Value("${elastic.required.field.designation.json.path}")
   private String elasticDesignationJsonPath;
 
+  @Value("${designation.validation.regex}")
+  private String designationValidationRegex;
+
   @Value("${odcs.framework.name}")
   private String odcsDesignationFramework;
 
