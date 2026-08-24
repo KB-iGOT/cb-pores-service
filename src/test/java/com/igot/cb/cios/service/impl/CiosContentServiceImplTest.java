@@ -186,8 +186,6 @@ class CiosContentServiceImplTest {
      */
     @Test
     void test_fetchDataByContentId_3() {
-        MockitoAnnotations.openMocks(this);
-
         String contentId = "validContentId";
 
         when(cacheService.getCache(contentId)).thenReturn(null);
@@ -210,10 +208,8 @@ class CiosContentServiceImplTest {
      */
     @Test
     void test_fetchDataByContentId_emptyContentId() {
-        CiosContentServiceImpl service = new CiosContentServiceImpl();
-
         CustomException exception = assertThrows(CustomException.class, () -> {
-            service.fetchDataByContentId("");
+            ciosContentService.fetchDataByContentId("");
         });
 
         assertEquals(Constants.ERROR, exception.getCode());
@@ -278,8 +274,6 @@ class CiosContentServiceImplTest {
      */
     @Test
     void test_fetchDataByExternalIdAndPartnerId_returnsCachedResponse(){
-        MockitoAnnotations.openMocks(this);
-
         String externalId = "test_external_id";
         String partnerId = "test_partner_id";
         String cacheKey = externalId + "_" + partnerId;
@@ -298,8 +292,7 @@ class CiosContentServiceImplTest {
      */
     @Test
     void test_generateId_1() {
-        CiosContentServiceImpl service = new CiosContentServiceImpl();
-        String generatedId = service.generateId();
+        String generatedId = ciosContentService.generateId();
 
         assertNotNull(generatedId);
         assertTrue(generatedId.startsWith(Constants.ID_PREFIX));
@@ -316,9 +309,8 @@ class CiosContentServiceImplTest {
      */
     @Test
     void test_generateId_ensureUniqueness() {
-        CiosContentServiceImpl service = new CiosContentServiceImpl();
-        String id1 = service.generateId();
-        String id2 = service.generateId();
+        String id1 = ciosContentService.generateId();
+        String id2 = ciosContentService.generateId();
         assertNotEquals("Generated IDs should be unique", id1, id2);
     }
 
@@ -329,8 +321,6 @@ class CiosContentServiceImplTest {
      */
     @Test
     void test_onboardContent_2() {
-        MockitoAnnotations.openMocks(this);
-
         List<ObjectDto> dataList = new ArrayList<>();
         ObjectDto objectDto = new ObjectDto();
         objectDto.setStatus("draft");
@@ -831,6 +821,174 @@ class CiosContentServiceImplTest {
         verify(objectMapper).convertValue(eq(node), ArgumentMatchers.<TypeReference<Object>>any());
     }
 
+    /**
+     * contentId is blank -> should fail fast with the "contentId is mandatory" error
+     * and never touch cache/repository at all.
+     */
+    @Test
+    void test_fetchDataByInputFields_blankContentId() {
+        CustomException exception = assertThrows(CustomException.class, () ->
+                ciosContentService.fetchDataByInputFields("  ", "name")
+        );
+
+        assertEquals(Constants.ERROR, exception.getCode());
+        assertEquals("contentId is mandatory", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatusCode());
+
+        verifyNoInteractions(cacheService);
+        verifyNoInteractions(ciosRepository);
+    }
+
+    /**
+     * inputFields is blank -> should fail fast with the "inputFields is mandatory" error
+     * before ever attempting to fetch the content.
+     */
+    @Test
+    void test_fetchDataByInputFields_blankInputFields() {
+        CustomException exception = assertThrows(CustomException.class, () ->
+                ciosContentService.fetchDataByInputFields("test-content-id", "   ")
+        );
+
+        assertEquals(Constants.ERROR, exception.getCode());
+        assertEquals("inputFields is mandatory", exception.getMessage());
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getHttpStatusCode());
+
+        verifyNoInteractions(cacheService);
+        verifyNoInteractions(ciosRepository);
+    }
+
+    /**
+     * inputFields is non-blank but parses down to zero usable field names
+     * (only commas/whitespace) -> no field names match anything, so the method
+     * returns an empty "content" object rather than throwing.
+     */
+    @Test
+    void test_fetchDataByInputFields_onlyCommasAndWhitespace() {
+        String contentId = "test-content-id";
+        when(cacheService.getCache(contentId)).thenReturn(null);
+
+        ObjectNode node = new ObjectMapper().createObjectNode();
+        node.putObject(Constants.CONTENT).put("name", "value");
+
+        CiosContentEntity entity = new CiosContentEntity();
+        entity.setCiosData(node);
+        when(ciosRepository.findByContentId(eq(contentId))).thenReturn(Optional.of(entity));
+
+        Map<String, Object> innerContent = new LinkedHashMap<>();
+        innerContent.put("name", "value");
+        Map<String, Object> fullContent = new LinkedHashMap<>();
+        fullContent.put(Constants.CONTENT, innerContent);
+        when(objectMapper.convertValue(eq(node), ArgumentMatchers.<TypeReference<Object>>any()))
+                .thenReturn(fullContent);
+
+        Object result = ciosContentService.fetchDataByInputFields(contentId, " , ,  ,");
+
+        assertTrue(result instanceof Map);
+        Object innerResult = ((Map<?, ?>) result).get(Constants.CONTENT);
+        assertTrue(innerResult instanceof Map);
+        assertTrue(((Map<?, ?>) innerResult).isEmpty());
+
+        verify(cacheService).getCache(contentId);
+        verify(ciosRepository).findByContentId(contentId);
+    }
+
+    /**
+     * fetchDataByContentId returns a non-Map value (e.g. a plain String cached in redis) ->
+     * fetchDataByInputFields should just return that value as-is instead of failing.
+     */
+    @Test
+    void test_fetchDataByInputFields_fullContentNotAMap_returnsAsIs() throws Exception {
+        String contentId = "test-content-id";
+        String cachedJson = "\"plain string value\"";
+
+        when(cacheService.getCache(contentId)).thenReturn(cachedJson);
+        when(objectMapper.readValue(eq(cachedJson), ArgumentMatchers.<TypeReference<Object>>any()))
+                .thenReturn("plain string value");
+
+        Object result = ciosContentService.fetchDataByInputFields(contentId, "name");
+
+        assertEquals("plain string value", result);
+        verifyNoInteractions(ciosRepository);
+    }
+
+    /**
+     * fetchDataByContentId returns a Map, but it has no "content" node ->
+     * fetchDataByInputFields should return the full map as-is instead of failing.
+     */
+    @Test
+    void test_fetchDataByInputFields_noContentNode_returnsAsIs() {
+        String contentId = "test-content-id";
+        when(cacheService.getCache(contentId)).thenReturn(null);
+
+        ObjectNode node = new ObjectMapper().createObjectNode();
+        node.put("name", "value");
+
+        CiosContentEntity entity = new CiosContentEntity();
+        entity.setCiosData(node);
+        when(ciosRepository.findByContentId(eq(contentId))).thenReturn(Optional.of(entity));
+
+        Map<String, Object> fullContent = new LinkedHashMap<>();
+        fullContent.put("name", "value");
+        when(objectMapper.convertValue(eq(node), ArgumentMatchers.<TypeReference<Object>>any()))
+                .thenReturn(fullContent);
+
+        Object result = ciosContentService.fetchDataByInputFields(contentId, "name");
+
+        assertSame(fullContent, result);
+    }
+
+    /**
+     * Happy path: only the requested fields are returned, in the order requested,
+     * duplicates are collapsed, unknown fields are silently dropped, and a field
+     * whose value is JSON null is preserved rather than causing an NPE.
+     */
+    @Test
+    void test_fetchDataByInputFields_filtersAndPreservesOrder() {
+        String contentId = "test-content-id";
+        when(cacheService.getCache(contentId)).thenReturn(null);
+
+        ObjectNode node = new ObjectMapper().createObjectNode();
+        ObjectNode contentNode = node.putObject(Constants.CONTENT);
+        contentNode.put("name", "Foundations of Ethical Reasoning");
+        contentNode.put("topic", "Environmental, Social, Governance, Law");
+        contentNode.putNull("description");
+
+        CiosContentEntity entity = new CiosContentEntity();
+        entity.setCiosData(node);
+        when(ciosRepository.findByContentId(eq(contentId))).thenReturn(Optional.of(entity));
+
+        Map<String, Object> innerContent = new LinkedHashMap<>();
+        innerContent.put("name", "Foundations of Ethical Reasoning");
+        innerContent.put("topic", "Environmental, Social, Governance, Law");
+        innerContent.put("description", null);
+        innerContent.put("status", "Live");
+        Map<String, Object> fullContent = new LinkedHashMap<>();
+        fullContent.put(Constants.CONTENT, innerContent);
+        when(objectMapper.convertValue(eq(node), ArgumentMatchers.<TypeReference<Object>>any()))
+                .thenReturn(fullContent);
+
+        Object result = ciosContentService.fetchDataByInputFields(
+                contentId, "description, name, name, missingField"
+        );
+
+        assertTrue(result instanceof Map);
+        Object innerResult = ((Map<?, ?>) result).get(Constants.CONTENT);
+        assertTrue(innerResult instanceof Map);
+        Map<?, ?> filtered = (Map<?, ?>) innerResult;
+
+        // Only the two known, requested fields should be present ("status" and
+        // "topic" were not requested; "missingField" doesn't exist).
+        assertEquals(2, filtered.size());
+        assertTrue(filtered.containsKey("description"));
+        assertNull(filtered.get("description"));
+        assertEquals("Foundations of Ethical Reasoning", filtered.get("name"));
+
+        // Order should follow the caller's requested order: description, then name.
+        Iterator<?> keyIterator = filtered.keySet().iterator();
+        assertEquals("description", keyIterator.next());
+        assertEquals("name", keyIterator.next());
+    }
+
     @Test
     void test_createNewContent_NewEntity() throws Exception {
         // Prepare input JSON with necessary structure
@@ -850,11 +1008,11 @@ class CiosContentServiceImplTest {
                 .thenReturn(Optional.empty());
 
         // Use reflection to invoke private method
-        Method method = CiosContentServiceImpl.class.getDeclaredMethod("createNewContent", JsonNode.class);
+        Method method = CiosContentServiceImpl.class.getDeclaredMethod("createNewContent", JsonNode.class, boolean.class, String.class);
         method.setAccessible(true);
 
         // Invoke method
-        Object result = method.invoke(ciosContentService, rootNode);
+        Object result = method.invoke(ciosContentService, rootNode, true, Constants.LIVE);
 
         // Assertions
         assertNotNull(result);
@@ -904,10 +1062,10 @@ class CiosContentServiceImplTest {
                 .thenReturn(Optional.of(existingEntity));
 
         // Use reflection
-        Method method = CiosContentServiceImpl.class.getDeclaredMethod("createNewContent", JsonNode.class);
+        Method method = CiosContentServiceImpl.class.getDeclaredMethod("createNewContent", JsonNode.class, boolean.class, String.class);
         method.setAccessible(true);
 
-        Object result = method.invoke(ciosContentService, rootNode);
+        Object result = method.invoke(ciosContentService, rootNode, true, Constants.LIVE);
 
         assertNotNull(result);
         assertTrue(result instanceof CiosContentEntity);
@@ -935,7 +1093,7 @@ class CiosContentServiceImplTest {
 
     @Test
     void test_addSearchTags_contentNameNotInTags() throws Exception {
-        ciosContentService.objectMapper = realObjectMapper;
+        ReflectionTestUtils.setField(ciosContentService, "objectMapper", realObjectMapper);
         // Prepare input tags
         List<String> inputTags = Arrays.asList("tag1", "tag2");
 
@@ -968,7 +1126,7 @@ class CiosContentServiceImplTest {
 
     @Test
     void test_addSearchTags_contentNameAlreadyInTags() throws Exception {
-        ciosContentService.objectMapper = realObjectMapper;
+        ReflectionTestUtils.setField(ciosContentService, "objectMapper", realObjectMapper);
         // content.name = "tag1" (already present in input tags, case insensitive)
         List<String> inputTags = Arrays.asList("tag1", "tag2");
 
@@ -997,7 +1155,7 @@ class CiosContentServiceImplTest {
     @Test
     void test_addSearchTags_contentNameNull() throws Exception {
         // No content node or no content.name present
-        ciosContentService.objectMapper = realObjectMapper;
+        ReflectionTestUtils.setField(ciosContentService, "objectMapper", realObjectMapper);
         List<String> inputTags = Arrays.asList("tag1", "tag2");
 
         ObjectNode rootNode = realObjectMapper.createObjectNode();
@@ -1130,22 +1288,33 @@ class CiosContentServiceImplTest {
         assertDoesNotThrow(() -> method.invoke(service, "PARTNER001"));
     }
 
+    @SuppressWarnings("unchecked")
     private CiosContentServiceImpl prepareServiceWithMocks(JsonNode mockedNode) throws Exception {
-        CiosContentServiceImpl service = new CiosContentServiceImpl();
-
         ObjectMapper objectMapper = new ObjectMapper();
-        ReflectionTestUtils.setField(service, "objectMapper", objectMapper);
 
         RestTemplate mockRestTemplate = mock(RestTemplate.class);
-        ReflectionTestUtils.setField(service, "restTemplate", mockRestTemplate);
 
         CbServerProperties cbServerProperties = mock(CbServerProperties.class);
         when(cbServerProperties.getCiosContentServiceHost()).thenReturn("http://mock-host");
         when(cbServerProperties.getCiosContentServiceSearchApiUrl()).thenReturn("/mock-api");
-        ReflectionTestUtils.setField(service, "cbServerProperties", cbServerProperties);
 
         ContentPartnerService contentPartnerService = mock(ContentPartnerService.class);
-        ReflectionTestUtils.setField(service, "contentPartnerService", contentPartnerService);
+
+        // CiosContentServiceImpl is constructor-injected (@RequiredArgsConstructor over final
+        // fields) - there is no no-arg constructor anymore, so build it directly. The fields
+        // this test doesn't exercise (ciosRepository, esUtilService, payloadValidation,
+        // redisTemplate, cacheService) just get harmless mocks.
+        CiosContentServiceImpl service = new CiosContentServiceImpl(
+                mock(CiosRepository.class),
+                objectMapper,
+                mock(EsUtilService.class),
+                mock(PayloadValidation.class),
+                mock(RedisTemplate.class),
+                cbServerProperties,
+                mock(CacheService.class),
+                mockRestTemplate,
+                contentPartnerService
+        );
 
         ResponseEntity<JsonNode> mockResponse = mock(ResponseEntity.class);
         when(mockResponse.getBody()).thenReturn(mockedNode);
@@ -1205,41 +1374,22 @@ class CiosContentServiceImplTest {
 
     @Test
     void test_deleteContent_success() {
-        // Arrange
-        CiosContentServiceImpl service = new CiosContentServiceImpl();
+        // Arrange - CiosContentServiceImpl is constructor-injected now, so drive this through
+        // the shared @InjectMocks instance (ciosContentService) rather than a bespoke
+        // new CiosContentServiceImpl() + ReflectionTestUtils wiring (contentPartnerRepository in
+        // particular is no longer even a field on the service). deleteContent() ->
+        // fetchAndUpdateContentCountsInPartnerDb() builds real JsonNode payloads via
+        // objectMapper.createObjectNode()/createArrayNode(), so the class-level mock objectMapper
+        // (which returns null for those, unstubbed) needs swapping for a real one here.
+        ObjectMapper realMapper = new ObjectMapper();
+        ReflectionTestUtils.setField(ciosContentService, "objectMapper", realMapper);
 
-        CiosRepository mockRepo = mock(CiosRepository.class);
-        ReflectionTestUtils.setField(service, "ciosRepository", mockRepo);
-
-        ObjectMapper objectMapper = new ObjectMapper();
-        ReflectionTestUtils.setField(service, "objectMapper", objectMapper);
-
-        EsUtilService esUtilService = mock(EsUtilService.class);
-        ReflectionTestUtils.setField(service, "esUtilService", esUtilService);
-
-        CacheService cacheService = mock(CacheService.class);
-        ReflectionTestUtils.setField(service, "cacheService", cacheService);
-
-        ContentPartnerService contentPartnerService = mock(ContentPartnerService.class);
-        ReflectionTestUtils.setField(service, "contentPartnerService", contentPartnerService);
-
-        ContentPartnerRepository contentPartnerRepository = mock(ContentPartnerRepository.class);
-        ReflectionTestUtils.setField(service, "contentPartnerRepository", contentPartnerRepository);
-
-        CbServerProperties cbServerProperties = mock(CbServerProperties.class);
         when(cbServerProperties.getElasticCiosJsonPath()).thenReturn("mock/path");
-        when(cbServerProperties.getCiosContentServiceHost()).thenReturn("http://host");
-        when(cbServerProperties.getCiosContentServiceUpdateApiUrl()).thenReturn("/update");
-        when(cbServerProperties.getCiosContentServiceSearchApiUrl()).thenReturn("/search");
-        ReflectionTestUtils.setField(service, "cbServerProperties", cbServerProperties);
-
-        RestTemplate restTemplate = mock(RestTemplate.class);
-        ReflectionTestUtils.setField(service, "restTemplate", restTemplate);
 
         // build valid JSON structure
-        ObjectNode rootNode = objectMapper.createObjectNode();
-        ObjectNode contentNode = objectMapper.createObjectNode();
-        ObjectNode partnerNode = objectMapper.createObjectNode();
+        ObjectNode rootNode = realMapper.createObjectNode();
+        ObjectNode contentNode = realMapper.createObjectNode();
+        ObjectNode partnerNode = realMapper.createObjectNode();
         partnerNode.put("partnerCode", "PARTNER001");
         contentNode.set("contentPartner", partnerNode);
         rootNode.set("content", contentNode);
@@ -1248,29 +1398,26 @@ class CiosContentServiceImplTest {
         entity.setCiosData(rootNode);
         entity.setContentId("CID001");
 
-        when(mockRepo.findByContentIdAndIsActive("CID001", true))
+        when(ciosRepository.findByContentIdAndIsActive("CID001", true))
                 .thenReturn(Optional.of(entity));
 
-        // mock search API
-        ResponseEntity<JsonNode> mockSearchResponse = mock(ResponseEntity.class);
-        when(restTemplate.exchange(
-                anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(JsonNode.class))
-        ).thenReturn(mockSearchResponse);
-
-        // mock body for search response
-        ObjectNode searchResponseBody = objectMapper.createObjectNode();
+        // mock body for search response (also reused for the secondary-DB update call - both
+        // go through the same mocked restTemplate.exchange(anyString(), ...) stub below)
+        ObjectNode searchResponseBody = realMapper.createObjectNode();
         searchResponseBody.put(Constants.TOTAL_COUNT, 10);
 
-        ObjectNode facetNode = objectMapper.createObjectNode();
-        ArrayNode statusArray = objectMapper.createArrayNode();
-        ObjectNode liveFacet = objectMapper.createObjectNode();
+        ObjectNode facetNode = realMapper.createObjectNode();
+        ArrayNode statusArray = realMapper.createArrayNode();
+        ObjectNode liveFacet = realMapper.createObjectNode();
         liveFacet.put(Constants.VALUE, "live");
         liveFacet.put(Constants.COUNT, 5);
         statusArray.add(liveFacet);
         facetNode.set(Constants.STATUS, statusArray);
         searchResponseBody.set(Constants.FACETS, facetNode);
 
-        when(mockSearchResponse.getBody()).thenReturn(searchResponseBody);
+        when(restTemplate.exchange(
+                anyString(), eq(HttpMethod.POST), any(HttpEntity.class), eq(JsonNode.class))
+        ).thenReturn(new ResponseEntity<>(searchResponseBody, HttpStatus.OK));
 
         // mock contentPartnerService
         Map<String, Object> responseMap = new HashMap<>();
@@ -1281,7 +1428,7 @@ class CiosContentServiceImplTest {
         when(contentPartnerService.getContentDetailsByPartnerCode("PARTNER001")).thenReturn(apiResponse);
 
         // Act
-        Object result = service.deleteContent("CID001");
+        Object result = ciosContentService.deleteContent("CID001");
 
         // Assert
         assertEquals("Content with id : CID001 is deleted", result);

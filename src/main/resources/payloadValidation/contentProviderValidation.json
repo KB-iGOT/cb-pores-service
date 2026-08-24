@@ -102,6 +102,16 @@
       "minimum": 0
     },
 
+    "licenseType": {
+      "type": "string",
+      "enum": ["User", "Course"]
+    },
+
+    "licenseConsumedCount": {
+      "type": "number",
+      "minimum": 0
+    },
+
     "addKarmaPointEnabled": { "type": "boolean" },
 
     "karmaPoints": {
@@ -117,6 +127,21 @@
     },
     "isTrainingInstitution": {
       "type": "boolean"
+    },
+    "karmaPointsExemptionEnabled": {
+      "type": "boolean"
+    },
+    "karmaPointsExemption": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
     }
   },
   "required": [

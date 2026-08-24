@@ -60,5 +60,14 @@
   },
   "isTrainingInstitution" : {
     "type": "boolean"
+  },
+  "licenseType": {
+    "type": "string"
+  },
+  "licenseConsumedCount": {
+    "type": "number"
+  },
+  "overAllLimit": {
+    "type": "number"
   }
 }

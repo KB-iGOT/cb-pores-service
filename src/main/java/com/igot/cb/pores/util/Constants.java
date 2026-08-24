@@ -394,6 +394,12 @@ public class Constants {
     public static final String USER_WISE_LIMIT_ENABLED = "isUserWiseLimitEnabled";
     public static final String CONCURRENT_LIMIT_ENABLED = "isConcurrentLimitEnabled";
     public static final String ADD_KARMA_POINT_ENABLED = "addKarmaPointEnabled";
+    // Provider licensing (Partner Licensing Administration / Userwise Licence Limit)
+    public static final String LICENCE_TYPE = "licenseType";
+    public static final String LICENCE_CONSUMED_COUNT = "licenseConsumedCount";
+    public static final String LICENCE_TYPE_USER = "User";
+    public static final String LICENCE_TYPE_COURSE = "Course";
+    public static final String LICENCE_TYPE_CANNOT_BE_CHANGED = "licenseType cannot be changed once it has been configured for a provider";
     public static final String UPDATED_CONTENT_PARTNER = "updated the content partner";
     public static final String CONTENT_PARTNER_CREATED = "Content partner created successfully";
     public static final String CONTENT_PARTNER_CACHE_DELETE = "during content partner create Deleting cache for partner code {}";
@@ -426,6 +432,12 @@ public class Constants {
     public static final String INVALID_EMAIL = "Invalid email";
     public static final String INVALID_ID_OR_EMAIL = "Invalid Application ID/Email. Please check the ID shared in your confirmation email and try again";
     public static final String DIFFICULTY_LEVEL = "difficultyLevel";
+    public static final String COURSE_TYPE = "courseType";
+    public static final String COURSE_TYPE_PAID = "paid";
+    public static final String COURSE_TYPE_FREE = "free";
+    public static final String COURSE_ENROL_LIMIT = "courseEnrolLimit";
+    public static final String REQUIRED_KARMA_POINTS = "requiredKarmaPoints";
+    public static final String KARMA_POINTS = "karmaPoints";
     public static final String CHANNEL = "channel";
     public static final String ASCENDING = "ASC";
     public static final String ORDER_BY = "orderBy";
