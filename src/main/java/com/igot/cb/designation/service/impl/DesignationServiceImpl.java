@@ -462,6 +462,7 @@ public class DesignationServiceImpl implements DesignationService {
     String designation = designationDetails.get(Constants.DESIGNATION).asText();
     if (designation.isBlank()
         || !designation.matches(cbServerProperties.getDesignationValidationRegex())) {
+      response.setMessage(Constants.INVALID_DESIGNATION);
       response.setResponseCode(HttpStatus.BAD_REQUEST);
       return response;
     }
