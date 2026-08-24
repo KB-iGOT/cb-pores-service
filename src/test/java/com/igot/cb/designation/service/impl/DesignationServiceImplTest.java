@@ -107,10 +107,14 @@ class DesignationServiceImplTest {
     private static final String CATEGORY_CODE = "cat1";
     private static final String TERM_CODE = "term001";
     private static final String REF_ID = "DESG-1234";
+    private static final String INVALID_DESIGNATION_MESSAGE =
+            "Invalid designation. It cannot be blank and must contain only valid characters.";
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.initMocks(this);
+        when(cbServerProperties.getDesignationValidationRegex())
+                .thenReturn("^[a-zA-Z0-9 ()&/,+-]*$");
     }
 
     /**
@@ -133,6 +137,7 @@ class DesignationServiceImplTest {
         when(esUtilService.isIndexPresent(Constants.DESIGNATION_INDEX_NAME)).thenReturn(true);
         when(esUtilService.searchDocuments(any(), any())).thenReturn(searchResult);
         when(dataNode.isEmpty()).thenReturn(false);
+        when(designationDetails.get(Constants.DESIGNATION)).thenReturn(TextNode.valueOf("Principal"));
 
         // Act
         CustomResponse response = designationService.createDesignation(designationDetails);
@@ -1194,7 +1199,7 @@ class DesignationServiceImplTest {
         // Create input designationDetails JSON
         ObjectMapper realObjectMapper = new ObjectMapper();
         ObjectNode designationDetails = realObjectMapper.createObjectNode();
-        designationDetails.put(Constants.DESIGNATION, "Principal");
+        designationDetails.put(Constants.DESIGNATION, "Director & Head (Grade-1)/Admin,+");
 
         // Mock payload validation
         doNothing().when(payloadValidation)
@@ -1233,6 +1238,32 @@ class DesignationServiceImplTest {
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(Constants.SUCCESSFULLY_CREATED, response.getMessage());
         assertTrue(((Map<?, ?>) response.getResult()).containsKey(Constants.ID));
+    }
+
+    @Test
+    void testCreateDesignation_rejectsUnsupportedCharactersBeforeDataAccess() {
+        ObjectNode designationDetails = new ObjectMapper().createObjectNode();
+        designationDetails.put(Constants.DESIGNATION, "Manager @ HQ");
+
+        CustomResponse response = designationService.createDesignation(designationDetails);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(INVALID_DESIGNATION_MESSAGE, response.getParams().getErrmsg());
+        verifyNoInteractions(esUtilService, designationRepository, cacheService);
+    }
+
+    @Test
+    void testCreateDesignation_rejectsEmptyAndBlankDesignationBeforeDataAccess() {
+        for (String invalidDesignation : List.of("", "   ")) {
+            ObjectNode designationDetails = new ObjectMapper().createObjectNode();
+            designationDetails.put(Constants.DESIGNATION, invalidDesignation);
+
+            CustomResponse response = designationService.createDesignation(designationDetails);
+
+            assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+            assertEquals(INVALID_DESIGNATION_MESSAGE, response.getParams().getErrmsg());
+        }
+        verifyNoInteractions(esUtilService, designationRepository, cacheService);
     }
 
     @Test

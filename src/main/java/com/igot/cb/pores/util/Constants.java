@@ -78,6 +78,8 @@ public class Constants {
     public static final String SUCCESSFULLY_READING = "successfully read";
     public static final String ID_NOT_FOUND = "Id not found";
     public static final String INVALID_ID = "Invalid Id";
+    public static final String INVALID_DESIGNATION =
+            "Invalid designation. It cannot be blank and must contain only valid characters.";
     public static final String DELETED_SUCCESSFULLY = "deleted successfully";
     public static final String ALREADY_INACTIVE = "already inactive Id";
     public static final String ERROR_WHILE_DELETING_DEMAND = "Error while deleting demand with ID";
