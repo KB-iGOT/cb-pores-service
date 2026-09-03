@@ -142,6 +142,9 @@
         }
       },
       "additionalProperties": false
+    },
+    "karmaCoinModifier": {
+      "type": "string"
     }
   },
   "required": [
