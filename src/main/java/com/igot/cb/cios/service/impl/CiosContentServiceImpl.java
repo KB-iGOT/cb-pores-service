@@ -295,10 +295,12 @@ public class CiosContentServiceImpl implements CiosContentService {
 
 
         if (Constants.LICENCE_TYPE_USER.equalsIgnoreCase(partnerLicenceType)) {
-            if(contentNode.path(Constants.COURSE_TYPE).asText().equalsIgnoreCase(Constants.COURSE_TYPE_FREE)) {
+            //remove requiredKarmaPoints and courseType for user license typ
+            contentNode.remove(Constants.COURSE_TYPE);// courseType not required for user license type, neither free nor paid
+            contentNode.put(Constants.REQUIRED_KARMA_POINTS, 0);//karmapoints always 0 for user license type
+            if(contentNode.path(Constants.COURSE_ENROL_LIMIT).asInt(0) > overAllLimit) {
                 return false;
             }
-           return validateKarmapointsAndCourseEnrolLimit(contentNode, partnerKarmaPoints, overAllLimit);
         } else if (Constants.LICENCE_TYPE_COURSE.equalsIgnoreCase(partnerLicenceType)) {
             boolean isPaid = Constants.COURSE_TYPE_PAID.equalsIgnoreCase(
                     contentNode.path(Constants.COURSE_TYPE).asText());
