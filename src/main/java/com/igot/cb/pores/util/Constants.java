@@ -531,6 +531,7 @@ public class Constants {
     public static final String BASIC_PROFILE_CACHE_PREFIX = Constants.USER + ":basicProfile:";
     public static final String STATE_ADMIN = "STATE_ADMIN";
     public static final String BADGE_DETAILS_V1 = "badgeDetails_v1";
+    public static final String COURSES_PUBLISHED_MESSAGE = "%d/%d courses successfully published, please check in the draft content for unpublished courses.";
 
     private Constants() {
     }

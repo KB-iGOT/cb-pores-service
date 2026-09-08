@@ -181,6 +181,16 @@ public class CiosContentServiceImpl implements CiosContentService {
     }
 
 
+    private boolean isPayloadValid(JsonNode jsonNode, ObjectNode contentNode) {
+        try {
+            payloadValidation.validatePayload(Constants.CIOS_CONTENT_VALIDATION_FILE_JSON, jsonNode);
+            return true;
+        } catch (Exception e) {
+            log.warn("Payload validation failed for contentId: {}, reason: {}", contentNode.path(Constants.CONTENT_ID).asText(), e.getMessage());
+            return false;
+        }
+    }
+
     @Override
     public ApiResponse onboardContent(List<ObjectDto> data) {
         log.info("CiosContentServiceImpl::createOrUpdateContent");
@@ -202,7 +212,9 @@ public class CiosContentServiceImpl implements CiosContentService {
                     apiCallToCiosSecondaryDbForUpdateData(jsonNode);
                 } else if (eachData.getStatus().equals("live")) {
                     log.info("Status of the data {}", eachData.getStatus());
-                    payloadValidation.validatePayload(Constants.CIOS_CONTENT_VALIDATION_FILE_JSON, jsonNode);
+                    if (!isPayloadValid(jsonNode, contentNode)) {
+                        continue;
+                    }
                     contentNode.put(Constants.IS_ACTIVE, Constants.ACTIVE_STATUS);
                     contentNode.put(Constants.PUBLISHED_ON, timestamp.toString());
                     contentNode.put(Constants.UPDATED_DATE, timestamp.toString());
@@ -229,9 +241,8 @@ public class CiosContentServiceImpl implements CiosContentService {
             }
             fetchAndUpdateContentCountsInPartnerDb(partnerCode);
             Map<String, Object> result = new HashMap<>();
-            String message = String.format("Out of %d records, %d record%s ", data.size(), successCount, successCount == 1 ? " was" : "s were"
-            );
-            result.put("ApiResponse", message + "published successfully");
+            String message = String.format(Constants.COURSES_PUBLISHED_MESSAGE, successCount, data.size());
+            result.put("ApiResponse", message);
             apiResponse.setResult(result);
             return apiResponse;
         } catch (CustomException e) {
@@ -434,7 +445,7 @@ public class CiosContentServiceImpl implements CiosContentService {
         }
         lowercaseTags.addAll(tags.stream()
                 .map(String::toLowerCase)
-                .collect(Collectors.toList()));
+                .toList());
         ArrayNode searchTagsArray = objectMapper.valueToTree(lowercaseTags);
         return searchTagsArray;
     }
