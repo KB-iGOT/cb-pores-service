@@ -3,9 +3,3 @@ karmaquest-servcie
 test
 123
 .
-.
-.
-.
-.
-.
-.
