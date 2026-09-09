@@ -211,26 +211,9 @@ public class CiosContentServiceImpl implements CiosContentService {
                     contentNode.put(Constants.CREATED_DATE, timestamp.toString());
                     apiCallToCiosSecondaryDbForUpdateData(jsonNode);
                 } else if (eachData.getStatus().equals("live")) {
-                    log.info("Status of the data {}", eachData.getStatus());
-                    if (!isPayloadValid(jsonNode, contentNode)) {
+                    if (!processLiveStatusContent(jsonNode, contentNode, partnerCode, timestamp)) {
                         continue;
                     }
-                    contentNode.put(Constants.IS_ACTIVE, Constants.ACTIVE_STATUS);
-                    contentNode.put(Constants.PUBLISHED_ON, timestamp.toString());
-                    contentNode.put(Constants.UPDATED_DATE, timestamp.toString());
-                    if (!applyPublishTimeLicenceRules(contentNode, partnerCode)) {
-                        log.warn("Content validation failed for contentId: {}", contentNode.path(Constants.CONTENT_ID).asText());
-                        continue;
-                    }
-                    apiCallToCiosSecondaryDbForUpdateData(jsonNode);
-                    CiosContentEntity ciosContentEntity = createNewContent(jsonNode, Constants.ACTIVE_STATUS, Constants.LIVE);
-                    ciosRepository.save(ciosContentEntity);
-                    log.info("Id of content created: {}", ciosContentEntity.getContentId());
-                    Map<String, Object> map = objectMapper.convertValue(ciosContentEntity.getCiosData().get(Constants.CONTENT), Map.class);
-                    log.debug("map value for elastic search {}", map);
-                    cacheService.putCache(ciosContentEntity.getContentId(), ciosContentEntity.getCiosData());
-                    cacheService.putCache(ciosContentEntity.getExternalId() + "_" + ciosContentEntity.getPartnerId(), ciosContentEntity.getCiosData());
-                    esUtilService.addDocument(Constants.CIOS_INDEX_NAME, Constants.INDEX_TYPE, ciosContentEntity.getContentId(), map, cbServerProperties.getElasticCiosJsonPath());
                     successCount++;
                 } else {
                     apiResponse.getParams().setErrMsg(Constants.STATUS_NOT_VALID);
@@ -321,6 +304,10 @@ public class CiosContentServiceImpl implements CiosContentService {
                 return false;
             }
             if (isPaid) {
+                JsonNode providerJson = (JsonNode) partnerResponse.getResult().get(Constants.DATA);
+                Double karmaCoinMultiplier = providerJson.path(Constants.KARMA_COIN_MULTIPLIER).asDouble(1);
+                int karmaCoin = (int) Math.round(parseKarmaCoinModifier(karmaCoinMultiplier, contentNode.path(Constants.REQUIRED_KARMA_POINTS).asInt(0)));
+                contentNode.put(Constants.REQUIRED_KARMA_COINS, karmaCoin);
                 return validateKarmapointsAndCourseEnrolLimit(contentNode, partnerKarmaPoints, overAllLimit);
             }
         }
@@ -682,6 +669,13 @@ public class CiosContentServiceImpl implements CiosContentService {
         return filteredContent;
     }
 
+    private Double parseKarmaCoinModifier(Double modifier, int defaultKarmaPoints) {
+        if ( modifier == 0) {
+            return (double) defaultKarmaPoints;
+        }
+        return modifier * defaultKarmaPoints;
+    }
+
     private boolean validateKarmapointsAndCourseEnrolLimit(ObjectNode contentNode, int partnerKarmaPoints, int overAllLimit) {
         if(contentNode.path(Constants.COURSE_ENROL_LIMIT).asInt(0) > overAllLimit) {
             return false;
@@ -718,5 +712,35 @@ public class CiosContentServiceImpl implements CiosContentService {
         } catch (CustomException e) {
             return false;
         }
+    }
+
+    /**
+     * Handles a single "live" status content item: validates the payload and the publish-time
+     * licence rules, and when both pass, persists the content and indexes it. Returns true when
+     * the content was successfully published, false when it was skipped due to a validation
+     * failure (in which case the caller should skip to the next item).
+     */
+    private boolean processLiveStatusContent(JsonNode jsonNode, ObjectNode contentNode, String partnerCode, Timestamp timestamp) {
+        log.info("Status of the data {}", "live");
+        if (!isPayloadValid(jsonNode, contentNode)) {
+            return false;
+        }
+        contentNode.put(Constants.IS_ACTIVE, Constants.ACTIVE_STATUS);
+        contentNode.put(Constants.PUBLISHED_ON, timestamp.toString());
+        contentNode.put(Constants.UPDATED_DATE, timestamp.toString());
+        if (!applyPublishTimeLicenceRules(contentNode, partnerCode)) {
+            log.warn("Content validation failed for contentId: {}", contentNode.path(Constants.CONTENT_ID).asText());
+            return false;
+        }
+        apiCallToCiosSecondaryDbForUpdateData(jsonNode);
+        CiosContentEntity ciosContentEntity = createNewContent(jsonNode, Constants.ACTIVE_STATUS, Constants.LIVE);
+        ciosRepository.save(ciosContentEntity);
+        log.info("Id of content created: {}", ciosContentEntity.getContentId());
+        Map<String, Object> map = objectMapper.convertValue(ciosContentEntity.getCiosData().get(Constants.CONTENT), Map.class);
+        log.debug("map value for elastic search {}", map);
+        cacheService.putCache(ciosContentEntity.getContentId(), ciosContentEntity.getCiosData());
+        cacheService.putCache(ciosContentEntity.getExternalId() + "_" + ciosContentEntity.getPartnerId(), ciosContentEntity.getCiosData());
+        esUtilService.addDocument(Constants.CIOS_INDEX_NAME, Constants.INDEX_TYPE, ciosContentEntity.getContentId(), map, cbServerProperties.getElasticCiosJsonPath());
+        return true;
     }
 }

@@ -143,8 +143,9 @@
       },
       "additionalProperties": false
     },
-    "karmaCoinModifier": {
-      "type": "string"
+    "karmaCoinMultiplier": {
+      "type": "number",
+      "minimum": 0
     }
   },
   "required": [

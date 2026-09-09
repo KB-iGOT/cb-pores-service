@@ -24,9 +24,11 @@ import com.igot.cb.pores.util.Constants;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.Timestamp;
 import java.util.*;
+import java.util.stream.Stream;
 
 import com.igot.cb.pores.util.PayloadValidation;
 import com.networknt.schema.JsonSchema;
@@ -35,6 +37,9 @@ import com.networknt.schema.SpecVersion;
 import com.networknt.schema.ValidationMessage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -1614,6 +1619,53 @@ class CiosContentServiceImplTest {
 
         verify(esUtilService).searchDocuments(eq(Constants.CIOS_INDEX_NAME), any(SearchCriteria.class));
         verify(valueOperations).set(anyString(), eq(expectedResult), anyLong(), any());
+    }
+
+    // ---- parseKarmaCoinModifier ----
+
+    static Stream<Arguments> validKarmaCoinModifiers() {
+        return Stream.of(
+                Arguments.of(2.0, 100, 200.0),
+                Arguments.of(1.5, 40, 60.0),
+                Arguments.of(3.0, 10, 30.0),
+                Arguments.of(2.0, 0, 0.0)
+        );
+    }
+
+    @ParameterizedTest(name = "modifier={0}, defaultKarmaPoints={1} -> {2}")
+    @MethodSource("validKarmaCoinModifiers")
+    void test_parseKarmaCoinModifier_validModifier_multipliesKarmaPoints(
+            Double modifier, int defaultKarmaPoints, double expected) throws Exception {
+        Method method = CiosContentServiceImpl.class.getDeclaredMethod(
+                "parseKarmaCoinModifier", Double.class, int.class);
+        method.setAccessible(true);
+
+        Double result = (Double) method.invoke(ciosContentService, modifier, defaultKarmaPoints);
+
+        assertEquals(expected, result);
+    }
+
+    @Test
+    void test_parseKarmaCoinModifier_zeroModifier_fallsBackToKarmaPointsAsIs() throws Exception {
+        Method method = CiosContentServiceImpl.class.getDeclaredMethod(
+                "parseKarmaCoinModifier", Double.class, int.class);
+        method.setAccessible(true);
+
+        Double result = (Double) method.invoke(ciosContentService, 0.0, 75);
+
+        assertEquals(75.0, result);
+    }
+
+    @Test
+    void test_parseKarmaCoinModifier_nullModifier_throwsNullPointerException() throws Exception {
+        Method method = CiosContentServiceImpl.class.getDeclaredMethod(
+                "parseKarmaCoinModifier", Double.class, int.class);
+        method.setAccessible(true);
+
+        InvocationTargetException thrown = assertThrows(InvocationTargetException.class,
+                () -> method.invoke(ciosContentService, (Object) null, 50));
+
+        assertInstanceOf(NullPointerException.class, thrown.getCause());
     }
 
 }
