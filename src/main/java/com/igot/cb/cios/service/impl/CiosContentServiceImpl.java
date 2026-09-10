@@ -304,7 +304,8 @@ public class CiosContentServiceImpl implements CiosContentService {
                 return false;
             }
             if (isPaid) {
-                JsonNode providerJson = (JsonNode) partnerResponse.getResult().get(Constants.DATA);
+                // partnerData is a Map, not JsonNode - convert, don't cast.
+                JsonNode providerJson = objectMapper.convertValue(partnerData, JsonNode.class);
                 Double karmaCoinMultiplier = providerJson.path(Constants.KARMA_COIN_MULTIPLIER).asDouble(1);
                 int karmaCoin = (int) Math.round(parseKarmaCoinModifier(karmaCoinMultiplier, contentNode.path(Constants.REQUIRED_KARMA_POINTS).asInt(0)));
                 contentNode.put(Constants.REQUIRED_KARMA_COINS, karmaCoin);
