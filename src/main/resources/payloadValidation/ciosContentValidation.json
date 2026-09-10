@@ -87,7 +87,7 @@
           "type": "array"
         },
         "contentPartner": {
-          "type": "string"
+          "type": "object"
         }
       },
       "required": [
