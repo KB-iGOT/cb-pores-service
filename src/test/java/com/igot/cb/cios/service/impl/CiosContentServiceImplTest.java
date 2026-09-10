@@ -24,9 +24,11 @@ import com.igot.cb.pores.util.Constants;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.Timestamp;
 import java.util.*;
+import java.util.stream.Stream;
 
 import com.igot.cb.pores.util.PayloadValidation;
 import com.networknt.schema.JsonSchema;
@@ -35,6 +37,9 @@ import com.networknt.schema.SpecVersion;
 import com.networknt.schema.ValidationMessage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -626,7 +631,7 @@ class CiosContentServiceImplTest {
         SearchCriteria searchCriteria = new SearchCriteria();
         searchCriteria.setFilterCriteriaMap(null);
 
-        ValueOperations<String, SearchResult> valueOperations = mock(ValueOperations.class);
+        valueOperations = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
 
@@ -666,7 +671,7 @@ class CiosContentServiceImplTest {
 
         SearchResult expectedResult = new SearchResult();
 
-        ValueOperations<String, SearchResult> valueOperations = mock(ValueOperations.class);
+        valueOperations = mock(ValueOperations.class);
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);
 
@@ -753,7 +758,6 @@ class CiosContentServiceImplTest {
      */
     @Test
     void test_validatePayload_validationMessageNotEmpty() {
-        ObjectMapper objectMapper = new ObjectMapper();
         JsonNode invalidPayload = objectMapper.createObjectNode();
 
         CustomException exception = assertThrows(CustomException.class, () -> {
@@ -802,7 +806,7 @@ class CiosContentServiceImplTest {
 
         CiosContentEntity entity = new CiosContentEntity();
         entity.setCiosData(node);
-        when(ciosRepository.findByContentId(eq(contentId)))
+        when(ciosRepository.findByContentId(contentId))
                 .thenReturn(Optional.of(entity));
         when(objectMapper.convertValue(eq(node), ArgumentMatchers.<TypeReference<Object>>any()))
                 .thenReturn(Map.of("key", "value"));
@@ -817,7 +821,7 @@ class CiosContentServiceImplTest {
 
         verify(cacheService).getCache(contentId);
         verify(ciosRepository).findByContentId(contentId);
-        verify(cacheService).putCache(eq(contentId), eq(node));
+        verify(cacheService).putCache(contentId, node);
         verify(objectMapper).convertValue(eq(node), ArgumentMatchers.<TypeReference<Object>>any());
     }
 
@@ -872,7 +876,7 @@ class CiosContentServiceImplTest {
 
         CiosContentEntity entity = new CiosContentEntity();
         entity.setCiosData(node);
-        when(ciosRepository.findByContentId(eq(contentId))).thenReturn(Optional.of(entity));
+        when(ciosRepository.findByContentId(contentId)).thenReturn(Optional.of(entity));
 
         Map<String, Object> innerContent = new LinkedHashMap<>();
         innerContent.put("name", "value");
@@ -925,7 +929,7 @@ class CiosContentServiceImplTest {
 
         CiosContentEntity entity = new CiosContentEntity();
         entity.setCiosData(node);
-        when(ciosRepository.findByContentId(eq(contentId))).thenReturn(Optional.of(entity));
+        when(ciosRepository.findByContentId(contentId)).thenReturn(Optional.of(entity));
 
         Map<String, Object> fullContent = new LinkedHashMap<>();
         fullContent.put("name", "value");
@@ -955,7 +959,7 @@ class CiosContentServiceImplTest {
 
         CiosContentEntity entity = new CiosContentEntity();
         entity.setCiosData(node);
-        when(ciosRepository.findByContentId(eq(contentId))).thenReturn(Optional.of(entity));
+        when(ciosRepository.findByContentId(contentId)).thenReturn(Optional.of(entity));
 
         Map<String, Object> innerContent = new LinkedHashMap<>();
         innerContent.put("name", "Foundations of Ethical Reasoning");
@@ -1250,12 +1254,12 @@ class CiosContentServiceImplTest {
         InputStream dummySchemaStream = new ByteArrayInputStream("{\"type\": \"object\"}".getBytes());
 
         // Use reflection to mock JsonSchemaFactory.getInstance().getSchema(...)
-        JsonSchemaFactory factory = Mockito.mock(JsonSchemaFactory.class);
+        JsonSchemaFactory factory = mock(JsonSchemaFactory.class);
         when(factory.getSchema(any(InputStream.class))).thenReturn(mockSchema);
 
         // Use reflection to mock the getInstance() call (for testing only)
         JsonSchemaFactory staticFactory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V201909);
-        JsonSchemaFactory spyFactory = Mockito.spy(staticFactory);
+        JsonSchemaFactory spyFactory = spy(staticFactory);
         doReturn(mockSchema).when(spyFactory).getSchema(any(InputStream.class));
 
         // Force the getResourceAsStream to return dummy schema input
@@ -1290,15 +1294,15 @@ class CiosContentServiceImplTest {
 
     @SuppressWarnings("unchecked")
     private CiosContentServiceImpl prepareServiceWithMocks(JsonNode mockedNode) throws Exception {
-        ObjectMapper objectMapper = new ObjectMapper();
-
         RestTemplate mockRestTemplate = mock(RestTemplate.class);
-
-        CbServerProperties cbServerProperties = mock(CbServerProperties.class);
+        cbServerProperties = mock(CbServerProperties.class);
         when(cbServerProperties.getCiosContentServiceHost()).thenReturn("http://mock-host");
         when(cbServerProperties.getCiosContentServiceSearchApiUrl()).thenReturn("/mock-api");
+        contentPartnerService = mock(ContentPartnerService.class);
 
-        ContentPartnerService contentPartnerService = mock(ContentPartnerService.class);
+        // The class-level objectMapper field is a mock (createObjectNode()/createArrayNode()
+        // are unstubbed there); this method needs a real one to build actual JSON payloads.
+        ObjectMapper realMapper = new ObjectMapper();
 
         // CiosContentServiceImpl is constructor-injected (@RequiredArgsConstructor over final
         // fields) - there is no no-arg constructor anymore, so build it directly. The fields
@@ -1306,7 +1310,7 @@ class CiosContentServiceImplTest {
         // redisTemplate, cacheService) just get harmless mocks.
         CiosContentServiceImpl service = new CiosContentServiceImpl(
                 mock(CiosRepository.class),
-                objectMapper,
+                realMapper,
                 mock(EsUtilService.class),
                 mock(PayloadValidation.class),
                 mock(RedisTemplate.class),
@@ -1492,10 +1496,6 @@ class CiosContentServiceImplTest {
 
     @Test
     void test_onboardContent_logsContentId() {
-        // Prepare real object mapper
-        ObjectMapper realObjectMapper = new ObjectMapper();
-
-        // Prepare the DTO and JSON
         ObjectDto dto = new ObjectDto();
         dto.setStatus("draft");
 
@@ -1614,6 +1614,199 @@ class CiosContentServiceImplTest {
 
         verify(esUtilService).searchDocuments(eq(Constants.CIOS_INDEX_NAME), any(SearchCriteria.class));
         verify(valueOperations).set(anyString(), eq(expectedResult), anyLong(), any());
+    }
+
+    // ---- parseKarmaCoinModifier ----
+
+    static Stream<Arguments> validKarmaCoinModifiers() {
+        return Stream.of(
+                Arguments.of(2.0, 100, 200.0),
+                Arguments.of(1.5, 40, 60.0),
+                Arguments.of(3.0, 10, 30.0),
+                Arguments.of(2.0, 0, 0.0)
+        );
+    }
+
+    @ParameterizedTest(name = "modifier={0}, defaultKarmaPoints={1} -> {2}")
+    @MethodSource("validKarmaCoinModifiers")
+    void test_parseKarmaCoinModifier_validModifier_multipliesKarmaPoints(
+            Double modifier, int defaultKarmaPoints, double expected) throws Exception {
+        Method method = CiosContentServiceImpl.class.getDeclaredMethod(
+                "parseKarmaCoinModifier", Double.class, int.class);
+        method.setAccessible(true);
+
+        Double result = (Double) method.invoke(ciosContentService, modifier, defaultKarmaPoints);
+
+        assertEquals(expected, result);
+    }
+
+    @Test
+    void test_parseKarmaCoinModifier_zeroModifier_fallsBackToKarmaPointsAsIs() throws Exception {
+        Method method = CiosContentServiceImpl.class.getDeclaredMethod(
+                "parseKarmaCoinModifier", Double.class, int.class);
+        method.setAccessible(true);
+
+        Double result = (Double) method.invoke(ciosContentService, 0.0, 75);
+
+        assertEquals(75.0, result);
+    }
+
+    @Test
+    void test_parseKarmaCoinModifier_nullModifier_throwsNullPointerException() throws Exception {
+        Method method = CiosContentServiceImpl.class.getDeclaredMethod(
+                "parseKarmaCoinModifier", Double.class, int.class);
+        method.setAccessible(true);
+
+        InvocationTargetException thrown = assertThrows(InvocationTargetException.class,
+                () -> method.invoke(ciosContentService, (Object) null, 50));
+
+        assertInstanceOf(NullPointerException.class, thrown.getCause());
+    }
+
+    // ---- isPayloadValid ----
+
+    private Method isPayloadValidMethod() throws NoSuchMethodException {
+        Method method = CiosContentServiceImpl.class.getDeclaredMethod("isPayloadValid", JsonNode.class, ObjectNode.class);
+        method.setAccessible(true);
+        return method;
+    }
+
+    @Test
+    void test_isPayloadValid_validPayload_returnsTrue() throws Exception {
+        doNothing().when(payloadValidation).validatePayload(anyString(), any());
+
+        boolean result = (boolean) isPayloadValidMethod()
+                .invoke(ciosContentService, realObjectMapper.createObjectNode(), realObjectMapper.createObjectNode());
+
+        assertTrue(result);
+    }
+
+    @Test
+    void test_isPayloadValid_invalidPayload_returnsFalse() throws Exception {
+        doThrow(new CustomException(Constants.ERROR, "schema mismatch", HttpStatus.BAD_REQUEST))
+                .when(payloadValidation).validatePayload(anyString(), any());
+
+        ObjectNode contentNode = realObjectMapper.createObjectNode();
+        contentNode.put(Constants.CONTENT_ID, "content-1");
+
+        boolean result = (boolean) isPayloadValidMethod()
+                .invoke(ciosContentService, realObjectMapper.createObjectNode(), contentNode);
+
+        assertFalse(result);
+    }
+
+    // ---- processLiveStatusContent ----
+
+    private Method processLiveStatusContentMethod() throws NoSuchMethodException {
+        Method method = CiosContentServiceImpl.class.getDeclaredMethod(
+                "processLiveStatusContent", JsonNode.class, ObjectNode.class, String.class, Timestamp.class);
+        method.setAccessible(true);
+        return method;
+    }
+
+    @Test
+    void test_processLiveStatusContent_invalidPayload_returnsFalseWithoutPersisting() throws Exception {
+        ObjectNode contentNode = realObjectMapper.createObjectNode();
+        ObjectNode rootNode = realObjectMapper.createObjectNode();
+        rootNode.set(Constants.CONTENT, contentNode);
+
+        doThrow(new RuntimeException("bad payload")).when(payloadValidation).validatePayload(anyString(), any());
+
+        boolean result = (boolean) processLiveStatusContentMethod()
+                .invoke(ciosContentService, rootNode, contentNode, "PARTNER_1", new Timestamp(System.currentTimeMillis()));
+
+        assertFalse(result);
+        verifyNoInteractions(contentPartnerService);
+        verify(ciosRepository, never()).save(any());
+    }
+
+    @Test
+    void test_processLiveStatusContent_licenceRulesFail_returnsFalseWithoutPersisting() throws Exception {
+        ObjectNode contentNode = realObjectMapper.createObjectNode();
+        ObjectNode rootNode = realObjectMapper.createObjectNode();
+        rootNode.set(Constants.CONTENT, contentNode);
+
+        doNothing().when(payloadValidation).validatePayload(anyString(), any());
+        when(contentPartnerService.getContentDetailsByPartnerCode("PARTNER_1")).thenReturn(null);
+
+        boolean result = (boolean) processLiveStatusContentMethod()
+                .invoke(ciosContentService, rootNode, contentNode, "PARTNER_1", new Timestamp(System.currentTimeMillis()));
+
+        assertFalse(result);
+        verify(ciosRepository, never()).save(any());
+    }
+
+    @Test
+    void test_processLiveStatusContent_success_persistsAndIndexesContent() throws Exception {
+        // createNewContent() reads externalId/contentPartner.id/contentId straight off this
+        // node (ciosRepository.save()'s return value is discarded by production code, so
+        // stubbing it doesn't affect what's used downstream).
+        ObjectNode contentNode = realObjectMapper.createObjectNode();
+        contentNode.put(Constants.CONTENT_ID, "CONTENT_1");
+        contentNode.put("externalId", "EXT_1");
+        ObjectNode partnerNode = realObjectMapper.createObjectNode();
+        partnerNode.put("id", "PARTNER_ID_1");
+        contentNode.set(Constants.CONTENT_PARTNER, partnerNode);
+
+        ObjectNode rootNode = realObjectMapper.createObjectNode();
+        rootNode.set(Constants.CONTENT, contentNode);
+
+        doNothing().when(payloadValidation).validatePayload(anyString(), any());
+
+        Map<String, Object> partnerResult = new HashMap<>();
+        partnerResult.put(Constants.DATA, new HashMap<>());
+        ApiResponse partnerResponse = new ApiResponse();
+        partnerResponse.setResult(partnerResult);
+        when(contentPartnerService.getContentDetailsByPartnerCode("PARTNER_1")).thenReturn(partnerResponse);
+        when(restTemplate.exchange(anyString(), eq(HttpMethod.POST), any(), eq(JsonNode.class)))
+                .thenReturn(ResponseEntity.ok(realObjectMapper.createObjectNode()));
+        when(ciosRepository.findByExternalIdAndPartnerId(any(), any())).thenReturn(Optional.empty());
+
+        boolean result = (boolean) processLiveStatusContentMethod()
+                .invoke(ciosContentService, rootNode, contentNode, "PARTNER_1", new Timestamp(System.currentTimeMillis()));
+
+        assertTrue(result);
+        assertTrue(contentNode.path(Constants.IS_ACTIVE).asBoolean());
+        verify(ciosRepository).save(any());
+        verify(cacheService, times(2)).putCache(any(), any());
+        verify(esUtilService).addDocument(eq(Constants.CIOS_INDEX_NAME), eq(Constants.INDEX_TYPE), eq("CONTENT_1"), any(), any());
+    }
+
+    // ---- applyPublishTimeLicenceRules: paid course under a Course licence (karma coins) ----
+
+    private Method applyPublishTimeLicenceRulesMethod() throws NoSuchMethodException {
+        Method method = CiosContentServiceImpl.class.getDeclaredMethod(
+                "applyPublishTimeLicenceRules", ObjectNode.class, String.class);
+        method.setAccessible(true);
+        return method;
+    }
+
+    /**
+     * Documents current behavior rather than asserting desired behavior: partnerData and
+     * providerJson are cast from the same partnerResponse.getResult().get(DATA) value to two
+     * incompatible types (Map vs JsonNode), so this throws ClassCastException instead of
+     * computing karma coins. Flagging for a fix, not changing production code here.
+     */
+    @Test
+    void test_applyPublishTimeLicenceRules_paidCourseUnderCourseLicence_throwsDueToProviderDataCastBug() throws Exception {
+        Method method = applyPublishTimeLicenceRulesMethod();
+
+        ObjectNode contentNode = realObjectMapper.createObjectNode();
+        contentNode.put(Constants.COURSE_TYPE, Constants.COURSE_TYPE_PAID);
+
+        Map<String, Object> partnerData = new HashMap<>();
+        partnerData.put(Constants.LICENCE_TYPE, Constants.LICENCE_TYPE_COURSE);
+        partnerData.put(Constants.KARMA_COIN_MULTIPLIER, 1.5);
+        Map<String, Object> partnerResult = new HashMap<>();
+        partnerResult.put(Constants.DATA, partnerData);
+        ApiResponse partnerResponse = new ApiResponse();
+        partnerResponse.setResult(partnerResult);
+        when(contentPartnerService.getContentDetailsByPartnerCode("PARTNER_1")).thenReturn(partnerResponse);
+
+        InvocationTargetException thrown = assertThrows(InvocationTargetException.class,
+                () -> method.invoke(ciosContentService, contentNode, "PARTNER_1"));
+
+        assertInstanceOf(ClassCastException.class, thrown.getCause());
     }
 
 }

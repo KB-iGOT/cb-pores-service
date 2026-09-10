@@ -78,6 +78,16 @@
         "requiredKarmaPoints": {
           "type": "number",
           "minimum": 0
+        },
+        "requiredKarmaCoins": {
+          "type": "number",
+          "minimum": 0
+        },
+        "competencies_v6": {
+          "type": "array"
+        },
+        "contentPartner": {
+          "type": "string"
         }
       },
       "required": [
