@@ -1781,32 +1781,32 @@ class CiosContentServiceImplTest {
         return method;
     }
 
-    /**
-     * Documents current behavior rather than asserting desired behavior: partnerData and
-     * providerJson are cast from the same partnerResponse.getResult().get(DATA) value to two
-     * incompatible types (Map vs JsonNode), so this throws ClassCastException instead of
-     * computing karma coins. Flagging for a fix, not changing production code here.
-     */
     @Test
-    void test_applyPublishTimeLicenceRules_paidCourseUnderCourseLicence_throwsDueToProviderDataCastBug() throws Exception {
+    void test_applyPublishTimeLicenceRules_paidCourseUnderCourseLicence_computesKarmaCoins() throws Exception {
         Method method = applyPublishTimeLicenceRulesMethod();
 
         ObjectNode contentNode = realObjectMapper.createObjectNode();
         contentNode.put(Constants.COURSE_TYPE, Constants.COURSE_TYPE_PAID);
+        contentNode.put(Constants.REQUIRED_KARMA_POINTS, 40);
+        contentNode.put(Constants.COURSE_ENROL_LIMIT, 10);
 
         Map<String, Object> partnerData = new HashMap<>();
         partnerData.put(Constants.LICENCE_TYPE, Constants.LICENCE_TYPE_COURSE);
         partnerData.put(Constants.KARMA_COIN_MULTIPLIER, 1.5);
+        partnerData.put(Constants.KARMA_POINTS, 20);
+        partnerData.put(Constants.OVER_ALL_LIMIT, 50);
         Map<String, Object> partnerResult = new HashMap<>();
         partnerResult.put(Constants.DATA, partnerData);
         ApiResponse partnerResponse = new ApiResponse();
         partnerResponse.setResult(partnerResult);
         when(contentPartnerService.getContentDetailsByPartnerCode("PARTNER_1")).thenReturn(partnerResponse);
+        when(objectMapper.convertValue(partnerData, JsonNode.class))
+                .thenReturn(realObjectMapper.valueToTree(partnerData));
 
-        InvocationTargetException thrown = assertThrows(InvocationTargetException.class,
-                () -> method.invoke(ciosContentService, contentNode, "PARTNER_1"));
+        boolean result = (boolean) method.invoke(ciosContentService, contentNode, "PARTNER_1");
 
-        assertInstanceOf(ClassCastException.class, thrown.getCause());
+        assertTrue(result);
+        assertEquals(60, contentNode.path(Constants.REQUIRED_KARMA_COINS).asInt());
     }
 
 }
