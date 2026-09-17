@@ -1813,7 +1813,7 @@ class CiosContentServiceImplTest {
 
     @Test
     void test_updateContentWithRequiredFields_setsCompatibilityLevelFromServerProperties() throws Exception {
-        when(cbServerProperties.getExtCourseCompatibilityLevel()).thenReturn(String.valueOf(5));
+        when(cbServerProperties.getExtCourseCompatibilityLevel()).thenReturn("5");
 
         ObjectNode contentNode = realObjectMapper.createObjectNode();
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
@@ -1826,15 +1826,17 @@ class CiosContentServiceImplTest {
 
         method.invoke(ciosContentService, contentNode, timestamp, objectDto);
 
-        assertEquals(5, contentNode.path(Constants.COMPATIBILITY_LEVEL).asInt());
+        JsonNode compatibilityLevel = contentNode.path(Constants.COMPATIBILITY_LEVEL);
+        assertTrue(compatibilityLevel.isTextual());
+        assertEquals("5", compatibilityLevel.asText());
     }
 
     @Test
     void test_updateContentWithRequiredFields_overwritesExistingCompatibilityLevel() throws Exception {
-        when(cbServerProperties.getExtCourseCompatibilityLevel()).thenReturn(String.valueOf(3));
+        when(cbServerProperties.getExtCourseCompatibilityLevel()).thenReturn("3");
 
         ObjectNode contentNode = realObjectMapper.createObjectNode();
-        contentNode.put(Constants.COMPATIBILITY_LEVEL, 1);
+        contentNode.put(Constants.COMPATIBILITY_LEVEL, "1");
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
         ObjectDto objectDto = new ObjectDto();
         objectDto.setStatus(Constants.LIVE);
@@ -1845,7 +1847,25 @@ class CiosContentServiceImplTest {
 
         method.invoke(ciosContentService, contentNode, timestamp, objectDto);
 
-        assertEquals(3, contentNode.path(Constants.COMPATIBILITY_LEVEL).asInt());
+        assertEquals("3", contentNode.path(Constants.COMPATIBILITY_LEVEL).asText());
+    }
+
+    @Test
+    void test_updateContentWithRequiredFields_compatibilityLevelIsNonNumericString() throws Exception {
+        when(cbServerProperties.getExtCourseCompatibilityLevel()).thenReturn("v2-beta");
+
+        ObjectNode contentNode = realObjectMapper.createObjectNode();
+        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+        ObjectDto objectDto = new ObjectDto();
+        objectDto.setStatus(Constants.LIVE);
+
+        Method method = CiosContentServiceImpl.class.getDeclaredMethod(
+                "updateContentWithRequiredFields", ObjectNode.class, Timestamp.class, ObjectDto.class);
+        method.setAccessible(true);
+
+        method.invoke(ciosContentService, contentNode, timestamp, objectDto);
+
+        assertEquals("v2-beta", contentNode.path(Constants.COMPATIBILITY_LEVEL).asText());
     }
 
 }
