@@ -88,6 +88,10 @@
         },
         "contentPartner": {
           "type": "object"
+        },
+        "compatibilityLevel": {
+          "type": "number",
+          "minimum": 1
         }
       },
       "required": [

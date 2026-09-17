@@ -534,6 +534,7 @@ public class Constants {
     public static final String COURSES_PUBLISHED_MESSAGE = "%d/%d courses successfully published, please check in the draft content for unpublished courses.";
     public static final String REQUIRED_KARMA_COINS = "requiredKarmaCoins";
     public static final String KARMA_COIN_MULTIPLIER = "karmaCoinMultiplier";
+    public static final String COMPATIBILITY_LEVEL = "compatibilityLevel";
 
     private Constants() {
     }

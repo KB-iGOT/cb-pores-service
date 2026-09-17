@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.BooleanNode;
+import com.fasterxml.jackson.databind.node.IntNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.igot.cb.cios.dto.ObjectDto;
 import com.igot.cb.cios.entity.CiosContentEntity;
@@ -548,6 +549,7 @@ public class CiosContentServiceImpl implements CiosContentService {
         if(eachData.getRequiredKarmaPoints() != null) {
             contentNode.put(Constants.REQUIRED_KARMA_POINTS, eachData.getRequiredKarmaPoints());
         }
+        contentNode.set(Constants.COMPATIBILITY_LEVEL, IntNode.valueOf(cbServerProperties.getExtCourseCompatibilityLevel()));
     }
 
     @Override
