@@ -548,6 +548,8 @@ public class CiosContentServiceImpl implements CiosContentService {
         if(eachData.getRequiredKarmaPoints() != null) {
             contentNode.put(Constants.REQUIRED_KARMA_POINTS, eachData.getRequiredKarmaPoints());
         }
+        contentNode.put(Constants.COMPATIBILITY_LEVEL, cbServerProperties.getExtCourseCompatibilityLevel());
+
     }
 
     @Override

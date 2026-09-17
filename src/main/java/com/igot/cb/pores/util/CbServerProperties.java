@@ -201,6 +201,9 @@ public class CbServerProperties {
     @Value("${max.demand.create.byuser.ttl:3600}")
     private int maxDemandCreateByUserTtl;
 
+    @Value("${ext.course.compatibility.level}")
+    private int extCourseCompatibilityLevel;
+
     public List<String> getOrgHierarchyCreateRequiredRoles() {
       return Arrays.asList(orgHierarchyCreateRoles.split(","));
     }
