@@ -1813,7 +1813,7 @@ class CiosContentServiceImplTest {
 
     @Test
     void test_updateContentWithRequiredFields_setsCompatibilityLevelFromServerProperties() throws Exception {
-        when(cbServerProperties.getExtCourseCompatibilityLevel()).thenReturn(5);
+        when(cbServerProperties.getExtCourseCompatibilityLevel()).thenReturn(String.valueOf(5));
 
         ObjectNode contentNode = realObjectMapper.createObjectNode();
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
@@ -1831,7 +1831,7 @@ class CiosContentServiceImplTest {
 
     @Test
     void test_updateContentWithRequiredFields_overwritesExistingCompatibilityLevel() throws Exception {
-        when(cbServerProperties.getExtCourseCompatibilityLevel()).thenReturn(3);
+        when(cbServerProperties.getExtCourseCompatibilityLevel()).thenReturn(String.valueOf(3));
 
         ObjectNode contentNode = realObjectMapper.createObjectNode();
         contentNode.put(Constants.COMPATIBILITY_LEVEL, 1);
