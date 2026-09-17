@@ -659,7 +659,7 @@ class CbServerPropertiesTest {
     @Test
     void testExtCourseCompatibilityLevel() {
         // Given
-        String expectedValue = "5";
+        int expectedValue = 5;
 
         // When
         cbServerProperties.setExtCourseCompatibilityLevel(expectedValue);
