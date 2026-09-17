@@ -657,6 +657,18 @@ class CbServerPropertiesTest {
     }
 
     @Test
+    void testExtCourseCompatibilityLevel() {
+        // Given
+        String expectedValue = "5";
+
+        // When
+        cbServerProperties.setExtCourseCompatibilityLevel(expectedValue);
+
+        // Then
+        assertEquals(expectedValue, cbServerProperties.getExtCourseCompatibilityLevel());
+    }
+
+    @Test
     void testClassInstantiation() {
         // Given & When
         CbServerProperties properties = new CbServerProperties();
