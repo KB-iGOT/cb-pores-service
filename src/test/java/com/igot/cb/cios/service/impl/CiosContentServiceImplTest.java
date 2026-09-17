@@ -1809,4 +1809,43 @@ class CiosContentServiceImplTest {
         assertEquals(60, contentNode.path(Constants.REQUIRED_KARMA_COINS).asInt());
     }
 
+    // ---- updateContentWithRequiredFields: compatibilityLevel is stamped from server properties ----
+
+    @Test
+    void test_updateContentWithRequiredFields_setsCompatibilityLevelFromServerProperties() throws Exception {
+        when(cbServerProperties.getExtCourseCompatibilityLevel()).thenReturn(5);
+
+        ObjectNode contentNode = realObjectMapper.createObjectNode();
+        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+        ObjectDto objectDto = new ObjectDto();
+        objectDto.setStatus(Constants.LIVE);
+
+        Method method = CiosContentServiceImpl.class.getDeclaredMethod(
+                "updateContentWithRequiredFields", ObjectNode.class, Timestamp.class, ObjectDto.class);
+        method.setAccessible(true);
+
+        method.invoke(ciosContentService, contentNode, timestamp, objectDto);
+
+        assertEquals(5, contentNode.path(Constants.COMPATIBILITY_LEVEL).asInt());
+    }
+
+    @Test
+    void test_updateContentWithRequiredFields_overwritesExistingCompatibilityLevel() throws Exception {
+        when(cbServerProperties.getExtCourseCompatibilityLevel()).thenReturn(3);
+
+        ObjectNode contentNode = realObjectMapper.createObjectNode();
+        contentNode.put(Constants.COMPATIBILITY_LEVEL, 1);
+        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+        ObjectDto objectDto = new ObjectDto();
+        objectDto.setStatus(Constants.LIVE);
+
+        Method method = CiosContentServiceImpl.class.getDeclaredMethod(
+                "updateContentWithRequiredFields", ObjectNode.class, Timestamp.class, ObjectDto.class);
+        method.setAccessible(true);
+
+        method.invoke(ciosContentService, contentNode, timestamp, objectDto);
+
+        assertEquals(3, contentNode.path(Constants.COMPATIBILITY_LEVEL).asInt());
+    }
+
 }
