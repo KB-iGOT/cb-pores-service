@@ -23,6 +23,7 @@ import com.igot.cb.pores.elasticsearch.dto.SearchCriteria;
 import com.igot.cb.pores.elasticsearch.dto.SearchResult;
 import com.igot.cb.pores.exceptions.CustomException;
 import com.igot.cb.pores.util.CbServerProperties;
+import com.igot.cb.pores.util.Constants;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -402,6 +403,103 @@ class EsUtilServiceImplTest {
         // Assert
         assertNotNull(result);
         assertEquals(25L, result.getTotalCount());
+    }
+
+    @Test
+    void designationSearch_shouldAddExactMatchClauseWithHighestBoost() throws IOException {
+        Query query = captureSearchQuery(Constants.DESIGNATION_INDEX_NAME, "electrician");
+        List<Query> shouldQueries = query.bool().should();
+
+        assertEquals("searchTags", shouldQueries.get(0).term().field());
+        assertEquals("electrician", shouldQueries.get(0).term().value().stringValue());
+        assertEquals(10.0f, shouldQueries.get(0).term().boost());
+    }
+
+    @Test
+    void designationSearch_shouldAddPrefixMatchClauseWithMiddleBoost() throws IOException {
+        Query query = captureSearchQuery(Constants.DESIGNATION_INDEX_NAME, "electrician");
+        List<Query> shouldQueries = query.bool().should();
+
+        assertEquals("searchTags", shouldQueries.get(1).prefix().field());
+        assertEquals("electrician", shouldQueries.get(1).prefix().value());
+        assertEquals(5.0f, shouldQueries.get(1).prefix().boost());
+    }
+
+    @Test
+    void designationSearch_shouldAddContainsClauseWithLowestBoost() throws IOException {
+        Query query = captureSearchQuery(Constants.DESIGNATION_INDEX_NAME, "electrician");
+        List<Query> shouldQueries = query.bool().should();
+
+        assertEquals("searchTags", shouldQueries.get(2).wildcard().field());
+        assertEquals("*electrician*", shouldQueries.get(2).wildcard().value());
+        assertEquals(1.0f, shouldQueries.get(2).wildcard().boost());
+        assertEquals("1", query.bool().minimumShouldMatch());
+    }
+
+    @Test
+    void designationSearch_shouldTrimAndLowercaseSearchString() throws IOException {
+        Query query = captureSearchQuery(
+                Constants.DESIGNATION_INDEX_NAME, "  Electrician (Grade I)  ");
+        List<Query> shouldQueries = query.bool().should();
+
+        assertEquals("electrician (grade i)", shouldQueries.get(0).term().value().stringValue());
+        assertEquals("electrician (grade i)", shouldQueries.get(1).prefix().value());
+        assertEquals("*electrician (grade i)*", shouldQueries.get(2).wildcard().value());
+    }
+
+    @Test
+    void designationSearch_shouldEscapeWildcardCharactersInContainsClause() throws IOException {
+        Query query = captureSearchQuery(Constants.DESIGNATION_INDEX_NAME, "A*B?C\\D");
+
+        assertEquals("*a\\*b\\?c\\\\d*", query.bool().should().get(2).wildcard().value());
+    }
+
+    @Test
+    void nonDesignationSearch_shouldKeepGenericV2Query() throws IOException {
+        when(cbServerProperties.getSearchFieldsWithBoost()).thenReturn("title:2.0");
+
+        Query query = captureSearchQuery("test-index", "  Example Search  ");
+        List<Query> shouldQueries = query.bool().should();
+
+        assertEquals(3, shouldQueries.size());
+        assertEquals("title", shouldQueries.get(0).term().field());
+        assertEquals("Example Search", shouldQueries.get(0).term().value().stringValue());
+        assertEquals("title", shouldQueries.get(1).matchPhrase().field());
+        assertEquals("title^2.0", query.bool().should().get(2).multiMatch().fields().get(0));
+    }
+
+    private Query captureSearchQuery(String indexName, String searchString) throws IOException {
+        SearchCriteria searchCriteria = new SearchCriteria();
+        searchCriteria.setPageNumber(0);
+        searchCriteria.setPageSize(10);
+        searchCriteria.setSearchString(searchString);
+
+        TotalHits totalHits = new TotalHits.Builder()
+                .value(0L)
+                .relation(TotalHitsRelation.Eq)
+                .build();
+        HitsMetadata<Object> hitsMetadata = new HitsMetadata.Builder<Object>()
+                .total(totalHits)
+                .hits(Collections.emptyList())
+                .build();
+        SearchResponse<Object> mockSearchResponse = new SearchResponse.Builder<Object>()
+                .took(1)
+                .timedOut(false)
+                .shards(s -> s.total(1).successful(1).failed(0).skipped(0))
+                .hits(hitsMetadata)
+                .aggregations(new HashMap<>())
+                .build();
+
+        when(elasticsearchClient.search(any(SearchRequest.class), eq(Object.class)))
+                .thenReturn(mockSearchResponse);
+        when(objectMapper.valueToTree(any())).thenReturn(mock(JsonNode.class));
+
+        esUtilService.searchDocumentsV2(indexName, searchCriteria);
+
+        ArgumentCaptor<SearchRequest> requestCaptor =
+                ArgumentCaptor.forClass(SearchRequest.class);
+        verify(elasticsearchClient).search(requestCaptor.capture(), eq(Object.class));
+        return requestCaptor.getValue().query();
     }
 
     @Test

@@ -46,6 +46,10 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class EsUtilServiceImpl implements EsUtilService {
 
+    private static final float DESIGNATION_EXACT_MATCH_BOOST = 10.0f;
+    private static final float DESIGNATION_PREFIX_MATCH_BOOST = 5.0f;
+    private static final float DESIGNATION_PARTIAL_MATCH_BOOST = 1.0f;
+
     /*@Autowired
     private RestHighLevelClient elasticsearchClient;*/
     private final EsConfig esConfig;
@@ -580,7 +584,8 @@ public class EsUtilServiceImpl implements EsUtilService {
     @Override
     public SearchResult searchDocumentsV2(String esIndexName, SearchCriteria searchCriteria) {
 
-        SearchRequest.Builder searchRequestBuilder = buildSearchRequestV2(searchCriteria);
+        SearchRequest.Builder searchRequestBuilder =
+                buildSearchRequestV2(esIndexName, searchCriteria);
         searchRequestBuilder.index(esIndexName);
 
         try {
@@ -614,7 +619,8 @@ public class EsUtilServiceImpl implements EsUtilService {
         }
     }
 
-    private SearchRequest.Builder buildSearchRequestV2(SearchCriteria searchCriteria) {
+    private SearchRequest.Builder buildSearchRequestV2(
+            String esIndexName, SearchCriteria searchCriteria) {
         BoolQuery.Builder boolQuery = buildFilterQueryV2(searchCriteria.getFilterCriteriaMap());
         if (isNotBlank(searchCriteria.getStartsWith()) &&
                 isNotBlank(searchCriteria.getStartsWithField())) {
@@ -623,7 +629,11 @@ public class EsUtilServiceImpl implements EsUtilService {
                     .value(searchCriteria.getStartsWith())
             )));
         }
-        addQueryStringToFilterV2(searchCriteria.getSearchString(), boolQuery);
+        if (Constants.DESIGNATION_INDEX_NAME.equals(esIndexName)) {
+            addDesignationQueryStringToFilterV2(searchCriteria.getSearchString(), boolQuery);
+        } else {
+            addQueryStringToFilterV2(searchCriteria.getSearchString(), boolQuery);
+        }
 
         SearchRequest.Builder builder = new SearchRequest.Builder();
         builder.query(boolQuery.build()._toQuery());
@@ -863,6 +873,39 @@ public class EsUtilServiceImpl implements EsUtilService {
                 .type(TextQueryType.MostFields)
         )));
         boolQueryBuilder.minimumShouldMatch("1");
+    }
+
+    private void addDesignationQueryStringToFilterV2(
+            String searchString, BoolQuery.Builder boolQueryBuilder) {
+        if (!isNotBlank(searchString)) {
+            return;
+        }
+
+        String normalizedSearch = searchString.trim().toLowerCase(Locale.ROOT);
+        String escapedSearch = escapeWildcardCharacters(normalizedSearch);
+
+        boolQueryBuilder.should(Query.of(q -> q.term(t -> t
+                .field(Constants.SEARCHTAGS)
+                .value(normalizedSearch)
+                .boost(DESIGNATION_EXACT_MATCH_BOOST)
+        )));
+        boolQueryBuilder.should(Query.of(q -> q.prefix(p -> p
+                .field(Constants.SEARCHTAGS)
+                .value(normalizedSearch)
+                .boost(DESIGNATION_PREFIX_MATCH_BOOST)
+        )));
+        boolQueryBuilder.should(Query.of(q -> q.wildcard(w -> w
+                .field(Constants.SEARCHTAGS)
+                .value("*" + escapedSearch + "*")
+                .boost(DESIGNATION_PARTIAL_MATCH_BOOST)
+        )));
+        boolQueryBuilder.minimumShouldMatch("1");
+    }
+
+    private String escapeWildcardCharacters(String value) {
+        return value.replace("\\", "\\\\")
+                .replace("*", "\\*")
+                .replace("?", "\\?");
     }
 
     private Map<String, Float> parseBoostConfig(String configValue) {
