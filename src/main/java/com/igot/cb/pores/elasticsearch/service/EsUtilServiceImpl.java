@@ -629,11 +629,8 @@ public class EsUtilServiceImpl implements EsUtilService {
                     .value(searchCriteria.getStartsWith())
             )));
         }
-        if (Constants.DESIGNATION_INDEX_NAME.equals(esIndexName)) {
-            addDesignationQueryStringToFilterV2(searchCriteria.getSearchString(), boolQuery);
-        } else {
-            addQueryStringToFilterV2(searchCriteria.getSearchString(), boolQuery);
-        }
+        addQueryStringToFilterV2(
+                searchCriteria.getSearchString(), boolQuery, esIndexName);
 
         SearchRequest.Builder builder = new SearchRequest.Builder();
         builder.query(boolQuery.build()._toQuery());
@@ -834,11 +831,39 @@ public class EsUtilServiceImpl implements EsUtilService {
         builder.aggregations(aggs);
     }
 
-    private void addQueryStringToFilterV2(String searchString, BoolQuery.Builder boolQueryBuilder) {
+    private void addQueryStringToFilterV2(
+            String searchString, BoolQuery.Builder boolQueryBuilder, String esIndexName) {
 
         if (!isNotBlank(searchString)) {
             return;
         }
+
+        if (Constants.DESIGNATION_INDEX_NAME.equals(esIndexName)) {
+            String normalizedSearch = searchString.trim().toLowerCase(Locale.ROOT);
+            String escapedSearch = normalizedSearch
+                    .replace("\\", "\\\\")
+                    .replace("*", "\\*")
+                    .replace("?", "\\?");
+
+            boolQueryBuilder.should(Query.of(q -> q.term(t -> t
+                    .field(Constants.SEARCHTAGS)
+                    .value(normalizedSearch)
+                    .boost(DESIGNATION_EXACT_MATCH_BOOST)
+            )));
+            boolQueryBuilder.should(Query.of(q -> q.prefix(p -> p
+                    .field(Constants.SEARCHTAGS)
+                    .value(normalizedSearch)
+                    .boost(DESIGNATION_PREFIX_MATCH_BOOST)
+            )));
+            boolQueryBuilder.should(Query.of(q -> q.wildcard(w -> w
+                    .field(Constants.SEARCHTAGS)
+                    .value("*" + escapedSearch + "*")
+                    .boost(DESIGNATION_PARTIAL_MATCH_BOOST)
+            )));
+            boolQueryBuilder.minimumShouldMatch("1");
+            return;
+        }
+
         String trimmedSearch = searchString.trim();
         Map<String, Float> fieldsWithBoost =
                 parseBoostConfig(cbServerProperties.getSearchFieldsWithBoost());
@@ -873,39 +898,6 @@ public class EsUtilServiceImpl implements EsUtilService {
                 .type(TextQueryType.MostFields)
         )));
         boolQueryBuilder.minimumShouldMatch("1");
-    }
-
-    private void addDesignationQueryStringToFilterV2(
-            String searchString, BoolQuery.Builder boolQueryBuilder) {
-        if (!isNotBlank(searchString)) {
-            return;
-        }
-
-        String normalizedSearch = searchString.trim().toLowerCase(Locale.ROOT);
-        String escapedSearch = escapeWildcardCharacters(normalizedSearch);
-
-        boolQueryBuilder.should(Query.of(q -> q.term(t -> t
-                .field(Constants.SEARCHTAGS)
-                .value(normalizedSearch)
-                .boost(DESIGNATION_EXACT_MATCH_BOOST)
-        )));
-        boolQueryBuilder.should(Query.of(q -> q.prefix(p -> p
-                .field(Constants.SEARCHTAGS)
-                .value(normalizedSearch)
-                .boost(DESIGNATION_PREFIX_MATCH_BOOST)
-        )));
-        boolQueryBuilder.should(Query.of(q -> q.wildcard(w -> w
-                .field(Constants.SEARCHTAGS)
-                .value("*" + escapedSearch + "*")
-                .boost(DESIGNATION_PARTIAL_MATCH_BOOST)
-        )));
-        boolQueryBuilder.minimumShouldMatch("1");
-    }
-
-    private String escapeWildcardCharacters(String value) {
-        return value.replace("\\", "\\\\")
-                .replace("*", "\\*")
-                .replace("?", "\\?");
     }
 
     private Map<String, Float> parseBoostConfig(String configValue) {
