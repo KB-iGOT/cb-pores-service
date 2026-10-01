@@ -46,10 +46,6 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class EsUtilServiceImpl implements EsUtilService {
 
-    private static final float DESIGNATION_EXACT_MATCH_BOOST = 10.0f;
-    private static final float DESIGNATION_PREFIX_MATCH_BOOST = 5.0f;
-    private static final float DESIGNATION_PARTIAL_MATCH_BOOST = 1.0f;
-
     /*@Autowired
     private RestHighLevelClient elasticsearchClient;*/
     private final EsConfig esConfig;
@@ -634,6 +630,10 @@ public class EsUtilServiceImpl implements EsUtilService {
 
         SearchRequest.Builder builder = new SearchRequest.Builder();
         builder.query(boolQuery.build()._toQuery());
+        if (Constants.DESIGNATION_INDEX_NAME.equals(esIndexName)
+                && isNotBlank(searchCriteria.getSearchString())) {
+            builder.sort(s -> s.score(score -> score.order(SortOrder.Desc)));
+        }
         addSortV2(searchCriteria, builder);
         addRequestedFieldsToSearchSourceBuilder(searchCriteria, builder);
         addFacetsV2(searchCriteria.getFacets(), builder);
@@ -838,35 +838,13 @@ public class EsUtilServiceImpl implements EsUtilService {
             return;
         }
 
-        if (Constants.DESIGNATION_INDEX_NAME.equals(esIndexName)) {
-            String normalizedSearch = searchString.trim().toLowerCase(Locale.ROOT);
-            String escapedSearch = normalizedSearch
-                    .replace("\\", "\\\\")
-                    .replace("*", "\\*")
-                    .replace("?", "\\?");
-
-            boolQueryBuilder.should(Query.of(q -> q.term(t -> t
-                    .field(Constants.SEARCHTAGS)
-                    .value(normalizedSearch)
-                    .boost(DESIGNATION_EXACT_MATCH_BOOST)
-            )));
-            boolQueryBuilder.should(Query.of(q -> q.prefix(p -> p
-                    .field(Constants.SEARCHTAGS)
-                    .value(normalizedSearch)
-                    .boost(DESIGNATION_PREFIX_MATCH_BOOST)
-            )));
-            boolQueryBuilder.should(Query.of(q -> q.wildcard(w -> w
-                    .field(Constants.SEARCHTAGS)
-                    .value("*" + escapedSearch + "*")
-                    .boost(DESIGNATION_PARTIAL_MATCH_BOOST)
-            )));
-            boolQueryBuilder.minimumShouldMatch("1");
-            return;
-        }
-
-        String trimmedSearch = searchString.trim();
+        boolean designationSearch = Constants.DESIGNATION_INDEX_NAME.equals(esIndexName);
+        String trimmedSearch = designationSearch
+                ? searchString.trim().toLowerCase(Locale.ROOT) : searchString.trim();
         Map<String, Float> fieldsWithBoost =
-                parseBoostConfig(cbServerProperties.getSearchFieldsWithBoost());
+                parseBoostConfig(designationSearch
+                        ? cbServerProperties.getDesignationSearchFieldsWithBoost()
+                        : cbServerProperties.getSearchFieldsWithBoost());
         if (fieldsWithBoost.isEmpty()) {
             log.warn("No search fields configured");
             return;
@@ -879,24 +857,48 @@ public class EsUtilServiceImpl implements EsUtilService {
                         .boost(boost * 4)
                 )))
         );
-        fieldsWithBoost.forEach((field, boost) ->
+        fieldsWithBoost.forEach((field, boost) -> {
+            if (designationSearch) {
+                boolQueryBuilder.should(Query.of(q -> q.prefix(p -> p
+                        .field(field)
+                        .value(trimmedSearch)
+                        .boost(boost * 2)
+                        .rewrite("constant_score")
+                )));
+            } else {
                 boolQueryBuilder.should(Query.of(q -> q.matchPhrase(mp -> mp
                         .field(field)
                         .query(trimmedSearch)
                         .boost(boost * 2)
                         .slop(1)
-                )))
-        );
-        List<String> boostedFields = fieldsWithBoost.entrySet()
-                .stream()
-                .map(entry -> entry.getKey() + Constants.BOOST_SEPARATOR + entry.getValue())
-                .toList();
+                )));
+            }
+        });
+        if (designationSearch) {
+            String escapedSearch = trimmedSearch
+                    .replace("\\", "\\\\")
+                    .replace("*", "\\*")
+                    .replace("?", "\\?");
+            fieldsWithBoost.forEach((field, boost) ->
+                    boolQueryBuilder.should(Query.of(q -> q.wildcard(w -> w
+                            .field(field)
+                            .value("*" + escapedSearch + "*")
+                            .boost(boost)
+                            .rewrite("constant_score")
+                    )))
+            );
+        } else {
+            List<String> boostedFields = fieldsWithBoost.entrySet()
+                    .stream()
+                    .map(entry -> entry.getKey() + Constants.BOOST_SEPARATOR + entry.getValue())
+                    .toList();
 
-        boolQueryBuilder.should(Query.of(q -> q.multiMatch(m -> m
-                .query(trimmedSearch)
-                .fields(boostedFields)
-                .type(TextQueryType.MostFields)
-        )));
+            boolQueryBuilder.should(Query.of(q -> q.multiMatch(m -> m
+                    .query(trimmedSearch)
+                    .fields(boostedFields)
+                    .type(TextQueryType.MostFields)
+            )));
+        }
         boolQueryBuilder.minimumShouldMatch("1");
     }
 
