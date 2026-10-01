@@ -838,13 +838,13 @@ public class EsUtilServiceImpl implements EsUtilService {
             return;
         }
 
-        boolean designationSearch = Constants.DESIGNATION_INDEX_NAME.equals(esIndexName);
-        String trimmedSearch = designationSearch
+        boolean isDesignationSearch = Constants.DESIGNATION_INDEX_NAME.equals(esIndexName);
+        String trimmedSearch = isDesignationSearch
                 ? searchString.trim().toLowerCase(Locale.ROOT) : searchString.trim();
-        Map<String, Float> fieldsWithBoost =
-                parseBoostConfig(designationSearch
-                        ? cbServerProperties.getDesignationSearchFieldsWithBoost()
-                        : cbServerProperties.getSearchFieldsWithBoost());
+        String boostConfig = isDesignationSearch
+                ? cbServerProperties.getDesignationSearchFieldsWithBoost()
+                : cbServerProperties.getSearchFieldsWithBoost();
+        Map<String, Float> fieldsWithBoost = parseBoostConfig(boostConfig);
         if (fieldsWithBoost.isEmpty()) {
             log.warn("No search fields configured");
             return;
@@ -858,7 +858,7 @@ public class EsUtilServiceImpl implements EsUtilService {
                 )))
         );
         fieldsWithBoost.forEach((field, boost) -> {
-            if (designationSearch) {
+            if (isDesignationSearch) {
                 boolQueryBuilder.should(Query.of(q -> q.prefix(p -> p
                         .field(field)
                         .value(trimmedSearch)
@@ -874,19 +874,20 @@ public class EsUtilServiceImpl implements EsUtilService {
                 )));
             }
         });
-        if (designationSearch) {
+        if (isDesignationSearch) {
+            // Treat wildcard characters in the search text literally.
             String escapedSearch = trimmedSearch
                     .replace("\\", "\\\\")
                     .replace("*", "\\*")
                     .replace("?", "\\?");
+            String containsPattern = "*" + escapedSearch + "*";
             fieldsWithBoost.forEach((field, boost) ->
                     boolQueryBuilder.should(Query.of(q -> q.wildcard(w -> w
                             .field(field)
-                            .value("*" + escapedSearch + "*")
+                            .value(containsPattern)
                             .boost(boost)
                             .rewrite("constant_score")
-                    )))
-            );
+                    ))));
         } else {
             List<String> boostedFields = fieldsWithBoost.entrySet()
                     .stream()
