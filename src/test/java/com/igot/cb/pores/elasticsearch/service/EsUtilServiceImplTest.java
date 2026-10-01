@@ -409,8 +409,8 @@ class EsUtilServiceImplTest {
 
     @Test
     void designationSearch_shouldAddExactMatchClauseWithHighestBoost() throws IOException {
-        Query query = captureSearchQuery(Constants.DESIGNATION_INDEX_NAME, "electrician");
-        List<Query> shouldQueries = query.bool().should();
+        Query searchQuery = captureSearchQuery(Constants.DESIGNATION_INDEX_NAME, "electrician");
+        List<Query> shouldQueries = searchQuery.bool().should();
 
         assertEquals("searchTags", shouldQueries.get(0).term().field());
         assertEquals("electrician", shouldQueries.get(0).term().value().stringValue());
@@ -419,8 +419,8 @@ class EsUtilServiceImplTest {
 
     @Test
     void designationSearch_shouldAddPrefixMatchClauseWithMiddleBoost() throws IOException {
-        Query query = captureSearchQuery(Constants.DESIGNATION_INDEX_NAME, "electrician");
-        List<Query> shouldQueries = query.bool().should();
+        Query searchQuery = captureSearchQuery(Constants.DESIGNATION_INDEX_NAME, "electrician");
+        List<Query> shouldQueries = searchQuery.bool().should();
 
         assertEquals("searchTags", shouldQueries.get(1).prefix().field());
         assertEquals("electrician", shouldQueries.get(1).prefix().value());
@@ -430,21 +430,21 @@ class EsUtilServiceImplTest {
 
     @Test
     void designationSearch_shouldAddContainsClauseWithLowestBoost() throws IOException {
-        Query query = captureSearchQuery(Constants.DESIGNATION_INDEX_NAME, "electrician");
-        List<Query> shouldQueries = query.bool().should();
+        Query searchQuery = captureSearchQuery(Constants.DESIGNATION_INDEX_NAME, "electrician");
+        List<Query> shouldQueries = searchQuery.bool().should();
 
         assertEquals("searchTags", shouldQueries.get(2).wildcard().field());
         assertEquals("*electrician*", shouldQueries.get(2).wildcard().value());
         assertEquals(5.0f, shouldQueries.get(2).wildcard().boost());
         assertEquals("constant_score", shouldQueries.get(2).wildcard().rewrite());
-        assertEquals("1", query.bool().minimumShouldMatch());
+        assertEquals("1", searchQuery.bool().minimumShouldMatch());
     }
 
     @Test
     void designationSearch_shouldTrimAndLowercaseSearchString() throws IOException {
-        Query query = captureSearchQuery(
+        Query searchQuery = captureSearchQuery(
                 Constants.DESIGNATION_INDEX_NAME, "  Electrician (Grade I)  ");
-        List<Query> shouldQueries = query.bool().should();
+        List<Query> shouldQueries = searchQuery.bool().should();
 
         assertEquals("electrician (grade i)", shouldQueries.get(0).term().value().stringValue());
         assertEquals("electrician (grade i)", shouldQueries.get(1).prefix().value());
@@ -453,23 +453,23 @@ class EsUtilServiceImplTest {
 
     @Test
     void designationSearch_shouldEscapeWildcardCharactersInContainsClause() throws IOException {
-        Query query = captureSearchQuery(Constants.DESIGNATION_INDEX_NAME, "A*B?C\\D");
+        Query searchQuery = captureSearchQuery(Constants.DESIGNATION_INDEX_NAME, "A*B?C\\D");
 
-        assertEquals("*a\\*b\\?c\\\\d*", query.bool().should().get(2).wildcard().value());
+        assertEquals("*a\\*b\\?c\\\\d*", searchQuery.bool().should().get(2).wildcard().value());
     }
 
     @Test
     void nonDesignationSearch_shouldKeepGenericV2Query() throws IOException {
         when(cbServerProperties.getSearchFieldsWithBoost()).thenReturn("title:2.0");
 
-        Query query = captureSearchQuery("test-index", "  Example Search  ");
-        List<Query> shouldQueries = query.bool().should();
+        Query searchQuery = captureSearchQuery("test-index", "  Example Search  ");
+        List<Query> shouldQueries = searchQuery.bool().should();
 
         assertEquals(3, shouldQueries.size());
         assertEquals("title", shouldQueries.get(0).term().field());
         assertEquals("Example Search", shouldQueries.get(0).term().value().stringValue());
         assertEquals("title", shouldQueries.get(1).matchPhrase().field());
-        assertEquals("title^2.0", query.bool().should().get(2).multiMatch().fields().get(0));
+        assertEquals("title^2.0", searchQuery.bool().should().get(2).multiMatch().fields().get(0));
     }
 
     @Test
@@ -478,11 +478,11 @@ class EsUtilServiceImplTest {
                 .thenReturn("searchTags:3.0,alternateNames:1.5");
         when(cbServerProperties.getSearchFieldsWithBoost()).thenReturn("title:99.0");
 
-        Query query = captureSearchQuery(Constants.DESIGNATION_INDEX_NAME, "electrician");
+        Query searchQuery = captureSearchQuery(Constants.DESIGNATION_INDEX_NAME, "electrician");
 
-        assertEquals(6, query.bool().should().size());
+        assertEquals(6, searchQuery.bool().should().size());
         Map<String, Float> configuredBoosts = Map.of("searchTags", 3.0f, "alternateNames", 1.5f);
-        for (Query clause : query.bool().should()) {
+        for (Query clause : searchQuery.bool().should()) {
             if (clause.isTerm()) {
                 assertEquals(configuredBoosts.get(clause.term().field()) * 4, clause.term().boost());
             } else if (clause.isPrefix()) {
@@ -568,9 +568,9 @@ class EsUtilServiceImplTest {
     void designationSearch_shouldKeepExistingGuardForEmptyBoostConfig() throws IOException {
         when(cbServerProperties.getDesignationSearchFieldsWithBoost()).thenReturn("");
 
-        Query query = captureSearchQuery(Constants.DESIGNATION_INDEX_NAME, "electrician");
+        Query searchQuery = captureSearchQuery(Constants.DESIGNATION_INDEX_NAME, "electrician");
 
-        assertTrue(query.bool().should().isEmpty());
+        assertTrue(searchQuery.bool().should().isEmpty());
     }
 
     private Query captureSearchQuery(String indexName, String searchString) throws IOException {
