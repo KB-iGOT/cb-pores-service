@@ -875,7 +875,6 @@ public class EsUtilServiceImpl implements EsUtilService {
                     .query(normalizedSearch)
                     .fields("searchTags")
                     .type(TextQueryType.MostFields)
-                    .operator(Operator.And)
                     .boost(7.0f)
             )));
             boolQueryBuilder.minimumShouldMatch("1");
