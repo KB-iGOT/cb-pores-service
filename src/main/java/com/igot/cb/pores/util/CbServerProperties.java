@@ -73,6 +73,33 @@ public class CbServerProperties {
   @Value("${partner.code.characters}")
   private String partnerCodeChar;
 
+  @Value("${partner.code.max.attempts:20}")
+  private int partnerCodeMaxAttempts;
+
+  @Value("${partner.code.length:5}")
+  private int partnerCodeLength;
+
+  @Value("${content.partner.v2.update.validation.schema.path}")
+  private String contentPartnerV2ValidationSchemaPath;
+
+  @Value("${content.partner.v2.create.validation.schema.path}")
+  private String contentPartnerV2CreateValidationSchemaPath;
+
+  @Value("${lti.version:1.3}")
+  private String ltiVersion;
+
+  @Value("${lti.tool.issuer:}")
+  private String ltiToolIssuer;
+
+  @Value("${lti.client.id:}")
+  private String ltiClientId;
+
+  @Value("${lti.deployment.id:}")
+  private String ltiDeploymentId;
+
+  @Value("${content.partner.search.cache.key:demand_search_result}")
+  private String contentPartnerSearchCacheKey;
+
   public List<String> getBookmarkDuplicateNotAllowedCategory() {
     return Arrays.asList(bookmarkDuplicateNotAllowedCategory.split(","));
   }
