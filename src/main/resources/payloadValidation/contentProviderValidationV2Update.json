@@ -244,6 +244,12 @@
               "deepLinkingUrl": {
                 "type": "string",
                 "format": "uri"
+              },
+              "ssoTestStatus": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
               }
             },
             "required": [

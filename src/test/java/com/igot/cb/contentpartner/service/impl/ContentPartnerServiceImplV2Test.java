@@ -891,6 +891,24 @@ class ContentPartnerServiceImplV2Test {
     }
 
     @Test
+    void update_ltiConfigurationKeepsSsoTestStatusAndMessageAlongsideServerManagedValues() {
+        ObjectNode data = createRequest("Partner");
+        data.put(Constants.PROTOCOL, "LTI");
+        ObjectNode lti = ltiConfig();
+        lti.put("ssoTestStatus", "SUCCESS");
+        lti.put("message", "All checks passed");
+        data.set(Constants.LTI_CONFIGURATION, lti);
+
+        ApiResponse response = update(storedPartner(storedDataWithName("Partner")), data);
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        ObjectNode expected = completedLtiConfig();
+        expected.put("ssoTestStatus", "SUCCESS");
+        expected.put("message", "All checks passed");
+        assertEquals(expected, captureSaved().getData().path(Constants.LTI_CONFIGURATION));
+    }
+
+    @Test
     void update_unchangedNameStillAppliesLtiConfiguration() {
         ObjectNode data = createRequest("Partner");
         data.put(Constants.PROTOCOL, "LTI");

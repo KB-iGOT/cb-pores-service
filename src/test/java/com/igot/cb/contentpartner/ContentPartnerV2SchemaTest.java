@@ -103,6 +103,35 @@ class ContentPartnerV2SchemaTest {
     }
 
     @Test
+    void ssoTestStatusAndMessageAreAcceptedAndOptional() {
+        ObjectNode lti = validLti();
+        lti.put("ssoTestStatus", "SUCCESS");
+        lti.put("message", "All checks passed");
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(lti)));
+
+        ObjectNode onlyStatus = validLti();
+        onlyStatus.put("ssoTestStatus", "SUCCESS");
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(onlyStatus)));
+
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(validLti())));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"ssoTestStatus", "message"})
+    void ssoTestStatusAndMessageMustBeStrings(String field) {
+        ObjectNode lti = validLti();
+        lti.put(field, 5);
+        assertRejected(ltiPartner(lti));
+    }
+
+    @Test
+    void otherUnknownLtiConfigurationFieldsAreStillRejected() {
+        ObjectNode lti = validLti();
+        lti.put("ssoTestResult", "SUCCESS");
+        assertRejected(ltiPartner(lti));
+    }
+
+    @Test
     void existingRequiredPartnerFieldsStillApply() {
         ObjectNode node = ltiPartner(validLti());
         node.remove("link");
