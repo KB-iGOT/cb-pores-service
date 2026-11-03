@@ -371,6 +371,7 @@ public class Constants {
     public static final String CONTENT_PARTNER_CODE_AND_NAME_ALREADY_PRESENT = "Content partnerCode and partnerName already present in DB";
     public static final String CONTENT_PARTNER_NAME_ALREADY_PRESENT = "Content partnerName already present in DB";
     public static final String CONTENT_PARTNER_CODE_ALREADY_PRESENT = "Content partnerCode already present in DB";
+    public static final String CONTENT_PARTNER_CODE_CANNOT_BE_CHANGED = "Content partnerCode cannot be changed";
     public static final String PROVIDER_TIPS = "providerTips";
     public static final String DATA_NOT_PRESENT = "Data not present in DB With given ID";
     public static final String TRANSFORM_CONTENT_JSON ="trasformContentJson";
@@ -400,6 +401,11 @@ public class Constants {
     public static final String LICENCE_TYPE_USER = "User";
     public static final String LICENCE_TYPE_COURSE = "Course";
     public static final String LICENCE_TYPE_CANNOT_BE_CHANGED = "licenseType cannot be changed once it has been configured for a provider";
+    // Content partner integration protocol (SAML is the legacy default when absent)
+    public static final String PROTOCOL = "protocol";
+    public static final String PROTOCOL_LTI = "LTI";
+    public static final String LTI_CONFIGURATION = "ltiConfiguration";
+    public static final String ERR_LTI_CONFIGURATION_REQUIRED = "ltiConfiguration is required when protocol is LTI";
     public static final String UPDATED_CONTENT_PARTNER = "updated the content partner";
     public static final String CONTENT_PARTNER_CREATED = "Content partner created successfully";
     public static final String CONTENT_PARTNER_CACHE_DELETE = "during content partner create Deleting cache for partner code {}";
@@ -535,6 +541,10 @@ public class Constants {
     public static final String REQUIRED_KARMA_COINS = "requiredKarmaCoins";
     public static final String KARMA_COIN_MULTIPLIER = "karmaCoinMultiplier";
     public static final String COMPATIBILITY_LEVEL = "compatibilityLevel";
+    public static final String LTI_VERSION = "ltiVersion";
+    public static final String LTI_TOOL_ISSUER = "toolIssuer";
+    public static final String LTI_CLIENT_ID = "clientId";
+    public static final String LTI_DEPLOYMENT_ID = "deploymentId";
 
     private Constants() {
     }
