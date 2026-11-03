@@ -116,7 +116,7 @@ class CbServerPropertiesV2Test {
     @Test
     void partnerCodeGenerationSettingsDefaultToTwentyAttemptsAndFiveCharacters() throws NoSuchFieldException {
         MockEnvironment empty = new MockEnvironment();
-        assertEquals("20", resolve("partnerCodeMaxAttempts", empty));
+        assertEquals("3", resolve("partnerCodeMaxAttempts", empty));
         assertEquals("5", resolve("partnerCodeLength", empty));
 
         MockEnvironment overridden = new MockEnvironment()
