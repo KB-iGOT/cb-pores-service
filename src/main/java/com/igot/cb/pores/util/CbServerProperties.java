@@ -73,7 +73,7 @@ public class CbServerProperties {
   @Value("${partner.code.characters}")
   private String partnerCodeChar;
 
-  @Value("${partner.code.max.attempts:20}")
+  @Value("${partner.code.max.attempts:3}")
   private int partnerCodeMaxAttempts;
 
   @Value("${partner.code.length:5}")
