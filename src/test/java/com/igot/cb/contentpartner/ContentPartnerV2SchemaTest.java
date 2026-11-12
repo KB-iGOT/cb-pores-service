@@ -176,7 +176,9 @@ class ContentPartnerV2SchemaTest {
     @ValueSource(strings = {"ltiVersion", "toolIssuer", "clientId", "deploymentId"})
     void serverManagedFieldsMustBeStrings(String field) {
         ObjectNode lti = validLti();
-        lti.put(field, 5);
+        lti.put(field, true);
+        assertRejected(ltiPartner(lti));
+        lti.putObject(field).put("value", "x");
         assertRejected(ltiPartner(lti));
     }
 
