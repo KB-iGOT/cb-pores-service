@@ -271,12 +271,15 @@ public class ContentPartnerServiceImplV2 implements ContentPartnerServiceV2 {
 
     /**
      * Called only when the request's protocol is LTI. Completes the request's ltiConfiguration with the server-managed
-     * values (version, issuer, client id, deployment id) read from application configuration. Request-supplied
-     * values for those four fields are always replaced.
+     * values: version, issuer and client id from application configuration, and the deployment id from the partner's
+     * own partnerCode. The request may carry those four fields, but only unchanged (see
+     * {@link #changedImmutableLtiFields}); they are never taken from the request, and a value that differs is rejected.
      *
      * @param incoming the incoming partner data (modified in place when LTI)
      * @param existing the stored partner data, or null
-     * @return an error message when an LTI request has no configuration at all, otherwise null
+     * @return an error message when an LTI request has no configuration at all, when no partnerCode is available for
+     * the deployment id, or when the request tries to change clientId, ltiVersion, toolIssuer or deploymentId;
+     * otherwise null
      * @throws IllegalStateException when the server-managed LTI values are not configured
      */
     private String applyLtiConfiguration(JsonNode incoming, JsonNode existing) {
@@ -286,11 +289,62 @@ public class ContentPartnerServiceImplV2 implements ContentPartnerServiceV2 {
                     ? null : Constants.ERR_LTI_CONFIGURATION_REQUIRED;
         }
         ObjectNode ltiConfiguration = (ObjectNode) requested;
-        ltiConfiguration.set(Constants.LTI_VERSION, TextNode.valueOf(requiredLtiSetting(cbServerProperties.getLtiVersion(), "lti.version")));
-        ltiConfiguration.set(Constants.LTI_TOOL_ISSUER, TextNode.valueOf(requiredLtiSetting(cbServerProperties.getLtiToolIssuer(), "lti.tool.issuer")));
-        ltiConfiguration.set(Constants.LTI_CLIENT_ID, TextNode.valueOf(requiredLtiSetting(cbServerProperties.getLtiClientId(), "lti.client.id")));
-        ltiConfiguration.set(Constants.LTI_DEPLOYMENT_ID, TextNode.valueOf(requiredLtiSetting(cbServerProperties.getLtiDeploymentId(), "lti.deployment.id")));
+        Map<String, String> managedValues = new LinkedHashMap<>();
+        managedValues.put(Constants.LTI_VERSION, requiredLtiSetting(cbServerProperties.getLtiVersion(), "lti.version"));
+        managedValues.put(Constants.LTI_TOOL_ISSUER, requiredLtiSetting(cbServerProperties.getLtiToolIssuer(), "lti.tool.issuer"));
+        managedValues.put(Constants.LTI_CLIENT_ID, requiredLtiSetting(cbServerProperties.getLtiClientId(), "lti.client.id"));
+        String partnerCode = trustedPartnerCode(incoming, existing);
+        if (partnerCode == null) {
+            return Constants.ERR_LTI_DEPLOYMENT_ID_UNAVAILABLE;
+        }
+        managedValues.put(Constants.LTI_DEPLOYMENT_ID, partnerCode);
+        String changedFields = changedImmutableLtiFields(ltiConfiguration, existing, managedValues);
+        if (changedFields != null) {
+            return changedFields + Constants.LTI_FIELDS_CANNOT_BE_MODIFIED;
+        }
+        managedValues.forEach((field, value) -> ltiConfiguration.set(field, TextNode.valueOf(value)));
         return null;
+    }
+
+    /**
+     * The four server-managed LTI fields may be echoed back by the client but not changed. A supplied value is
+     * accepted when it equals the value already stored for this partner or the value the server manages (the
+     * configured value, or the partnerCode for deploymentId); anything else is a change. A missing or null field
+     * imposes no restriction (same rule as {@link #isPartnerCodeChanged}); the comparison is exact (case-sensitive,
+     * no trimming).
+     *
+     * @return the changed field names joined by ", ", or null when none changed
+     */
+    private String changedImmutableLtiFields(ObjectNode requested, JsonNode existing, Map<String, String> managedValues) {
+        JsonNode storedConfiguration = existing == null ? null : existing.path(Constants.LTI_CONFIGURATION);
+        List<String> changedFields = new ArrayList<>();
+        managedValues.forEach((field, managedValue) -> {
+            if (!requested.hasNonNull(field)) {
+                return;
+            }
+            String requestedValue = requested.get(field).asText();
+            String storedValue = storedConfiguration == null ? null : storedConfiguration.path(field).asText(null);
+            boolean unchanged = requestedValue.equals(managedValue)
+                    || (StringUtils.isNotBlank(storedValue) && requestedValue.equals(storedValue));
+            if (!unchanged) {
+                changedFields.add(field);
+            }
+        });
+        return changedFields.isEmpty() ? null : String.join(", ", changedFields);
+    }
+
+    /**
+     * The partner's own code: the stored one when present. Only for legacy data with no stored code is the request's
+     * code used, since it is then the value that gets persisted (see {@link #isPartnerCodeChanged}). Null when neither
+     * is available.
+     */
+    private String trustedPartnerCode(JsonNode incoming, JsonNode existing) {
+        String storedPartnerCode = existing == null ? null : existing.path(Constants.PARTNERCODE).asText(null);
+        if (StringUtils.isNotBlank(storedPartnerCode)) {
+            return storedPartnerCode;
+        }
+        String requestedPartnerCode = incoming.path(Constants.PARTNERCODE).asText(null);
+        return StringUtils.isNotBlank(requestedPartnerCode) ? requestedPartnerCode : null;
     }
 
     private String requiredLtiSetting(String value, String propertyName) {
