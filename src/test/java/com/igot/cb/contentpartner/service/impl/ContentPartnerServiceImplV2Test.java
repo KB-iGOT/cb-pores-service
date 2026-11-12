@@ -40,7 +40,8 @@ class ContentPartnerServiceImplV2Test {
     private static final String LTI_VERSION = "1.3";
     private static final String LTI_ISSUER = "https://tool.example.com";
     private static final String LTI_CLIENT_ID = "server-client-id";
-    private static final String LTI_DEPLOYMENT_ID = "server-deployment-id";
+    /** The partner code carried by storedLegacyData(); the LTI deploymentId must equal it. */
+    private static final String STORED_PARTNER_CODE = "IGOT-OLD-ABCDE";
 
     @Mock
     private PayloadValidation payloadValidation;
@@ -71,7 +72,6 @@ class ContentPartnerServiceImplV2Test {
         lenient().when(cbServerProperties.getLtiVersion()).thenReturn(LTI_VERSION);
         lenient().when(cbServerProperties.getLtiToolIssuer()).thenReturn(LTI_ISSUER);
         lenient().when(cbServerProperties.getLtiClientId()).thenReturn(LTI_CLIENT_ID);
-        lenient().when(cbServerProperties.getLtiDeploymentId()).thenReturn(LTI_DEPLOYMENT_ID);
         lenient().when(cbServerProperties.getPartnerCodeChar()).thenReturn("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789");
         lenient().when(cbServerProperties.getPartnerCodeMaxAttempts()).thenReturn(20);
         lenient().when(cbServerProperties.getPartnerCodeLength()).thenReturn(5);
@@ -96,14 +96,15 @@ class ContentPartnerServiceImplV2Test {
     }
 
     /**
-     * What must be stored: the request URLs plus the four server-managed values.
+     * What must be stored: the request URLs plus the four server-managed values (the deploymentId is the stored
+     * partner code, the other three come from configuration).
      */
     private ObjectNode completedLtiConfig() {
         ObjectNode lti = ltiConfig();
         lti.put("ltiVersion", LTI_VERSION);
         lti.put("toolIssuer", LTI_ISSUER);
         lti.put("clientId", LTI_CLIENT_ID);
-        lti.put("deploymentId", LTI_DEPLOYMENT_ID);
+        lti.put("deploymentId", STORED_PARTNER_CODE);
         return lti;
     }
 
@@ -131,7 +132,7 @@ class ContentPartnerServiceImplV2Test {
 
     private ObjectNode storedLegacyData() {
         ObjectNode data = mapper.createObjectNode();
-        data.put(Constants.PARTNERCODE, "IGOT-OLD-ABCDE");
+        data.put(Constants.PARTNERCODE, STORED_PARTNER_CODE);
         data.put("websiteUrl", "https://old.example.com");
         data.put("description", "old description");
         return data;
@@ -364,18 +365,20 @@ class ContentPartnerServiceImplV2Test {
     }
 
     @Test
-    void update_requestCannotOverrideServerManagedValues() {
+    void update_requestCannotChangeServerManagedValues() {
         ObjectNode lti = ltiConfig();
         lti.put("clientId", "attacker-client");
         lti.put("toolIssuer", "https://attacker.example.com");
+        lti.put("deploymentId", "attacker-deployment");
         ObjectNode data = createRequest("Partner");
         data.put(Constants.PROTOCOL, "LTI");
         data.set(Constants.LTI_CONFIGURATION, lti);
 
         ApiResponse response = update(storedPartner(storedLegacyData()), data);
 
-        assertEquals(HttpStatus.OK, response.getResponseCode());
-        assertEquals(completedLtiConfig(), captureSaved().getData().path(Constants.LTI_CONFIGURATION));
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals("toolIssuer, clientId, deploymentId cannot be modified", response.getParams().getErrMsg());
+        verify(entityRepository, never()).save(any());
     }
 
     @Test
@@ -404,7 +407,7 @@ class ContentPartnerServiceImplV2Test {
 
     @Test
     void update_missingServerConfigurationFailsWithoutPersisting() {
-        when(cbServerProperties.getLtiDeploymentId()).thenReturn(" ");
+        when(cbServerProperties.getLtiClientId()).thenReturn(" ");
         ObjectNode data = createRequest("Partner");
         data.put(Constants.PROTOCOL, "LTI");
         data.set(Constants.LTI_CONFIGURATION, ltiConfig());
@@ -412,7 +415,7 @@ class ContentPartnerServiceImplV2Test {
         ApiResponse response = update(storedPartner(storedLegacyData()), data);
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
-        assertEquals("LTI server configuration is missing: lti.deployment.id", response.getParams().getErrMsg());
+        assertEquals("LTI server configuration is missing: lti.client.id", response.getParams().getErrMsg());
         verify(entityRepository, never()).save(any());
     }
 
@@ -452,7 +455,6 @@ class ContentPartnerServiceImplV2Test {
         verify(cbServerProperties, never()).getLtiVersion();
         verify(cbServerProperties, never()).getLtiToolIssuer();
         verify(cbServerProperties, never()).getLtiClientId();
-        verify(cbServerProperties, never()).getLtiDeploymentId();
     }
 
     // ---------- end to end with the real V2 schema ----------
@@ -506,28 +508,49 @@ class ContentPartnerServiceImplV2Test {
     }
 
     @Test
-    void realSchema_updateWithoutProtocolIsRejectedBecauseProtocolIsRequired() {
+    void realSchema_updateWithoutProtocolIsAcceptedAndLtiConfigurationIsNotEnriched() {
         ObjectNode data = realSchemaRequest("Partner");
         data.set(Constants.LTI_CONFIGURATION, ltiConfig());
+        when(entityRepository.findById("id-123")).thenReturn(Optional.of(storedPartner(storedLegacyData())));
+
+        ApiResponse response = serviceWithRealSchemaValidation().createOrUpdate(updateRequest(data));
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        JsonNode saved = captureSaved().getData();
+        assertFalse(saved.has(Constants.PROTOCOL));
+        assertEquals(ltiConfig(), saved.path(Constants.LTI_CONFIGURATION));
+    }
+
+    @Test
+    void realSchema_updateEchoingTheStoredServerManagedValuesIsAccepted() {
+        ObjectNode data = realSchemaRequest("Partner");
+        data.put(Constants.PROTOCOL, "LTI");
+        ObjectNode lti = completedLtiConfig();
+        lti.put("ssoTestStatus", "Failed");
+        lti.put("message", "The LTI tool could not recognize the platform registration.");
+        ObjectNode expected = lti.deepCopy();
+        data.set(Constants.LTI_CONFIGURATION, lti);
+        when(entityRepository.findById("id-123")).thenReturn(Optional.of(storedPartner(storedLtiData())));
+
+        ApiResponse response = serviceWithRealSchemaValidation().createOrUpdate(updateRequest(data));
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(expected, captureSaved().getData().path(Constants.LTI_CONFIGURATION));
+    }
+
+    @Test
+    void realSchema_updateChangingClientIdIsRejectedWithTheFieldName() {
+        ObjectNode data = realSchemaRequest("Partner");
+        data.put(Constants.PROTOCOL, "LTI");
+        ObjectNode lti = completedLtiConfig();
+        lti.put("clientId", "modified-client");
+        data.set(Constants.LTI_CONFIGURATION, lti);
+        when(entityRepository.findById("id-123")).thenReturn(Optional.of(storedPartner(storedLtiData())));
 
         ApiResponse response = serviceWithRealSchemaValidation().createOrUpdate(updateRequest(data));
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
-        assertTrue(response.getParams().getErrMsg().contains("$.protocol: is missing but it is required"));
-        verify(entityRepository, never()).save(any());
-    }
-
-    @Test
-    void realSchema_requestCannotSupplyServerManagedValues() {
-        ObjectNode lti = ltiConfig();
-        lti.put("clientId", "attacker-client");
-        ObjectNode request = realSchemaRequest("Lti Partner");
-        request.put(Constants.PROTOCOL, "LTI");
-        request.set(Constants.LTI_CONFIGURATION, lti);
-
-        ApiResponse response = serviceWithRealSchemaValidation().createOrUpdate(request);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals("clientId cannot be modified", response.getParams().getErrMsg());
         verify(entityRepository, never()).save(any());
     }
 
@@ -571,7 +594,307 @@ class ContentPartnerServiceImplV2Test {
         assertEquals(LTI_VERSION, lti.path("ltiVersion").asText());
         assertEquals(LTI_ISSUER, lti.path("toolIssuer").asText());
         assertEquals(LTI_CLIENT_ID, lti.path("clientId").asText());
-        assertEquals(LTI_DEPLOYMENT_ID, lti.path("deploymentId").asText());
+        assertEquals(STORED_PARTNER_CODE, lti.path("deploymentId").asText());
+    }
+
+    @Test
+    void update_deploymentIdIsTheExistingPartnerCodeUnchanged() {
+        String code = "IGOT-CDACTESTING-G8FLA";
+        ObjectNode stored = storedLtiData();
+        stored.put(Constants.PARTNERCODE, code);
+        ObjectNode data = createRequest("Partner");
+        data.put(Constants.PROTOCOL, "LTI");
+        data.put(Constants.PARTNERCODE, code);
+        data.set(Constants.LTI_CONFIGURATION, ltiConfig());
+
+        ApiResponse response = update(storedPartner(stored), data);
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        JsonNode lti = captureSaved().getData().path(Constants.LTI_CONFIGURATION);
+        assertEquals(code, lti.path("deploymentId").asText());
+        assertEquals(LTI_VERSION, lti.path("ltiVersion").asText());
+        assertEquals(LTI_ISSUER, lti.path("toolIssuer").asText());
+        assertEquals(LTI_CLIENT_ID, lti.path("clientId").asText());
+        assertEquals(code, captureSaved().getData().path(Constants.PARTNERCODE).asText());
+    }
+
+    @Test
+    void update_deploymentIdIsTheStoredCodeEvenWhenTheRequestOmitsPartnerCode() {
+        ObjectNode data = createRequest("Partner");
+        data.put(Constants.PROTOCOL, "LTI");
+        data.set(Constants.LTI_CONFIGURATION, ltiConfig());
+
+        ApiResponse response = update(storedPartner(storedLegacyData()), data);
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        JsonNode saved = captureSaved().getData();
+        assertEquals(STORED_PARTNER_CODE, saved.path(Constants.LTI_CONFIGURATION).path("deploymentId").asText());
+        assertEquals(STORED_PARTNER_CODE, saved.path(Constants.PARTNERCODE).asText());
+    }
+
+    @Test
+    void update_modifiedPartnerCodeIsRejectedAndNeverBecomesTheDeploymentId() {
+        ObjectNode stored = storedLtiData();
+        ObjectNode data = createRequest("Partner");
+        data.put(Constants.PROTOCOL, "LTI");
+        data.put(Constants.PARTNERCODE, "IGOT-OTHER-ZZZZZ");
+        data.set(Constants.LTI_CONFIGURATION, ltiConfig());
+        ContentPartnerEntity entity = storedPartner(stored);
+
+        ApiResponse response = update(entity, data);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(Constants.CONTENT_PARTNER_CODE_CANNOT_BE_CHANGED, response.getParams().getErrMsg());
+        assertEquals(STORED_PARTNER_CODE, entity.getData().path(Constants.LTI_CONFIGURATION).path("deploymentId").asText());
+        verifyNothingChangedAfterRejectedUpdate(entity, STORED_PARTNER_CODE);
+    }
+
+    @Test
+    void update_legacyPartnerWithoutStoredCodeUsesTheRequestCodeAsDeploymentId() {
+        ObjectNode stored = storedLegacyData();
+        stored.remove(Constants.PARTNERCODE);
+        ObjectNode data = createRequest("Partner");
+        data.put(Constants.PROTOCOL, "LTI");
+        data.put(Constants.PARTNERCODE, "IGOT-NEW-ABCDE");
+        data.set(Constants.LTI_CONFIGURATION, ltiConfig());
+
+        ApiResponse response = update(storedPartner(stored), data);
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        JsonNode saved = captureSaved().getData();
+        assertEquals("IGOT-NEW-ABCDE", saved.path(Constants.PARTNERCODE).asText());
+        assertEquals("IGOT-NEW-ABCDE", saved.path(Constants.LTI_CONFIGURATION).path("deploymentId").asText());
+    }
+
+    @Test
+    void update_ltiPartnerWithNoPartnerCodeAnywhereIsRejectedWithoutPersisting() {
+        ObjectNode stored = storedLegacyData();
+        stored.remove(Constants.PARTNERCODE);
+        ObjectNode data = createRequest("Partner");
+        data.put(Constants.PROTOCOL, "LTI");
+        data.set(Constants.LTI_CONFIGURATION, ltiConfig());
+
+        ApiResponse response = update(storedPartner(stored), data);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(Constants.ERR_LTI_DEPLOYMENT_ID_UNAVAILABLE, response.getParams().getErrMsg());
+        verify(entityRepository, never()).save(any());
+    }
+
+    @Test
+    void update_nonLtiPartnerWithoutStoredCodeIsStillAcceptedAndHasNoDeploymentId() {
+        ObjectNode stored = storedLegacyData();
+        stored.remove(Constants.PARTNERCODE);
+        ObjectNode data = createRequest("Partner");
+        data.put(Constants.PROTOCOL, "SAML");
+
+        ApiResponse response = update(storedPartner(stored), data);
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertFalse(captureSaved().getData().has(Constants.LTI_CONFIGURATION));
+    }
+
+    // ---------- immutable LTI fields: clientId, ltiVersion, toolIssuer, deploymentId ----------
+
+    private ObjectNode ltiUpdateWith(ObjectNode lti) {
+        ObjectNode data = createRequest("Partner");
+        data.put(Constants.PROTOCOL, "LTI");
+        data.set(Constants.LTI_CONFIGURATION, lti);
+        return data;
+    }
+
+    private void assertLtiUpdateRejected(ObjectNode lti, String expectedMessage) {
+        ContentPartnerEntity entity = storedPartner(storedLtiData());
+
+        ApiResponse response = update(entity, ltiUpdateWith(lti));
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(expectedMessage, response.getParams().getErrMsg());
+        assertEquals(completedLtiConfig(), entity.getData().path(Constants.LTI_CONFIGURATION));
+        verifyNothingChangedAfterRejectedUpdate(entity, STORED_PARTNER_CODE);
+    }
+
+    @Test
+    void update_matchingImmutableValuesSucceedAndEditableFieldsAreUpdated() {
+        ObjectNode lti = completedLtiConfig();
+        lti.put("deepLinkingUrl", "https://provider.example.com/new-deep-link");
+        lti.put("redirectLaunchUrl", "https://provider.example.com/new-launch");
+        lti.put("toolPublicJwksUrl", "https://provider.example.com/new-jwks");
+        lti.put("oidcLoginInitiationUrl", "https://provider.example.com/new-login");
+        lti.put("ssoTestStatus", "Failed");
+        lti.put("message", "The LTI tool could not recognize the platform registration.");
+        ObjectNode data = ltiUpdateWith(lti);
+        data.put("description", "A new description");
+
+        ApiResponse response = update(storedPartner(storedLtiData()), data);
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        JsonNode saved = captureSaved().getData();
+        JsonNode savedLti = saved.path(Constants.LTI_CONFIGURATION);
+        assertEquals(LTI_CLIENT_ID, savedLti.path("clientId").asText());
+        assertEquals(LTI_VERSION, savedLti.path("ltiVersion").asText());
+        assertEquals(LTI_ISSUER, savedLti.path("toolIssuer").asText());
+        assertEquals(STORED_PARTNER_CODE, savedLti.path("deploymentId").asText());
+        assertEquals("https://provider.example.com/new-deep-link", savedLti.path("deepLinkingUrl").asText());
+        assertEquals("https://provider.example.com/new-launch", savedLti.path("redirectLaunchUrl").asText());
+        assertEquals("https://provider.example.com/new-jwks", savedLti.path("toolPublicJwksUrl").asText());
+        assertEquals("https://provider.example.com/new-login", savedLti.path("oidcLoginInitiationUrl").asText());
+        assertEquals("Failed", savedLti.path("ssoTestStatus").asText());
+        assertEquals("The LTI tool could not recognize the platform registration.", savedLti.path("message").asText());
+        assertEquals("A new description", saved.path("description").asText());
+        assertEquals(STORED_PARTNER_CODE, saved.path(Constants.PARTNERCODE).asText());
+    }
+
+    @Test
+    void update_differentClientIdIsRejected() {
+        ObjectNode lti = completedLtiConfig();
+        lti.put("clientId", "modified-client");
+
+        assertLtiUpdateRejected(lti, "clientId cannot be modified");
+    }
+
+    @Test
+    void update_differentLtiVersionIsRejected() {
+        ObjectNode lti = completedLtiConfig();
+        lti.put("ltiVersion", "2.0");
+
+        assertLtiUpdateRejected(lti, "ltiVersion cannot be modified");
+    }
+
+    @Test
+    void update_differentToolIssuerIsRejected() {
+        ObjectNode lti = completedLtiConfig();
+        lti.put("toolIssuer", "https://other-issuer.example.com");
+
+        assertLtiUpdateRejected(lti, "toolIssuer cannot be modified");
+    }
+
+    @Test
+    void update_differentDeploymentIdIsRejected() {
+        ObjectNode lti = completedLtiConfig();
+        lti.put("deploymentId", "IGOT-SOMEONE-ELSE");
+
+        assertLtiUpdateRejected(lti, "deploymentId cannot be modified");
+    }
+
+    @Test
+    void update_everyDifferingImmutableFieldIsNamedInTheRejection() {
+        ObjectNode lti = completedLtiConfig();
+        lti.put("clientId", "modified-client");
+        lti.put("ltiVersion", "2.0");
+        lti.put("toolIssuer", "https://other-issuer.example.com");
+        lti.put("deploymentId", "IGOT-SOMEONE-ELSE");
+
+        assertLtiUpdateRejected(lti, "ltiVersion, toolIssuer, clientId, deploymentId cannot be modified");
+    }
+
+    @Test
+    void update_onlyTheDifferingFieldsAreNamedWhenOthersMatch() {
+        ObjectNode lti = completedLtiConfig();
+        lti.put("clientId", "modified-client");
+        lti.put("deploymentId", "IGOT-SOMEONE-ELSE");
+
+        assertLtiUpdateRejected(lti, "clientId, deploymentId cannot be modified");
+    }
+
+    @Test
+    void update_immutableComparisonIsExact() {
+        for (String modified : new String[]{"Server-Client-Id", "server-client-id ", ""}) {
+            ObjectNode lti = completedLtiConfig();
+            lti.put("clientId", modified);
+            ContentPartnerEntity entity = storedPartner(storedLtiData());
+            ApiResponse response = update(entity, ltiUpdateWith(lti));
+
+            assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode(), "'" + modified + "' must be rejected");
+            assertEquals("clientId cannot be modified", response.getParams().getErrMsg());
+            verify(entityRepository, never()).save(any());
+        }
+    }
+
+    @Test
+    void update_omittedOrNullImmutableValuesAreAcceptedAndFilledByTheServer() {
+        ObjectNode lti = ltiConfig();
+        lti.putNull("clientId");
+        lti.putNull("deploymentId");
+
+        ApiResponse response = update(storedPartner(storedLtiData()), ltiUpdateWith(lti));
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(completedLtiConfig(), captureSaved().getData().path(Constants.LTI_CONFIGURATION));
+    }
+
+    @Test
+    void update_ltiProtocolWithoutLtiConfigurationKeepsTheStoredConfiguration() {
+        ObjectNode data = createRequest("Partner");
+        data.put(Constants.PROTOCOL, "LTI");
+
+        ApiResponse response = update(storedPartner(storedLtiData()), data);
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(completedLtiConfig(), captureSaved().getData().path(Constants.LTI_CONFIGURATION));
+    }
+
+    @Test
+    void update_partnerCodeStaysProtectedWhenTheLtiValuesMatch() {
+        ObjectNode data = ltiUpdateWith(completedLtiConfig());
+        data.put(Constants.PARTNERCODE, "IGOT-OTHER-ZZZZZ");
+        ContentPartnerEntity entity = storedPartner(storedLtiData());
+
+        ApiResponse response = update(entity, data);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals(Constants.CONTENT_PARTNER_CODE_CANNOT_BE_CHANGED, response.getParams().getErrMsg());
+        verifyNothingChangedAfterRejectedUpdate(entity, STORED_PARTNER_CODE);
+    }
+
+    @Test
+    void update_firstTimeLtiConfigurationCannotChooseTheManagedValues() {
+        ObjectNode lti = ltiConfig();
+        lti.put("clientId", "attacker-client");
+
+        ApiResponse response = update(storedPartner(storedLegacyData()), ltiUpdateWith(lti));
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
+        assertEquals("clientId cannot be modified", response.getParams().getErrMsg());
+        verify(entityRepository, never()).save(any());
+    }
+
+    @Test
+    void update_firstTimeLtiConfigurationMayEchoTheManagedValues() {
+        ApiResponse response = update(storedPartner(storedLegacyData()), ltiUpdateWith(completedLtiConfig()));
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertEquals(completedLtiConfig(), captureSaved().getData().path(Constants.LTI_CONFIGURATION));
+    }
+
+    @Test
+    void update_echoingStaleStoredValuesIsAcceptedAndRefreshedFromTheManagedSource() {
+        ObjectNode stored = storedLtiData();
+        ObjectNode staleLti = (ObjectNode) stored.path(Constants.LTI_CONFIGURATION);
+        staleLti.put("deploymentId", "dummy-deployment-123");
+        staleLti.put("toolIssuer", "https://old-issuer.example.com");
+        ObjectNode echoed = staleLti.deepCopy();
+
+        ApiResponse response = update(storedPartner(stored), ltiUpdateWith(echoed));
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        JsonNode savedLti = captureSaved().getData().path(Constants.LTI_CONFIGURATION);
+        assertEquals(STORED_PARTNER_CODE, savedLti.path("deploymentId").asText());
+        assertEquals(LTI_ISSUER, savedLti.path("toolIssuer").asText());
+    }
+
+    @Test
+    void update_nonLtiProtocolDoesNotValidateLtiConfigurationFields() {
+        ObjectNode lti = completedLtiConfig();
+        lti.put("clientId", "modified-client");
+        ObjectNode data = createRequest("Partner");
+        data.put(Constants.PROTOCOL, "SAML");
+        data.set(Constants.LTI_CONFIGURATION, lti);
+
+        ApiResponse response = update(storedPartner(storedLegacyData()), data);
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        verify(cbServerProperties, never()).getLtiClientId();
     }
 
     @Test

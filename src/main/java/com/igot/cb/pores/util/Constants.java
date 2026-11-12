@@ -406,6 +406,8 @@ public class Constants {
     public static final String PROTOCOL_LTI = "LTI";
     public static final String LTI_CONFIGURATION = "ltiConfiguration";
     public static final String ERR_LTI_CONFIGURATION_REQUIRED = "ltiConfiguration is required when protocol is LTI";
+    public static final String ERR_LTI_DEPLOYMENT_ID_UNAVAILABLE = "partnerCode is required to set the LTI deploymentId";
+    public static final String LTI_FIELDS_CANNOT_BE_MODIFIED = " cannot be modified";
     public static final String UPDATED_CONTENT_PARTNER = "updated the content partner";
     public static final String CONTENT_PARTNER_CREATED = "Content partner created successfully";
     public static final String CONTENT_PARTNER_CACHE_DELETE = "during content partner create Deleting cache for partner code {}";

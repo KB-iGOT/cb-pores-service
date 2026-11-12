@@ -94,9 +94,6 @@ public class CbServerProperties {
   @Value("${lti.client.id:}")
   private String ltiClientId;
 
-  @Value("${lti.deployment.id:}")
-  private String ltiDeploymentId;
-
   @Value("${content.partner.search.cache.key:demand_search_result}")
   private String contentPartnerSearchCacheKey;
 

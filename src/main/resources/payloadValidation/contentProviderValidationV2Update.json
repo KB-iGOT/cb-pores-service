@@ -154,8 +154,7 @@
     "contentPartnerName",
     "websiteUrl",
     "link",
-    "description",
-    "protocol"
+    "description"
   ],
   "additionalProperties": false,
   "allOf": [
@@ -249,6 +248,18 @@
                 "type": "string"
               },
               "message": {
+                "type": "string"
+              },
+              "clientId": {
+                "type": "string"
+              },
+              "ltiVersion": {
+                "type": "string"
+              },
+              "toolIssuer": {
+                "type": "string"
+              },
+              "deploymentId": {
                 "type": "string"
               }
             },

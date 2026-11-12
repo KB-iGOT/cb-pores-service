@@ -2,6 +2,8 @@ package com.igot.cb.pores.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,7 +46,6 @@ class CbServerPropertiesV2Test {
         properties.setLtiVersion("1.3");
         properties.setLtiToolIssuer("https://issuer.example.com");
         properties.setLtiClientId("client");
-        properties.setLtiDeploymentId("deployment");
         properties.setContentPartnerSearchCacheKey("cache-key");
 
         assertEquals("/schema.json", properties.getContentPartnerV2ValidationSchemaPath());
@@ -52,7 +53,6 @@ class CbServerPropertiesV2Test {
         assertEquals("1.3", properties.getLtiVersion());
         assertEquals("https://issuer.example.com", properties.getLtiToolIssuer());
         assertEquals("client", properties.getLtiClientId());
-        assertEquals("deployment", properties.getLtiDeploymentId());
         assertEquals("cache-key", properties.getContentPartnerSearchCacheKey());
     }
 
@@ -63,7 +63,6 @@ class CbServerPropertiesV2Test {
         assertEquals("1.3", resolve("ltiVersion", empty));
         assertEquals("", resolve("ltiToolIssuer", empty));
         assertEquals("", resolve("ltiClientId", empty));
-        assertEquals("", resolve("ltiDeploymentId", empty));
         assertEquals(Constants.JWT_SECRET_KEY, resolve("contentPartnerSearchCacheKey", empty));
     }
 
@@ -75,7 +74,6 @@ class CbServerPropertiesV2Test {
                 .withProperty("lti.version", "1.4")
                 .withProperty("lti.tool.issuer", "https://issuer.example.com")
                 .withProperty("lti.client.id", "client-1")
-                .withProperty("lti.deployment.id", "deployment-1")
                 .withProperty("content.partner.search.cache.key", "other-key");
 
         assertEquals("/custom.json", resolve("contentPartnerV2ValidationSchemaPath", environment));
@@ -83,7 +81,6 @@ class CbServerPropertiesV2Test {
         assertEquals("1.4", resolve("ltiVersion", environment));
         assertEquals("https://issuer.example.com", resolve("ltiToolIssuer", environment));
         assertEquals("client-1", resolve("ltiClientId", environment));
-        assertEquals("deployment-1", resolve("ltiDeploymentId", environment));
         assertEquals("other-key", resolve("contentPartnerSearchCacheKey", environment));
     }
 
@@ -111,6 +108,22 @@ class CbServerPropertiesV2Test {
 
         assertEquals(Constants.JWT_SECRET_KEY, properties.getProperty("content.partner.search.cache.key"));
         assertEquals("1.3", properties.getProperty("lti.version"));
+    }
+
+    @Test
+    void deploymentIdIsNotConfigurable() throws IOException {
+        assertThrows(NoSuchFieldException.class, () -> CbServerProperties.class.getDeclaredField("ltiDeploymentId"));
+        assertThrows(NoSuchMethodException.class, () -> CbServerProperties.class.getMethod("getLtiDeploymentId"));
+        assertNull(applicationProperties().getProperty("lti.deployment.id"));
+    }
+
+    @Test
+    void remainingLtiPropertiesAreStillShippedInApplicationProperties() throws IOException {
+        Properties properties = applicationProperties();
+
+        assertEquals("1.3", properties.getProperty("lti.version"));
+        assertNotNull(properties.getProperty("lti.tool.issuer"));
+        assertNotNull(properties.getProperty("lti.client.id"));
     }
 
     @Test

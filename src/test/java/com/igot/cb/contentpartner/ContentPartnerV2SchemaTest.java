@@ -56,8 +56,8 @@ class ContentPartnerV2SchemaTest {
     }
 
     @Test
-    void payloadWithoutProtocolIsRejectedBecauseProtocolIsRequired() {
-        assertRejected(basePartner());
+    void payloadWithoutProtocolIsAcceptedBecauseProtocolIsOptional() {
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, basePartner()));
     }
 
     @Test
@@ -148,11 +148,37 @@ class ContentPartnerV2SchemaTest {
         assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(lti)));
     }
 
+    /**
+     * The frontend echoes the stored values back on update; the schema must let them through so the service can
+     * compare them (it rejects any change with its own 400).
+     */
     @ParameterizedTest
     @ValueSource(strings = {"ltiVersion", "toolIssuer", "clientId", "deploymentId"})
-    void serverManagedFieldsAreRejectedIfSentInTheRequest(String field) {
+    void serverManagedFieldsAreAcceptedWhenSentAsStrings(String field) {
         ObjectNode lti = validLti();
         lti.put(field, "value");
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(lti)));
+    }
+
+    @Test
+    void allFourServerManagedFieldsTogetherAreAccepted() {
+        ObjectNode lti = validLti();
+        lti.put("clientId", "portal");
+        lti.put("ltiVersion", "1.3");
+        lti.put("toolIssuer", "https://portal.dev.karmayogibharat.net/auth/realms/sunbird");
+        lti.put("deploymentId", "IGOT-TEST-UHUWE");
+        lti.put("ssoTestStatus", "Failed");
+        lti.put("message", "The LTI tool could not recognize the platform registration.");
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(lti)));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"ltiVersion", "toolIssuer", "clientId", "deploymentId"})
+    void serverManagedFieldsMustBeStrings(String field) {
+        ObjectNode lti = validLti();
+        lti.put(field, true);
+        assertRejected(ltiPartner(lti));
+        lti.putObject(field).put("value", "x");
         assertRejected(ltiPartner(lti));
     }
 
