@@ -72,5 +72,8 @@
   },
   "addKarmaPointEnabled": {
     "type": "boolean"
+  },
+  "providerPreference": {
+    "type": "boolean"
   }
 }

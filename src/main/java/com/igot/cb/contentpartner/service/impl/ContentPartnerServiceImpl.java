@@ -62,6 +62,9 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
     @Autowired
     private SecureRandom secureRandom;
 
+    @Autowired
+    private UserGroupLicenceRebalancer userGroupLicenceRebalancer;
+
     @Value("${search.result.redis.ttl}")
     private long searchResultRedisTtl;
 
@@ -107,6 +110,12 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                 response.getParams().setErrMsg(Constants.LICENCE_TYPE_CANNOT_BE_CHANGED);
                 response.getParams().setStatus(Constants.FAILED);
                 response.setResponseCode(HttpStatus.BAD_REQUEST);
+                return response;
+            }
+            if (!userGroupLicenceRebalancer.rebalanceIfNeeded(existingId, jsonEntity.getData(), data)) {
+                response.getParams().setErrMsg(Constants.USER_GROUP_LICENCE_REBALANCE_FAILED);
+                response.getParams().setStatus(Constants.FAILED);
+                response.setResponseCode(HttpStatus.INTERNAL_SERVER_ERROR);
                 return response;
             }
             String partnerCode = jsonEntity.getData().path(Constants.PARTNERCODE).asText();

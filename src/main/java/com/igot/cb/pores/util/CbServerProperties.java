@@ -234,6 +234,12 @@ public class CbServerProperties {
     @Value("${ext.course.compatibility.level}")
     private int extCourseCompatibilityLevel;
 
+    @Value("${cb.ext.course.service.host}")
+    private String cbExtCourseServiceHost;
+
+    @Value("${provider.access.settings.rebalance.path}")
+    private String providerAccessSettingsRebalancePath;
+
     public List<String> getOrgHierarchyCreateRequiredRoles() {
       return Arrays.asList(orgHierarchyCreateRoles.split(","));
     }
