@@ -22,7 +22,6 @@ import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.PayloadValidation;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
@@ -38,35 +37,42 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class ContentPartnerServiceImpl implements ContentPartnerService {
 
-    @Autowired
-    private EsUtilService esUtilService;
-
-    @Autowired
-    private ContentPartnerRepository entityRepository;
-    @Autowired
-    private CacheService cacheService;
-    @Autowired
-    private ObjectMapper objectMapper;
-    @Autowired
-    private CbServerProperties cbServerProperties;
-
-    @Autowired
-    private PayloadValidation payloadValidation;
-
-    @Autowired
-    private RedisTemplate<String, SearchResult> redisTemplate;
-
-    @Autowired
-    private Producer kafkaProducer;
-
-    @Autowired
-    private SecureRandom secureRandom;
-
-    @Autowired
-    private UserGroupLicenceRebalancer userGroupLicenceRebalancer;
+    private final PayloadValidation payloadValidation;
+    private final ContentPartnerRepository entityRepository;
+    private final ObjectMapper objectMapper;
+    private final EsUtilService esUtilService;
+    private final CacheService cacheService;
+    private final RedisTemplate<String, SearchResult> redisTemplate;
+    private final CbServerProperties cbServerProperties;
+    private final SecureRandom secureRandom;
+    private final Producer kafkaProducer;
+    private final UserGroupLicenceRebalancer userGroupLicenceRebalancer;
 
     @Value("${search.result.redis.ttl}")
     private long searchResultRedisTtl;
+
+    public ContentPartnerServiceImpl(
+            PayloadValidation payloadValidation,
+            ContentPartnerRepository entityRepository,
+            ObjectMapper objectMapper,
+            EsUtilService esUtilService,
+            CacheService cacheService,
+            RedisTemplate<String, SearchResult> redisTemplate,
+            CbServerProperties cbServerProperties,
+            SecureRandom secureRandom,
+            Producer kafkaProducer,
+            UserGroupLicenceRebalancer userGroupLicenceRebalancer) {
+        this.payloadValidation = payloadValidation;
+        this.entityRepository = entityRepository;
+        this.objectMapper = objectMapper;
+        this.esUtilService = esUtilService;
+        this.cacheService = cacheService;
+        this.redisTemplate = redisTemplate;
+        this.cbServerProperties = cbServerProperties;
+        this.secureRandom = secureRandom;
+        this.kafkaProducer = kafkaProducer;
+        this.userGroupLicenceRebalancer = userGroupLicenceRebalancer;
+    }
 
     @Override
     public ApiResponse createOrUpdate(JsonNode partnerDetails) {
@@ -128,15 +134,7 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
                 esUtilService.updateDocument(Constants.CONTENT_PROVIDER_INDEX_NAME, Constants.INDEX_TYPE, existingId, jsonMap, cbServerProperties.getElasticContentJsonPath());
                 Map<String, Object> result = objectMapper.convertValue(updateJsonEntity, Map.class);
 
-                if (jsonMap != null && StringUtils.isNotBlank((String) jsonMap.get(Constants.PARTNERCODE))) {
-                    log.info(Constants.CONTENT_PARTNER_UPDATE_CACHE_DELETE, jsonMap.get(Constants.PARTNERCODE));
-                    if (StringUtils.isNotBlank(partnerCode)) {
-                        cacheService.deleteCache(partnerCode);
-                    }
-                    cacheService.deleteCache(updateJsonEntity.getId());
-                    // Clear search-related Redis cache
-                    clearSearchCache();
-                }
+                clearPartnerCache(jsonMap, partnerCode, updateJsonEntity.getId());
                 log.info(Constants.UPDATED_CONTENT_PARTNER);
                 response.setResult(result);
                 response.setResponseCode(HttpStatus.OK);
@@ -147,6 +145,21 @@ public class ContentPartnerServiceImpl implements ContentPartnerService {
             response.setResponseCode(HttpStatus.BAD_REQUEST);
         }
         return response;
+    }
+
+    /**
+     * After an update, clears the partner's cached entries (old partnerCode and id) and the search cache.
+     */
+    private void clearPartnerCache(Map<String, Object> jsonMap, String partnerCode, String partnerId) {
+        if (jsonMap != null && StringUtils.isNotBlank((String) jsonMap.get(Constants.PARTNERCODE))) {
+            log.info(Constants.CONTENT_PARTNER_UPDATE_CACHE_DELETE, jsonMap.get(Constants.PARTNERCODE));
+            if (StringUtils.isNotBlank(partnerCode)) {
+                cacheService.deleteCache(partnerCode);
+            }
+            cacheService.deleteCache(partnerId);
+            // Clear search-related Redis cache
+            clearSearchCache();
+        }
     }
 
     private void createContentPartnerEntity(ContentPartnerEntity jsonEntity,JsonNode partnerDetails) {
