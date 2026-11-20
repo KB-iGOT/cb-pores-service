@@ -57,6 +57,8 @@ class ContentPartnerServiceImplV2Test {
     private CbServerProperties cbServerProperties;
     @Mock
     private SecureRandom secureRandom;
+    @Mock
+    private UserGroupLicenceRebalancer userGroupLicenceRebalancer;
 
     private final ObjectMapper mapper = new ObjectMapper();
     private ContentPartnerServiceImplV2 service;
@@ -64,7 +66,7 @@ class ContentPartnerServiceImplV2Test {
     @BeforeEach
     void setUp() {
         service = new ContentPartnerServiceImplV2(payloadValidation, entityRepository, mapper, esUtilService,
-                cacheService, redisTemplate, cbServerProperties, secureRandom);
+                cacheService, redisTemplate, cbServerProperties, secureRandom, userGroupLicenceRebalancer);
         lenient().when(cbServerProperties.getContentPartnerV2ValidationSchemaPath()).thenReturn(V2_SCHEMA);
         lenient().when(cbServerProperties.getContentPartnerV2CreateValidationSchemaPath()).thenReturn(V2_CREATE_SCHEMA);
         lenient().when(cbServerProperties.getElasticContentJsonPath()).thenReturn(ES_PATH);
@@ -79,6 +81,7 @@ class ContentPartnerServiceImplV2Test {
         lenient().when(entityRepository.findByPartnerCode(anyString())).thenReturn(Optional.empty());
         lenient().when(entityRepository.findByContentPartnerName(anyString())).thenReturn(Optional.empty());
         lenient().when(entityRepository.save(any(ContentPartnerEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        lenient().when(userGroupLicenceRebalancer.rebalanceIfNeeded(anyString(), any(), any())).thenReturn(true);
     }
 
     // ---------- helpers ----------
@@ -461,7 +464,7 @@ class ContentPartnerServiceImplV2Test {
 
     private ContentPartnerServiceImplV2 serviceWithRealSchemaValidation() {
         return new ContentPartnerServiceImplV2(new PayloadValidation(), entityRepository, mapper, esUtilService,
-                cacheService, redisTemplate, cbServerProperties, secureRandom);
+                cacheService, redisTemplate, cbServerProperties, secureRandom, userGroupLicenceRebalancer);
     }
 
     private ObjectNode realSchemaRequest(String name) {
@@ -1489,5 +1492,42 @@ class ContentPartnerServiceImplV2Test {
         verify(entityRepository, times(20)).findByPartnerCode(anyString());
         verify(entityRepository, never()).save(any(ContentPartnerEntity.class));
         verifyNoInteractions(esUtilService, cacheService);
+    }
+
+    // ---------- provider preference ----------
+
+    @Test
+    void update_rebalancesWithStoredAndRequestedDataBeforeSaving() {
+        ObjectNode stored = storedLegacyData();
+        ObjectNode data = createRequest("Partner");
+        data.put(Constants.PROVIDER_PREFERENCE, true);
+
+        ApiResponse response = update(storedPartner(stored), data);
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        verify(userGroupLicenceRebalancer).rebalanceIfNeeded("id-123", stored, data);
+        assertTrue(captureSaved().getData().path(Constants.PROVIDER_PREFERENCE).asBoolean());
+    }
+
+    @Test
+    void update_rebalanceFails_notSaved() {
+        when(userGroupLicenceRebalancer.rebalanceIfNeeded(anyString(), any(), any())).thenReturn(false);
+        ObjectNode data = createRequest("Partner");
+        data.put(Constants.PROVIDER_PREFERENCE, true);
+
+        ApiResponse response = update(storedPartner(storedLegacyData()), data);
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getResponseCode());
+        assertEquals(Constants.USER_GROUP_LICENCE_REBALANCE_FAILED, response.getParams().getErrMsg());
+        verify(entityRepository, never()).save(any(ContentPartnerEntity.class));
+    }
+
+    @Test
+    void create_doesNotSetProviderPreference() {
+        ApiResponse response = service.createOrUpdate(createRequest("Partner"));
+
+        assertEquals(HttpStatus.OK, response.getResponseCode());
+        assertFalse(captureSaved().getData().has(Constants.PROVIDER_PREFERENCE));
+        verifyNoInteractions(userGroupLicenceRebalancer);
     }
 }

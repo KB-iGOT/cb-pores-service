@@ -48,6 +48,7 @@ public class ContentPartnerServiceImplV2 implements ContentPartnerServiceV2 {
     private final RedisTemplate<String, SearchResult> redisTemplate;
     private final CbServerProperties cbServerProperties;
     private final SecureRandom secureRandom;
+    private final UserGroupLicenceRebalancer userGroupLicenceRebalancer;
 
     public ContentPartnerServiceImplV2(
             PayloadValidation payloadValidation,
@@ -57,7 +58,8 @@ public class ContentPartnerServiceImplV2 implements ContentPartnerServiceV2 {
             CacheService cacheService,
             RedisTemplate<String, SearchResult> redisTemplate,
             CbServerProperties cbServerProperties,
-            SecureRandom secureRandom) {
+            SecureRandom secureRandom,
+            UserGroupLicenceRebalancer userGroupLicenceRebalancer) {
         this.payloadValidation = payloadValidation;
         this.entityRepository = entityRepository;
         this.objectMapper = objectMapper;
@@ -66,6 +68,7 @@ public class ContentPartnerServiceImplV2 implements ContentPartnerServiceV2 {
         this.redisTemplate = redisTemplate;
         this.cbServerProperties = cbServerProperties;
         this.secureRandom = secureRandom;
+        this.userGroupLicenceRebalancer = userGroupLicenceRebalancer;
     }
 
 
@@ -178,6 +181,10 @@ public class ContentPartnerServiceImplV2 implements ContentPartnerServiceV2 {
         String ruleViolationMessage = checkUpdateRulesAndApplyLtiConfig(partnerName, existingId, data, jsonEntity);
         if (ruleViolationMessage != null) {
             ProjectUtil.errorResponse(response, ruleViolationMessage, HttpStatus.BAD_REQUEST);
+            return response;
+        }
+        if (!userGroupLicenceRebalancer.rebalanceIfNeeded(existingId, jsonEntity.getData(), data)) {
+            ProjectUtil.errorResponse(response, Constants.USER_GROUP_LICENCE_REBALANCE_FAILED, HttpStatus.INTERNAL_SERVER_ERROR);
             return response;
         }
         return saveUpdatedPartner(response, partnerDetails, jsonEntity, existingId);
