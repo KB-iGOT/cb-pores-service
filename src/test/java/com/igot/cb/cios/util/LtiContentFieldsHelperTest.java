@@ -50,21 +50,21 @@ class LtiContentFieldsHelperTest {
         }
 
         @Test
-        void paidCourseWithTheFormFields_isAccepted() {
-            assertDoesNotThrow(() -> validator.rejectMissingMandatoryFields(
-                    content("{\"courseType\":\"paid\",\"requiredKarmaPoints\":50," + COMPETENCIES + "}")));
+        void paidCourseWithTheFormFields_isAccepted() throws Exception {
+            ObjectNode accepted1 = content("{\"courseType\":\"paid\",\"requiredKarmaPoints\":50," + COMPETENCIES + "}");
+            assertDoesNotThrow(() -> validator.rejectMissingMandatoryFields(accepted1));
         }
 
         @Test
-        void karmaPointsOfZero_countAsPresent() {
-            assertDoesNotThrow(() -> validator.rejectMissingMandatoryFields(
-                    content("{\"courseType\":\"paid\",\"requiredKarmaPoints\":0," + COMPETENCIES + "}")));
+        void karmaPointsOfZero_countAsPresent() throws Exception {
+            ObjectNode accepted2 = content("{\"courseType\":\"paid\",\"requiredKarmaPoints\":0," + COMPETENCIES + "}");
+            assertDoesNotThrow(() -> validator.rejectMissingMandatoryFields(accepted2));
         }
 
         @Test
-        void freeCourseWithoutKarmaPoints_isAccepted() {
-            assertDoesNotThrow(() -> validator.rejectMissingMandatoryFields(
-                    content("{\"courseType\":\"free\"," + COMPETENCIES + "}")));
+        void freeCourseWithoutKarmaPoints_isAccepted() throws Exception {
+            ObjectNode accepted3 = content("{\"courseType\":\"free\"," + COMPETENCIES + "}");
+            assertDoesNotThrow(() -> validator.rejectMissingMandatoryFields(accepted3));
         }
 
         @Test
@@ -92,9 +92,9 @@ class LtiContentFieldsHelperTest {
         }
 
         @Test
-        void theDescriptionAndLearningOutcome_areNotCheckedHereBecauseTheyGetDefaults() {
-            assertDoesNotThrow(() -> validator.rejectMissingMandatoryFields(
-                    content("{\"courseType\":\"free\"," + COMPETENCIES + "}")));
+        void theDescriptionAndLearningOutcome_areNotCheckedHereBecauseTheyGetDefaults() throws Exception {
+            ObjectNode accepted4 = content("{\"courseType\":\"free\"," + COMPETENCIES + "}");
+            assertDoesNotThrow(() -> validator.rejectMissingMandatoryFields(accepted4));
         }
 
         @Test
@@ -103,11 +103,12 @@ class LtiContentFieldsHelperTest {
             Files.writeString(file, "{\"fields\":[{\"name\":\"description\"},{\"name\":\"topic\",\"onlyWhen\":{\"courseType\":\"free\"}}]}");
             LtiContentFieldsHelper custom = new LtiContentFieldsHelper(mapper, mandatoryPath(file.toUri().toString()));
 
+            ObjectNode freeCourse = content("{\"courseType\":\"free\"}");
             CustomException e = assertThrows(CustomException.class,
-                    () -> custom.rejectMissingMandatoryFields(content("{\"courseType\":\"free\"}")));
+                    () -> custom.rejectMissingMandatoryFields(freeCourse));
             assertEquals(Constants.MANDATORY_FIELDS_MISSING + "description, topic", e.getMessage());
-            assertDoesNotThrow(() -> custom.rejectMissingMandatoryFields(
-                    content("{\"courseType\":\"paid\",\"description\":\"d\"}")));
+            ObjectNode accepted5 = content("{\"courseType\":\"paid\",\"description\":\"d\"}");
+            assertDoesNotThrow(() -> custom.rejectMissingMandatoryFields(accepted5));
         }
 
         @Test
@@ -115,9 +116,10 @@ class LtiContentFieldsHelperTest {
             Path noName = directory.resolve("noName.json");
             Files.writeString(noName, "{\"fields\":[{\"onlyWhen\":{}}]}");
 
-            assertThrows(Exception.class, () -> new LtiContentFieldsHelper(mapper, mandatoryPath(noName.toUri().toString())));
-            assertThrows(UncheckedIOException.class,
-                    () -> new LtiContentFieldsHelper(mapper, mandatoryPath(directory.resolve("missing.json").toUri().toString())));
+            CbServerProperties noNameProperties = mandatoryPath(noName.toUri().toString());
+            assertThrows(Exception.class, () -> new LtiContentFieldsHelper(mapper, noNameProperties));
+            CbServerProperties missingProperties = mandatoryPath(directory.resolve("missing.json").toUri().toString());
+            assertThrows(UncheckedIOException.class, () -> new LtiContentFieldsHelper(mapper, missingProperties));
         }
     }
 
@@ -203,8 +205,9 @@ class LtiContentFieldsHelperTest {
         void courseTypeAndKarmaPoints_arePublishFormFieldsAndAreNeverInvented() throws Exception {
             ObjectNode content = content("{" + IDENTITY + "}");
 
+            JsonNode partner = partner();
             CustomException e = assertThrows(CustomException.class,
-                    () -> defaulter.addDefaultsForMissingFields(content, partner()));
+                    () -> defaulter.addDefaultsForMissingFields(content, partner));
 
             assertEquals(HttpStatus.BAD_REQUEST, e.getHttpStatusCode());
             assertTrue(e.getMessage().startsWith(Constants.KEY_FIELDS_MISSING));
@@ -273,10 +276,10 @@ class LtiContentFieldsHelperTest {
             defaulter.addDefaultsForMissingFields(paid, partner());
             defaulter.addDefaultsForMissingFields(free, null);
 
-            assertDoesNotThrow(() -> validation.validatePayload(Constants.CIOS_CONTENT_VALIDATION_FILE_JSON,
-                    mapper.createObjectNode().set("content", paid)));
-            assertDoesNotThrow(() -> validation.validatePayload(Constants.CIOS_CONTENT_VALIDATION_FILE_JSON,
-                    mapper.createObjectNode().set("content", free)));
+            JsonNode paidPayload = mapper.createObjectNode().set("content", paid);
+            JsonNode freePayload = mapper.createObjectNode().set("content", free);
+            assertDoesNotThrow(() -> validation.validatePayload(Constants.CIOS_CONTENT_VALIDATION_FILE_JSON, paidPayload));
+            assertDoesNotThrow(() -> validation.validatePayload(Constants.CIOS_CONTENT_VALIDATION_FILE_JSON, freePayload));
         }
 
         @Test
@@ -333,7 +336,8 @@ class LtiContentFieldsHelperTest {
                             "{\"name\":\"courseEnrolLimit\",\"useDefault\":false}"));
             ObjectNode content = content("{" + IDENTITY + "}");
 
-            CustomException e = assertThrows(CustomException.class, () -> custom.addDefaultsForMissingFields(content, partner()));
+            JsonNode partner = partner();
+            CustomException e = assertThrows(CustomException.class, () -> custom.addDefaultsForMissingFields(content, partner));
 
             assertTrue(e.getMessage().endsWith("courseEnrolLimit"));
             assertFalse(content.has("courseEnrolLimit"));
@@ -344,7 +348,8 @@ class LtiContentFieldsHelperTest {
             LtiContentFieldsHelper custom = defaulterWith(directory, "");
             ObjectNode content = content("{" + IDENTITY + "," + FREE + "}");
 
-            CustomException e = assertThrows(CustomException.class, () -> custom.addDefaultsForMissingFields(content, partner()));
+            JsonNode partner = partner();
+            CustomException e = assertThrows(CustomException.class, () -> custom.addDefaultsForMissingFields(content, partner));
 
             assertTrue(e.getMessage().contains("description"));
             assertTrue(e.getMessage().contains("appIcon"));
@@ -371,7 +376,8 @@ class LtiContentFieldsHelperTest {
                     "{\"name\":\"a\",\"useDefault\":true},{\"name\":\"a\",\"useDefault\":false}"));
             assertThrows(Exception.class, () -> defaulterWith(directory, "{\"name\":\"a\"}"));
             Path missing = directory.resolve("nothing.json");
-            assertThrows(UncheckedIOException.class, () -> new LtiContentFieldsHelper(mapper, defaultsPath(missing.toUri().toString())));
+            CbServerProperties missingProperties = defaultsPath(missing.toUri().toString());
+            assertThrows(UncheckedIOException.class, () -> new LtiContentFieldsHelper(mapper, missingProperties));
         }
 
         private static CbServerProperties defaultsPath(String location) {
