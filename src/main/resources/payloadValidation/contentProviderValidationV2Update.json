@@ -155,6 +155,9 @@
     },
     "ltiConfiguration": {
       "type": "object"
+    },
+    "providerPreference": {
+      "type": "boolean"
     }
   },
   "required": [

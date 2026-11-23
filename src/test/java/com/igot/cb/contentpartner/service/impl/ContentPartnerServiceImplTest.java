@@ -19,6 +19,7 @@ import java.sql.Timestamp;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -26,7 +27,6 @@ import org.springframework.data.redis.core.ValueOperations;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
@@ -76,7 +76,15 @@ class ContentPartnerServiceImplTest {
     @Mock
     private SecureRandom secureRandom;
 
+    @Mock
+    private UserGroupLicenceRebalancer userGroupLicenceRebalancer;
+
     private ObjectMapper realObjectMapper = new ObjectMapper();
+
+    @BeforeEach
+    void allowRebalance() {
+        lenient().when(userGroupLicenceRebalancer.rebalanceIfNeeded(anyString(), any(), any())).thenReturn(true);
+    }
 
     private ContentPartnerEntity mockEntity;
     private final String partnerCode = "partner-123";
@@ -312,7 +320,6 @@ class ContentPartnerServiceImplTest {
      */
     @Test
     void test_getContentDetailsByPartnerCode_whenCacheExists(){
-        MockitoAnnotations.openMocks(this);
 
         String cachedJson = "{\"key\":\"value\"}";
         Map<String, Object> cachedData = new HashMap<>();
@@ -343,7 +350,7 @@ class ContentPartnerServiceImplTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.INVALID_ID, response.getParams().getErrMsg());
-}
+    }
 
     /**
      * Test case for reading content partner information with an empty ID and cached data.
@@ -799,6 +806,36 @@ class ContentPartnerServiceImplTest {
         assertEquals(HttpStatus.OK, resp.getResponseCode());
         verify(entityRepository).save(any(ContentPartnerEntity.class));
         verify(esUtilService).updateDocument(eq(Constants.CONTENT_PROVIDER_INDEX_NAME), eq(Constants.INDEX_TYPE), eq("id-123"), anyMap(), anyString());
+        verify(userGroupLicenceRebalancer).rebalanceIfNeeded("id-123", existingData, dataNode);
+    }
+
+    @Test
+    void testUpdateContentPartner_RebalanceFails_NotSaved() {
+        ObjectNode dataNode = realObjectMapper.createObjectNode();
+        dataNode.put(Constants.CONTENT_PARTNER_NAME, "UpdatedName");
+        dataNode.put(Constants.OVER_ALL_LIMIT, 50);
+
+        ObjectNode request = realObjectMapper.createObjectNode();
+        request.put(Constants.ID, "id-123");
+        request.set(Constants.DATA, dataNode);
+
+        ContentPartnerEntity existing = new ContentPartnerEntity();
+        existing.setId("id-123");
+        ObjectNode existingData = realObjectMapper.createObjectNode();
+        existingData.put(Constants.PROVIDER_PREFERENCE, true);
+        existingData.put(Constants.OVER_ALL_LIMIT, 100);
+        existing.setData(existingData);
+
+        when(entityRepository.findById("id-123")).thenReturn(Optional.of(existing));
+        when(entityRepository.findByContentPartnerName("UpdatedName")).thenReturn(Optional.empty());
+        when(userGroupLicenceRebalancer.rebalanceIfNeeded("id-123", existingData, dataNode)).thenReturn(false);
+
+        ApiResponse resp = contentPartnerService.createOrUpdate(request);
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, resp.getResponseCode());
+        assertEquals(Constants.FAILED, resp.getParams().getStatus());
+        assertEquals(Constants.USER_GROUP_LICENCE_REBALANCE_FAILED, resp.getParams().getErrMsg());
+        verify(entityRepository, never()).save(any());
     }
     @Test
     void testUpdateContentPartner_LicenceTypeChange_Rejected() {
