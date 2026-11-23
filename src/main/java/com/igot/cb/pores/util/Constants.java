@@ -547,6 +547,8 @@ public class Constants {
     public static final String LTI_TOOL_ISSUER = "toolIssuer";
     public static final String LTI_CLIENT_ID = "clientId";
     public static final String LTI_DEPLOYMENT_ID = "deploymentId";
+    public static final String PROVIDER_PREFERENCE = "providerPreference";
+    public static final String USER_GROUP_LICENCE_REBALANCE_FAILED = "Failed to rebalance user group licences; provider not updated";
 
     private Constants() {
     }

@@ -146,6 +146,9 @@
     "karmaCoinMultiplier": {
       "type": "number",
       "minimum": 0
+    },
+    "providerPreference": {
+      "type": "boolean"
     }
   },
   "required": [
