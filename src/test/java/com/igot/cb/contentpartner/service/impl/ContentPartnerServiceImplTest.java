@@ -27,7 +27,6 @@ import org.springframework.data.redis.core.ValueOperations;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
@@ -321,7 +320,6 @@ class ContentPartnerServiceImplTest {
      */
     @Test
     void test_getContentDetailsByPartnerCode_whenCacheExists(){
-        MockitoAnnotations.openMocks(this);
 
         String cachedJson = "{\"key\":\"value\"}";
         Map<String, Object> cachedData = new HashMap<>();
@@ -352,7 +350,7 @@ class ContentPartnerServiceImplTest {
         assertEquals(HttpStatus.BAD_REQUEST, response.getResponseCode());
         assertEquals(Constants.FAILED, response.getParams().getStatus());
         assertEquals(Constants.INVALID_ID, response.getParams().getErrMsg());
-}
+    }
 
     /**
      * Test case for reading content partner information with an empty ID and cached data.
