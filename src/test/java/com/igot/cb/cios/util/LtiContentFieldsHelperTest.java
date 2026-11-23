@@ -50,19 +50,19 @@ class LtiContentFieldsHelperTest {
         }
 
         @Test
-        void paidCourseWithTheFormFields_isAccepted() throws Exception {
+        void paidCourseWithTheFormFields_isAccepted() {
             assertDoesNotThrow(() -> validator.rejectMissingMandatoryFields(
                     content("{\"courseType\":\"paid\",\"requiredKarmaPoints\":50," + COMPETENCIES + "}")));
         }
 
         @Test
-        void karmaPointsOfZero_countAsPresent() throws Exception {
+        void karmaPointsOfZero_countAsPresent() {
             assertDoesNotThrow(() -> validator.rejectMissingMandatoryFields(
                     content("{\"courseType\":\"paid\",\"requiredKarmaPoints\":0," + COMPETENCIES + "}")));
         }
 
         @Test
-        void freeCourseWithoutKarmaPoints_isAccepted() throws Exception {
+        void freeCourseWithoutKarmaPoints_isAccepted() {
             assertDoesNotThrow(() -> validator.rejectMissingMandatoryFields(
                     content("{\"courseType\":\"free\"," + COMPETENCIES + "}")));
         }
@@ -92,7 +92,7 @@ class LtiContentFieldsHelperTest {
         }
 
         @Test
-        void theDescriptionAndLearningOutcome_areNotCheckedHereBecauseTheyGetDefaults() throws Exception {
+        void theDescriptionAndLearningOutcome_areNotCheckedHereBecauseTheyGetDefaults() {
             assertDoesNotThrow(() -> validator.rejectMissingMandatoryFields(
                     content("{\"courseType\":\"free\"," + COMPETENCIES + "}")));
         }

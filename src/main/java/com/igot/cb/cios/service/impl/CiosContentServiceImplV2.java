@@ -2,7 +2,9 @@ package com.igot.cb.cios.service.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.IntNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import com.igot.cb.cios.dto.OnboardContentV2Request;
 import com.igot.cb.cios.service.CiosContentServiceV2;
 import com.igot.cb.cios.util.CoursePublisher;
@@ -150,19 +152,19 @@ public class CiosContentServiceImplV2 implements CiosContentServiceV2 {
      */
     private void applyFieldsSentByRequest(ObjectNode content, OnboardContentV2Request request) {
         if (StringUtils.isNotBlank(request.getCourseType())) {
-            content.put(Constants.COURSE_TYPE, request.getCourseType());
+            content.set(Constants.COURSE_TYPE, TextNode.valueOf(request.getCourseType()));
         }
         if (request.getCourseEnrolLimit() != null) {
-            content.put(Constants.COURSE_ENROL_LIMIT, request.getCourseEnrolLimit());
+            content.set(Constants.COURSE_ENROL_LIMIT, IntNode.valueOf(request.getCourseEnrolLimit()));
         }
         if (request.getRequiredKarmaPoints() != null) {
-            content.put(Constants.REQUIRED_KARMA_POINTS, request.getRequiredKarmaPoints());
+            content.set(Constants.REQUIRED_KARMA_POINTS, IntNode.valueOf(request.getRequiredKarmaPoints()));
         }
         setWhenSent(content, Constants.COMPETENCIES_V5, request.getCompetenciesV5());
         setWhenSent(content, Constants.COMPETENCIES_V6, request.getCompetenciesV6());
         setWhenSent(content, Constants.BADGE_DETAILS_V1, request.getBadgeDetailsV1());
         if (StringUtils.isNotBlank(request.getDifficultyLevel())) {
-            content.put(Constants.DIFFICULTY_LEVEL, request.getDifficultyLevel());
+            content.set(Constants.DIFFICULTY_LEVEL, TextNode.valueOf(request.getDifficultyLevel()));
         }
     }
 

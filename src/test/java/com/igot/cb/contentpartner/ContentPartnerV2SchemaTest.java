@@ -105,14 +105,16 @@ class ContentPartnerV2SchemaTest {
 
     @Test
     void validLtiIsAccepted() {
-        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(validLti())));
+        ObjectNode payload = ltiPartner(validLti());
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, payload));
     }
 
     @Test
     void deepLinkingUrlIsOptional() {
         ObjectNode lti = validLti();
         lti.remove("deepLinkingUrl");
-        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(lti)));
+        ObjectNode payload = ltiPartner(lti);
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, payload));
     }
 
     @Test
@@ -120,13 +122,16 @@ class ContentPartnerV2SchemaTest {
         ObjectNode lti = validLti();
         lti.put("ssoTestStatus", "SUCCESS");
         lti.put("message", "All checks passed");
-        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(lti)));
+        ObjectNode payload = ltiPartner(lti);
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, payload));
 
         ObjectNode onlyStatus = validLti();
         onlyStatus.put("ssoTestStatus", "SUCCESS");
-        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(onlyStatus)));
+        ObjectNode onlyStatusPayload = ltiPartner(onlyStatus);
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, onlyStatusPayload));
 
-        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(validLti())));
+        ObjectNode withoutBoth = ltiPartner(validLti());
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, withoutBoth));
     }
 
     @ParameterizedTest
@@ -158,7 +163,8 @@ class ContentPartnerV2SchemaTest {
     void serverManagedFieldsAreNotRequiredInTheRequest() {
         ObjectNode lti = validLti();
         assertFalse(lti.has("ltiVersion") || lti.has("toolIssuer") || lti.has("clientId") || lti.has("deploymentId"));
-        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(lti)));
+        ObjectNode payload = ltiPartner(lti);
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, payload));
     }
 
     /**
@@ -170,7 +176,8 @@ class ContentPartnerV2SchemaTest {
     void serverManagedFieldsAreAcceptedWhenSentAsStrings(String field) {
         ObjectNode lti = validLti();
         lti.put(field, "value");
-        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(lti)));
+        ObjectNode payload = ltiPartner(lti);
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, payload));
     }
 
     @Test
@@ -182,7 +189,8 @@ class ContentPartnerV2SchemaTest {
         lti.put("deploymentId", "IGOT-TEST-UHUWE");
         lti.put("ssoTestStatus", "Failed");
         lti.put("message", "The LTI tool could not recognize the platform registration.");
-        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(lti)));
+        ObjectNode payload = ltiPartner(lti);
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, payload));
     }
 
     @ParameterizedTest
@@ -222,7 +230,8 @@ class ContentPartnerV2SchemaTest {
         for (String url : ACCEPTED_URLS) {
             ObjectNode lti = validLti();
             lti.put(field, url);
-            assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(lti)), field + " should accept " + url);
+            ObjectNode acceptedPayload = ltiPartner(lti);
+            assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, acceptedPayload), field + " should accept " + url);
         }
     }
 
@@ -232,7 +241,8 @@ class ContentPartnerV2SchemaTest {
         for (String url : REJECTED_URLS) {
             ObjectNode lti = validLti();
             lti.put(field, url);
-            assertThrows(CustomException.class, () -> validation.validatePayload(V2_SCHEMA, ltiPartner(lti)),
+            ObjectNode payload = ltiPartner(lti);
+            assertThrows(CustomException.class, () -> validation.validatePayload(V2_SCHEMA, payload),
                     field + " should reject [" + url + "]");
         }
     }
