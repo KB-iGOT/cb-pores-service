@@ -1,0 +1,64 @@
+{
+  "fields": [
+    {
+      "name": "externalId",
+      "useDefault": true,
+      "derive": [
+        "generated.uuid"
+      ]
+    },
+    {
+      "name": "name",
+      "useDefault": true,
+      "value": "Course name is not available"
+    },
+    {
+      "name": "redirectUrl",
+      "useDefault": true,
+      "derive": [
+        "partner.websiteUrl"
+      ],
+      "value": "https://igotkarmayogi.gov.in"
+    },
+    {
+      "name": "description",
+      "useDefault": true,
+      "derive": [
+        "content.name"
+      ],
+      "value": "Description is not available"
+    },
+    {
+      "name": "objectives",
+      "useDefault": true,
+      "derive": [
+        "content.description",
+        "content.name"
+      ],
+      "value": "Objectives are not available"
+    },
+    {
+      "name": "appIcon",
+      "useDefault": true,
+      "derive": [
+        "partner.link"
+      ],
+      "value": "https://s3.amazonaws.com/ecornell/content/On-Demand/Homepages/Banners/LAW531OD1_homepage-banner_v1.jpg"
+    },
+    {
+      "name": "duration",
+      "useDefault": true,
+      "value": "3600"
+    },
+    {
+      "name": "topic",
+      "useDefault": true,
+      "value": "General"
+    },
+    {
+      "name": "courseEnrolLimit",
+      "useDefault": true,
+      "value": 0
+    }
+  ]
+}

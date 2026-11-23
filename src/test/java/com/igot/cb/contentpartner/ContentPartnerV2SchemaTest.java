@@ -1,5 +1,6 @@
 package com.igot.cb.contentpartner;
 
+import java.util.List;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.igot.cb.pores.exceptions.CustomException;
@@ -19,6 +20,18 @@ import static org.junit.jupiter.api.Assertions.*;
 class ContentPartnerV2SchemaTest {
 
     private static final String V2_SCHEMA = "/payloadValidation/contentProviderValidationV2Update.json";
+    private static final List<String> ACCEPTED_URLS = List.of(
+            "https://provider.example.com/launch",
+            "http://provider.example.com/launch",
+            "HTTPS://Provider.Example.com/x",
+            "https://a.com:8443/x?a=1&b=2#frag",
+            "http://10.0.0.5:8080/lti/login",
+            "https://a.com");
+    private static final List<String> REJECTED_URLS = List.of(
+            "ftp://a.com/x", "javascript:alert(1)", "mailto:a@b.com", "file:///etc/passwd", "data:text/html,hi",
+            "//a.com/x", "/just/a/path", "example.com/launch", "not a url", "",
+            "https://a.com extra text", " https://a.com/x", "https://a.com/x ", "https://a.com/x\n", "https://a.com/x\nfoo",
+            "https://", "http://", "https:// a.com", "https:///path", "https://a.com/<script>");
     private final ObjectMapper mapper = new ObjectMapper();
     private final PayloadValidation validation = new PayloadValidation();
 
@@ -201,6 +214,27 @@ class ContentPartnerV2SchemaTest {
         ObjectNode lti = validLti();
         lti.put(field, "not a url");
         assertRejected(ltiPartner(lti));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"toolPublicJwksUrl", "oidcLoginInitiationUrl", "redirectLaunchUrl", "deepLinkingUrl"})
+    void httpAndHttpsUrlsAreAcceptedInEveryLtiUrlField(String field) {
+        for (String url : ACCEPTED_URLS) {
+            ObjectNode lti = validLti();
+            lti.put(field, url);
+            assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(lti)), field + " should accept " + url);
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"toolPublicJwksUrl", "oidcLoginInitiationUrl", "redirectLaunchUrl", "deepLinkingUrl"})
+    void anythingThatIsNotJustAnHttpOrHttpsUrlIsRejectedInEveryLtiUrlField(String field) {
+        for (String url : REJECTED_URLS) {
+            ObjectNode lti = validLti();
+            lti.put(field, url);
+            assertThrows(CustomException.class, () -> validation.validatePayload(V2_SCHEMA, ltiPartner(lti)),
+                    field + " should reject [" + url + "]");
+        }
     }
 
     @Test

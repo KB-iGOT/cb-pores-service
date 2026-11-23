@@ -234,6 +234,14 @@ public class CbServerProperties {
     @Value("${ext.course.compatibility.level}")
     private int extCourseCompatibilityLevel;
 
+    /** Location of the LTI content onboard default values file, as classpath: or file:. */
+    @Value("${lti.content.onboard.default.values.path}")
+    private String ltiContentOnboardDefaultValuesPath;
+
+    /** Location of the LTI content onboard mandatory fields file, as classpath: or file:. */
+    @Value("${lti.content.onboard.mandatory.fields.path}")
+    private String ltiContentOnboardMandatoryFieldsPath;
+
     public List<String> getOrgHierarchyCreateRequiredRoles() {
       return Arrays.asList(orgHierarchyCreateRoles.split(","));
     }

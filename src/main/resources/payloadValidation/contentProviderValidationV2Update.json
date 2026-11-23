@@ -1,5 +1,12 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "httpOrHttpsUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://[^\\s/?#]+([/?#]\\S*)?$"
+    }
+  },
   "type": "object",
   "properties": {
     "id": {
@@ -229,20 +236,16 @@
             "type": "object",
             "properties": {
               "toolPublicJwksUrl": {
-                "type": "string",
-                "format": "uri"
+                "$ref": "#/definitions/httpOrHttpsUrl"
               },
               "oidcLoginInitiationUrl": {
-                "type": "string",
-                "format": "uri"
+                "$ref": "#/definitions/httpOrHttpsUrl"
               },
               "redirectLaunchUrl": {
-                "type": "string",
-                "format": "uri"
+                "$ref": "#/definitions/httpOrHttpsUrl"
               },
               "deepLinkingUrl": {
-                "type": "string",
-                "format": "uri"
+                "$ref": "#/definitions/httpOrHttpsUrl"
               },
               "ssoTestStatus": {
                 "type": "string"
