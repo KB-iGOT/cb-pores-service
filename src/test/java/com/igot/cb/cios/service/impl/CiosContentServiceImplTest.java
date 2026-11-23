@@ -1265,11 +1265,18 @@ class CiosContentServiceImplTest {
         // Force the getResourceAsStream to return dummy schema input
         ClassLoader classLoader = mock(ClassLoader.class);
         when(classLoader.getResourceAsStream(fileName)).thenReturn(dummySchemaStream);
+        ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
         Thread.currentThread().setContextClassLoader(classLoader);
 
         // Act + Assert
-        CustomException exception = assertThrows(CustomException.class, () ->
-                ciosContentService.validatePayload(fileName, mockPayload));
+        CustomException exception;
+        try {
+            exception = assertThrows(CustomException.class, () ->
+                    ciosContentService.validatePayload(fileName, mockPayload));
+        } finally {
+            // A mocked context class loader left on the thread crashes the JVM in later tests.
+            Thread.currentThread().setContextClassLoader(originalClassLoader);
+        }
 
         // Print and validate
         System.out.println("Exception Message: " + exception.getMessage());
