@@ -240,6 +240,12 @@ public class CbServerProperties {
     @Value("${provider.access.settings.rebalance.path}")
     private String providerAccessSettingsRebalancePath;
 
+    @Value("${lti.content.onboard.default.values.path}")
+    private String ltiContentOnboardDefaultValuesPath;
+
+    @Value("${lti.content.onboard.mandatory.fields.path}")
+    private String ltiContentOnboardMandatoryFieldsPath;
+
     public List<String> getOrgHierarchyCreateRequiredRoles() {
       return Arrays.asList(orgHierarchyCreateRoles.split(","));
     }

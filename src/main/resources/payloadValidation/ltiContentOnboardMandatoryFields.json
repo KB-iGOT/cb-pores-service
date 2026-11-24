@@ -1,0 +1,16 @@
+{
+  "fields": [
+    {
+      "name": "courseType"
+    },
+    {
+      "name": "requiredKarmaPoints",
+      "onlyWhen": {
+        "courseType": "paid"
+      }
+    },
+    {
+      "name": "competencies_v6"
+    }
+  ]
+}

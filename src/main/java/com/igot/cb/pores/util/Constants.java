@@ -550,6 +550,47 @@ public class Constants {
     public static final String PROVIDER_PREFERENCE = "providerPreference";
     public static final String USER_GROUP_LICENCE_REBALANCE_FAILED = "Failed to rebalance user group licences; provider not updated";
 
+    // Onboard content V2 API
+    public static final String ONBOARD_V2_API_ID = "api.cios.onboard.v2";
+    public static final String LIVE_STATUS_LOWER_CASE = "live";
+    public static final String ONBOARD_V2_MESSAGE_KEY = "message";
+
+    /** Same shape as the ids the content table already holds: prefix, environment, time, shard and a sequence. */
+    public static final String CONTENT_ID_ENVIRONMENT = "1";
+    public static final String CONTENT_ID_SHARD = "1";
+    public static final int CONTENT_ID_TIME_SHIFT = 13;
+
+    /** A draft has no publish time; the content index expects this placeholder. */
+    public static final String PARTNER_LINK = "link";
+    public static final String PARTNER_DOCUMENT_URL = "documentUrl";
+    public static final String DRAFT_PUBLISHED_ON = "0000-00-00 00:00:00.000";
+
+    public static final String PARTNER_CODE_MISSING = "partnerCode is mandatory: send it, or send contentPartner with a partnerCode";
+    public static final String CONTENT_DATA_INVALID = "contentData is mandatory and must be the mapped item returned by the Deep Linking return API";
+    public static final String CONTENT_PARTNER_INCOMPLETE =
+            "contentPartner must be an object with an id and a partnerCode when it is sent";
+    public static final String CONTENT_PARTNER_MISMATCH = "contentPartner.id does not belong to the partner: ";
+    public static final String PARTNER_NOT_FOUND = "No partner found for code: ";
+    public static final String PARTNER_READ_FAILED = "Unable to read the partner details for code: ";
+    public static final String NO_CONTENT_OBJECT = "The contentData does not carry a content object";
+    public static final String KEY_FIELDS_MISSING = "The mapped content does not have mandatory field(s): ";
+    public static final String ONBOARD_FAILED = "Unable to onboard the content";
+    public static final String STAGED_MESSAGE = "The course was saved as a draft";
+    public static final String PUBLISHED_MESSAGE = "The course was published";
+
+    public static final String COURSE_TYPE_CHANGED =
+            "courseType cannot be changed for a course that is already onboarded";
+    public static final String ENROL_LIMIT_EXCEEDED =
+            "courseEnrolLimit is above the partner's overAllLimit of %d";
+    public static final String KARMA_BELOW_PARTNER =
+            "requiredKarmaPoints is below the partner's karmaPoints of %d";
+    public static final String SCHEMA_REQUIRED_KEYWORD = "required";
+    public static final String DERIVE_PARTNER_SOURCE_PREFIX = "partner.";
+    public static final String DERIVE_CONTENT_SOURCE_PREFIX = "content.";
+    public static final String MANDATORY_FIELDS_MISSING = "The request is missing mandatory field(s): ";
+    public static final String DERIVE_GENERATED_SOURCE_PREFIX = "generated.";
+    public static final String GENERATED_UUID_SOURCE = "uuid";
+
     private Constants() {
     }
 }

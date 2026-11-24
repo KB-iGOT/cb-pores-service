@@ -1,5 +1,6 @@
 package com.igot.cb.contentpartner;
 
+import java.util.List;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.igot.cb.pores.exceptions.CustomException;
@@ -7,6 +8,7 @@ import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.PayloadValidation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpStatus;
 
@@ -19,6 +21,18 @@ import static org.junit.jupiter.api.Assertions.*;
 class ContentPartnerV2SchemaTest {
 
     private static final String V2_SCHEMA = "/payloadValidation/contentProviderValidationV2Update.json";
+    private static final List<String> ACCEPTED_URLS = List.of(
+            "https://provider.example.com/launch",
+            "http://provider.example.com/launch",
+            "HTTPS://Provider.Example.com/x",
+            "https://a.com:8443/x?a=1&b=2#frag",
+            "http://10.0.0.5:8080/lti/login",
+            "https://a.com");
+    private static final List<String> REJECTED_URLS = List.of(
+            "ftp://a.com/x", "javascript:alert(1)", "mailto:a@b.com", "file:///etc/passwd", "data:text/html,hi",
+            "//a.com/x", "/just/a/path", "example.com/launch", "not a url", "",
+            "https://a.com extra text", " https://a.com/x", "https://a.com/x ", "https://a.com/x\n", "https://a.com/x\nfoo",
+            "https://", "http://", "https:// a.com", "https:///path", "https://a.com/<script>");
     private final ObjectMapper mapper = new ObjectMapper();
     private final PayloadValidation validation = new PayloadValidation();
 
@@ -92,14 +106,16 @@ class ContentPartnerV2SchemaTest {
 
     @Test
     void validLtiIsAccepted() {
-        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(validLti())));
+        ObjectNode payload = ltiPartner(validLti());
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, payload));
     }
 
     @Test
     void deepLinkingUrlIsOptional() {
         ObjectNode lti = validLti();
         lti.remove("deepLinkingUrl");
-        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(lti)));
+        ObjectNode payload = ltiPartner(lti);
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, payload));
     }
 
     @Test
@@ -107,13 +123,16 @@ class ContentPartnerV2SchemaTest {
         ObjectNode lti = validLti();
         lti.put("ssoTestStatus", "SUCCESS");
         lti.put("message", "All checks passed");
-        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(lti)));
+        ObjectNode payload = ltiPartner(lti);
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, payload));
 
         ObjectNode onlyStatus = validLti();
         onlyStatus.put("ssoTestStatus", "SUCCESS");
-        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(onlyStatus)));
+        ObjectNode onlyStatusPayload = ltiPartner(onlyStatus);
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, onlyStatusPayload));
 
-        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(validLti())));
+        ObjectNode withoutBoth = ltiPartner(validLti());
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, withoutBoth));
     }
 
     @ParameterizedTest
@@ -121,13 +140,6 @@ class ContentPartnerV2SchemaTest {
     void ssoTestStatusAndMessageMustBeStrings(String field) {
         ObjectNode lti = validLti();
         lti.put(field, 5);
-        assertRejected(ltiPartner(lti));
-    }
-
-    @Test
-    void otherUnknownLtiConfigurationFieldsAreStillRejected() {
-        ObjectNode lti = validLti();
-        lti.put("ssoTestResult", "SUCCESS");
         assertRejected(ltiPartner(lti));
     }
 
@@ -145,7 +157,8 @@ class ContentPartnerV2SchemaTest {
     void serverManagedFieldsAreNotRequiredInTheRequest() {
         ObjectNode lti = validLti();
         assertFalse(lti.has("ltiVersion") || lti.has("toolIssuer") || lti.has("clientId") || lti.has("deploymentId"));
-        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(lti)));
+        ObjectNode payload = ltiPartner(lti);
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, payload));
     }
 
     /**
@@ -157,7 +170,8 @@ class ContentPartnerV2SchemaTest {
     void serverManagedFieldsAreAcceptedWhenSentAsStrings(String field) {
         ObjectNode lti = validLti();
         lti.put(field, "value");
-        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(lti)));
+        ObjectNode payload = ltiPartner(lti);
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, payload));
     }
 
     @Test
@@ -169,7 +183,8 @@ class ContentPartnerV2SchemaTest {
         lti.put("deploymentId", "IGOT-TEST-UHUWE");
         lti.put("ssoTestStatus", "Failed");
         lti.put("message", "The LTI tool could not recognize the platform registration.");
-        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, ltiPartner(lti)));
+        ObjectNode payload = ltiPartner(lti);
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, payload));
     }
 
     @ParameterizedTest
@@ -190,9 +205,33 @@ class ContentPartnerV2SchemaTest {
         assertRejected(ltiPartner(lti));
     }
 
+    @ParameterizedTest
+    @CsvSource({"ssoTestResult, SUCCESS", "unknown, x", "deepLinkingUrl, '   '"})
+    void unexpectedFieldsAndBlankDeepLinkingUrlAreRejected(String field, String value) {
+        ObjectNode lti = validLti();
+        lti.put(field, value);
+        assertRejected(ltiPartner(lti));
+    }
+
     @Test
     void emptyLtiConfigurationIsRejected() {
         assertRejected(ltiPartner(mapper.createObjectNode()));
+    }
+
+    @Test
+    void emptyDeepLinkingUrlIsAccepted() {
+        ObjectNode lti = validLti();
+        lti.put("deepLinkingUrl", "");
+        ObjectNode payload = ltiPartner(lti);
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, payload));
+    }
+
+    @Test
+    void nullDeepLinkingUrlIsAccepted() {
+        ObjectNode lti = validLti();
+        lti.putNull("deepLinkingUrl");
+        ObjectNode payload = ltiPartner(lti);
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, payload));
     }
 
     @ParameterizedTest
@@ -203,6 +242,32 @@ class ContentPartnerV2SchemaTest {
         assertRejected(ltiPartner(lti));
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"toolPublicJwksUrl", "oidcLoginInitiationUrl", "redirectLaunchUrl", "deepLinkingUrl"})
+    void httpAndHttpsUrlsAreAcceptedInEveryLtiUrlField(String field) {
+        for (String url : ACCEPTED_URLS) {
+            ObjectNode lti = validLti();
+            lti.put(field, url);
+            ObjectNode acceptedPayload = ltiPartner(lti);
+            assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, acceptedPayload), field + " should accept " + url);
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"toolPublicJwksUrl", "oidcLoginInitiationUrl", "redirectLaunchUrl", "deepLinkingUrl"})
+    void anythingThatIsNotJustAnHttpOrHttpsUrlIsRejectedInEveryLtiUrlField(String field) {
+        for (String url : REJECTED_URLS) {
+            if (url.isEmpty() && "deepLinkingUrl".equals(field)) {
+                continue; // an empty deepLinkingUrl means "not configured" and is accepted
+            }
+            ObjectNode lti = validLti();
+            lti.put(field, url);
+            ObjectNode payload = ltiPartner(lti);
+            assertThrows(CustomException.class, () -> validation.validatePayload(V2_SCHEMA, payload),
+                    field + " should reject [" + url + "]");
+        }
+    }
+
     @Test
     void wrongTypeAndNullLtiValuesAreRejected() {
         ObjectNode numeric = validLti();
@@ -211,13 +276,6 @@ class ContentPartnerV2SchemaTest {
         ObjectNode nullValue = validLti();
         nullValue.putNull("toolPublicJwksUrl");
         assertRejected(ltiPartner(nullValue));
-    }
-
-    @Test
-    void unexpectedLtiFieldIsRejected() {
-        ObjectNode lti = validLti();
-        lti.put("unknown", "x");
-        assertRejected(ltiPartner(lti));
     }
 
     @Test
