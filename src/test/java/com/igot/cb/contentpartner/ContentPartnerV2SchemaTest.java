@@ -216,6 +216,29 @@ class ContentPartnerV2SchemaTest {
         assertRejected(ltiPartner(mapper.createObjectNode()));
     }
 
+    @Test
+    void emptyDeepLinkingUrlIsAccepted() {
+        ObjectNode lti = validLti();
+        lti.put("deepLinkingUrl", "");
+        ObjectNode payload = ltiPartner(lti);
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, payload));
+    }
+
+    @Test
+    void nullDeepLinkingUrlIsAccepted() {
+        ObjectNode lti = validLti();
+        lti.putNull("deepLinkingUrl");
+        ObjectNode payload = ltiPartner(lti);
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, payload));
+    }
+
+    @Test
+    void blankSpacesAsDeepLinkingUrlAreStillRejected() {
+        ObjectNode lti = validLti();
+        lti.put("deepLinkingUrl", "   ");
+        assertRejected(ltiPartner(lti));
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"toolPublicJwksUrl", "oidcLoginInitiationUrl", "redirectLaunchUrl", "deepLinkingUrl"})
     void invalidLtiUrlIsRejected(String field) {
@@ -239,6 +262,9 @@ class ContentPartnerV2SchemaTest {
     @ValueSource(strings = {"toolPublicJwksUrl", "oidcLoginInitiationUrl", "redirectLaunchUrl", "deepLinkingUrl"})
     void anythingThatIsNotJustAnHttpOrHttpsUrlIsRejectedInEveryLtiUrlField(String field) {
         for (String url : REJECTED_URLS) {
+            if (url.isEmpty() && "deepLinkingUrl".equals(field)) {
+                continue; // an empty deepLinkingUrl means "not configured" and is accepted
+            }
             ObjectNode lti = validLti();
             lti.put(field, url);
             ObjectNode payload = ltiPartner(lti);

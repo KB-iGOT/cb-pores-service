@@ -248,7 +248,18 @@
                 "$ref": "#/definitions/httpOrHttpsUrl"
               },
               "deepLinkingUrl": {
-                "$ref": "#/definitions/httpOrHttpsUrl"
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/httpOrHttpsUrl"
+                  },
+                  {
+                    "type": "string",
+                    "maxLength": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "ssoTestStatus": {
                 "type": "string"
