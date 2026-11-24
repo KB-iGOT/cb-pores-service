@@ -8,6 +8,7 @@ import com.igot.cb.pores.util.Constants;
 import com.igot.cb.pores.util.PayloadValidation;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpStatus;
 
@@ -143,13 +144,6 @@ class ContentPartnerV2SchemaTest {
     }
 
     @Test
-    void otherUnknownLtiConfigurationFieldsAreStillRejected() {
-        ObjectNode lti = validLti();
-        lti.put("ssoTestResult", "SUCCESS");
-        assertRejected(ltiPartner(lti));
-    }
-
-    @Test
     void existingRequiredPartnerFieldsStillApply() {
         ObjectNode node = ltiPartner(validLti());
         node.remove("link");
@@ -211,6 +205,14 @@ class ContentPartnerV2SchemaTest {
         assertRejected(ltiPartner(lti));
     }
 
+    @ParameterizedTest
+    @CsvSource({"ssoTestResult, SUCCESS", "unknown, x", "deepLinkingUrl, '   '"})
+    void unexpectedFieldsAndBlankDeepLinkingUrlAreRejected(String field, String value) {
+        ObjectNode lti = validLti();
+        lti.put(field, value);
+        assertRejected(ltiPartner(lti));
+    }
+
     @Test
     void emptyLtiConfigurationIsRejected() {
         assertRejected(ltiPartner(mapper.createObjectNode()));
@@ -230,13 +232,6 @@ class ContentPartnerV2SchemaTest {
         lti.putNull("deepLinkingUrl");
         ObjectNode payload = ltiPartner(lti);
         assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, payload));
-    }
-
-    @Test
-    void blankSpacesAsDeepLinkingUrlAreStillRejected() {
-        ObjectNode lti = validLti();
-        lti.put("deepLinkingUrl", "   ");
-        assertRejected(ltiPartner(lti));
     }
 
     @ParameterizedTest
@@ -281,13 +276,6 @@ class ContentPartnerV2SchemaTest {
         ObjectNode nullValue = validLti();
         nullValue.putNull("toolPublicJwksUrl");
         assertRejected(ltiPartner(nullValue));
-    }
-
-    @Test
-    void unexpectedLtiFieldIsRejected() {
-        ObjectNode lti = validLti();
-        lti.put("unknown", "x");
-        assertRejected(ltiPartner(lti));
     }
 
     @Test
