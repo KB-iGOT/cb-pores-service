@@ -105,9 +105,10 @@ class CiosContentServiceImplV2Test {
 
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
-        assertEquals("joRZVwp9Eeun_RJEc0KNDw", response.getResult().get(Constants.EXTERNAL_ID));
-        assertEquals("draft", response.getResult().get(Constants.STATUS));
-        assertEquals(Constants.STAGED_MESSAGE, response.getResult().get(Constants.ONBOARD_V2_MESSAGE_KEY));
+        assertEquals(Constants.API_CIOS_CURATION_CREATE, response.getId());
+        assertEquals(1, response.getResult().size());
+        assertEquals(String.format(Constants.COURSES_PUBLISHED_MESSAGE, 0, 1),
+                response.getResult().get(Constants.ONBOARD_RESULT_MESSAGE_KEY));
 
         JsonNode content = savedAsDraft().path("content");
         assertEquals("Data Analysis with R Programming", content.path("name").asText());
@@ -141,16 +142,17 @@ class CiosContentServiceImplV2Test {
     }
 
     @Test
-    void live_isPublishedWithThePartnerDataAndTheContentIdComesBack() throws Exception {
+    void live_isPublishedWithThePartnerDataAndTheV1StyleMessageComesBack() throws Exception {
         partnerExists();
 
         ApiResponse response = service.onboardContent(request("live"));
 
         assertEquals(HttpStatus.OK, response.getResponseCode());
-        ObjectNode courseData = published();
-        assertEquals(courseData.path("content").path("contentId").asText(),
-                response.getResult().get(Constants.CONTENT_ID));
-        assertEquals(Constants.PUBLISHED_MESSAGE, response.getResult().get(Constants.ONBOARD_V2_MESSAGE_KEY));
+        published();
+        assertEquals(Constants.API_CIOS_CURATION_CREATE, response.getId());
+        assertEquals(1, response.getResult().size());
+        assertEquals(String.format(Constants.COURSES_PUBLISHED_MESSAGE, 1, 1),
+                response.getResult().get(Constants.ONBOARD_RESULT_MESSAGE_KEY));
         verify(coursePublisher).publishAsLive(any(), eq(partnerData()), any());
         verify(coursePublisher, never()).saveAsDraft(any(), any());
         verify(countUpdater).updateCourseCounts(PARTNER_CODE);

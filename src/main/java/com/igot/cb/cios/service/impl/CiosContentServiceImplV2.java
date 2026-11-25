@@ -45,7 +45,7 @@ public class CiosContentServiceImplV2 implements CiosContentServiceV2 {
 
     @Override
     public ApiResponse onboardContent(OnboardContentV2Request request) {
-        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.ONBOARD_V2_API_ID);
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.API_CIOS_CURATION_CREATE);
         log.info("CiosContentServiceImplV2::onboardContent: request for partner {}, status {}",
                 request.getPartnerCode(), request.getStatus());
         try {
@@ -65,7 +65,7 @@ public class CiosContentServiceImplV2 implements CiosContentServiceV2 {
             ltiContentFieldsHelper.assignPlatformFields(content, request, partner, status, now);
             saveAsDraftOrLive(content, partner, status, now);
             countUpdater.updateCourseCounts(request.getPartnerCode());
-            response.setResult(buildSuccessResult(content, status));
+            response.setResult(buildSuccessResult(status));
             log.info("CiosContentServiceImplV2::onboardContent: externalId {} saved as {} with contentId {}",
                     content.path(Constants.EXTERNAL_ID).asText(), status, content.path(Constants.CONTENT_ID).asText());
         } catch (CustomException e) {
@@ -106,6 +106,7 @@ public class CiosContentServiceImplV2 implements CiosContentServiceV2 {
     }
 
     private JsonNode loadPartnerByCode(String partnerCode) {
+        log.info("CiosContentServiceImplV2::loadPartnerByCode: reading partner {}", partnerCode);
         ApiResponse partnerResponse = contentPartnerService.getContentDetailsByPartnerCode(partnerCode);
         if (partnerResponse == null) {
             throw new CustomException(Constants.ERROR, Constants.PARTNER_READ_FAILED + partnerCode,
@@ -187,14 +188,15 @@ public class CiosContentServiceImplV2 implements CiosContentServiceV2 {
         }
     }
 
-    private Map<String, Object> buildSuccessResult(ObjectNode content, String status) {
+    /**
+     * The same result the v1 onboard API returns: one message with the number of published courses out of the courses
+     * sent. A draft is not counted as published.
+     */
+    private Map<String, Object> buildSuccessResult(String status) {
+        int publishedCount = isLive(status) ? 1 : 0;
         Map<String, Object> result = new HashMap<>();
-        result.put(Constants.EXTERNAL_ID, content.path(Constants.EXTERNAL_ID).asText());
-        result.put(Constants.STATUS, status);
-        result.put(Constants.CONTENT_ID, content.path(Constants.CONTENT_ID).asText());
-        result.put(Constants.ONBOARD_V2_MESSAGE_KEY, isLive(status)
-                ? Constants.PUBLISHED_MESSAGE
-                : Constants.STAGED_MESSAGE);
+        result.put(Constants.ONBOARD_RESULT_MESSAGE_KEY,
+                String.format(Constants.COURSES_PUBLISHED_MESSAGE, publishedCount, 1));
         return result;
     }
 

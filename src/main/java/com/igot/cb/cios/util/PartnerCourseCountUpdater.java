@@ -59,9 +59,12 @@ public class PartnerCourseCountUpdater {
         payload.put(Constants.PAGE_SIZE, 1);
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        return restTemplate.postForObject(
-                cbServerProperties.getCiosContentServiceHost() + cbServerProperties.getCiosContentServiceSearchApiUrl(),
-                new HttpEntity<>(payload, headers), JsonNode.class);
+        String url = cbServerProperties.getCiosContentServiceHost() + cbServerProperties.getCiosContentServiceSearchApiUrl();
+        log.info("PartnerCourseCountUpdater::searchCourseCountsByStatus: calling cios search {} for partner {}", url, partnerCode);
+        JsonNode counts = restTemplate.postForObject(url, new HttpEntity<>(payload, headers), JsonNode.class);
+        log.info("PartnerCourseCountUpdater::searchCourseCountsByStatus: cios search answered for partner {}, totalCount {}",
+                partnerCode, counts == null ? null : counts.path(Constants.TOTAL_COUNT));
+        return counts;
     }
 
     private static boolean hasTotalAndStatusCounts(JsonNode counts) {
@@ -70,6 +73,7 @@ public class PartnerCourseCountUpdater {
     }
 
     private void writeCountsToPartner(String partnerCode, JsonNode counts) {
+        log.info("PartnerCourseCountUpdater::writeCountsToPartner: reading partner {} to update its counts", partnerCode);
         ApiResponse partnerResponse = contentPartnerService.getContentDetailsByPartnerCode(partnerCode);
         JsonNode partner = partnerResponse == null ? null : objectMapper.valueToTree(partnerResponse.getResult());
         if (partner == null || !partner.path(Constants.DATA).isObject()) {
@@ -81,10 +85,16 @@ public class PartnerCourseCountUpdater {
                 .put(Constants.TOTAL_COURSES_COUNT, counts.path(Constants.TOTAL_COUNT).asLong())
                 .put(Constants.DRAFT_COURSES_COUNT, countForStatus(statusFacets, Constants.DRAFT))
                 .put(Constants.LIVE_COURSES_COUNT, countForStatus(statusFacets, Constants.LIVE_STATUS_LOWER_CASE));
+        log.info("PartnerCourseCountUpdater::writeCountsToPartner: updating partner {} with total {}, draft {}, live {}",
+                partnerCode, partner.path(Constants.DATA).path(Constants.TOTAL_COURSES_COUNT),
+                partner.path(Constants.DATA).path(Constants.DRAFT_COURSES_COUNT),
+                partner.path(Constants.DATA).path(Constants.LIVE_COURSES_COUNT));
         ApiResponse updateResponse = contentPartnerServiceV2.createOrUpdate(partner);
         if (updateResponse == null || updateResponse.getResponseCode() != HttpStatus.OK) {
             log.error("PartnerCourseCountUpdater::writeCountsToPartner: the partner {} was not updated: {}", partnerCode,
                     updateResponse == null ? "no response" : updateResponse.getParams().getErrMsg());
+        } else {
+            log.info("PartnerCourseCountUpdater::writeCountsToPartner: partner {} counts updated", partnerCode);
         }
     }
 

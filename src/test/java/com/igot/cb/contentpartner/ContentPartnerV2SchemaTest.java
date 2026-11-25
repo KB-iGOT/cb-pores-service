@@ -246,11 +246,37 @@ class ContentPartnerV2SchemaTest {
     @ValueSource(strings = {"toolPublicJwksUrl", "oidcLoginInitiationUrl", "redirectLaunchUrl", "deepLinkingUrl"})
     void httpAndHttpsUrlsAreAcceptedInEveryLtiUrlField(String field) {
         for (String url : ACCEPTED_URLS) {
+            if (isPlainHttp(url) && "deepLinkingUrl".equals(field)) {
+                continue; // the deep linking URL accepts https only
+            }
             ObjectNode lti = validLti();
             lti.put(field, url);
             ObjectNode acceptedPayload = ltiPartner(lti);
             assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, acceptedPayload), field + " should accept " + url);
         }
+    }
+
+    private static boolean isPlainHttp(String url) {
+        return url.regionMatches(true, 0, "http://", 0, "http://".length());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"http://provider.example.com/deep-link", "HTTP://Provider.Example.com/x",
+            "http://10.0.0.5:8080/lti/deep-link"})
+    void deepLinkingUrlOverPlainHttpIsRejected(String url) {
+        ObjectNode lti = validLti();
+        lti.put("deepLinkingUrl", url);
+        assertRejected(ltiPartner(lti));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"https://provider.example.com/deep-link", "HTTPS://Provider.Example.com/x",
+            "https://a.com:8443/x?a=1&b=2#frag"})
+    void deepLinkingUrlOverHttpsIsAccepted(String url) {
+        ObjectNode lti = validLti();
+        lti.put("deepLinkingUrl", url);
+        ObjectNode acceptedPayload = ltiPartner(lti);
+        assertDoesNotThrow(() -> validation.validatePayload(V2_SCHEMA, acceptedPayload));
     }
 
     @ParameterizedTest
