@@ -5,6 +5,11 @@
       "type": "string",
       "format": "uri",
       "pattern": "^[Hh][Tt][Tt][Pp][Ss]?://[^\\s/?#]+([/?#]\\S*)?$"
+    },
+    "httpsUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^[Hh][Tt][Tt][Pp][Ss]://[^\\s/?#]+([/?#]\\S*)?$"
     }
   },
   "type": "object",
@@ -250,7 +255,7 @@
               "deepLinkingUrl": {
                 "anyOf": [
                   {
-                    "$ref": "#/definitions/httpOrHttpsUrl"
+                    "$ref": "#/definitions/httpsUrl"
                   },
                   {
                     "type": "string",

@@ -551,9 +551,8 @@ public class Constants {
     public static final String USER_GROUP_LICENCE_REBALANCE_FAILED = "Failed to rebalance user group licences; provider not updated";
 
     // Onboard content V2 API
-    public static final String ONBOARD_V2_API_ID = "api.cios.onboard.v2";
+    public static final String ONBOARD_V2_API_ID = "api.cios.v2.onboard";
     public static final String LIVE_STATUS_LOWER_CASE = "live";
-    public static final String ONBOARD_V2_MESSAGE_KEY = "message";
 
     /** Same shape as the ids the content table already holds: prefix, environment, time, shard and a sequence. */
     public static final String CONTENT_ID_ENVIRONMENT = "1";
@@ -575,8 +574,6 @@ public class Constants {
     public static final String NO_CONTENT_OBJECT = "The contentData does not carry a content object";
     public static final String KEY_FIELDS_MISSING = "The mapped content does not have mandatory field(s): ";
     public static final String ONBOARD_FAILED = "Unable to onboard the content";
-    public static final String STAGED_MESSAGE = "The course was saved as a draft";
-    public static final String PUBLISHED_MESSAGE = "The course was published";
 
     public static final String COURSE_TYPE_CHANGED =
             "courseType cannot be changed for a course that is already onboarded";
@@ -590,6 +587,8 @@ public class Constants {
     public static final String MANDATORY_FIELDS_MISSING = "The request is missing mandatory field(s): ";
     public static final String DERIVE_GENERATED_SOURCE_PREFIX = "generated.";
     public static final String GENERATED_UUID_SOURCE = "uuid";
+    /** Key of the message in the onboard response result; the v1 onboard API uses the same one. */
+    public static final String ONBOARD_RESULT_MESSAGE_KEY = "ApiResponse";
 
     private Constants() {
     }

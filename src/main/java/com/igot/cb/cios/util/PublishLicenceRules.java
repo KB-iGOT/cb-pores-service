@@ -7,7 +7,9 @@ import com.igot.cb.cios.repository.CiosRepository;
 import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -24,6 +26,7 @@ import java.util.Optional;
  *   <li>No licence configured: nothing is applied.</li>
  * </ul>
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class PublishLicenceRules {
@@ -41,6 +44,8 @@ public class PublishLicenceRules {
     public Optional<String> findLicenceRuleViolation(ObjectNode content, JsonNode partnerData) {
         String licenceType = partnerData.path(Constants.LICENCE_TYPE).asText("");
         int overAllLimit = partnerData.path(Constants.OVER_ALL_LIMIT).asInt(0);
+        log.info("PublishLicenceRules::findLicenceRuleViolation: externalId {} checked against licenceType '{}', overAllLimit {}",
+                content.path(Constants.EXTERNAL_ID).asText(), licenceType, overAllLimit);
         if (Constants.LICENCE_TYPE_USER.equalsIgnoreCase(licenceType)) {
             return findUserLicenceViolation(content, overAllLimit);
         }
@@ -64,6 +69,9 @@ public class PublishLicenceRules {
             return Optional.empty();
         }
         setKarmaCoinsAndCompatibilityLevel(content, partnerData);
+        log.info("PublishLicenceRules::findCourseLicenceViolation: paid course, requiredKarmaPoints {}, courseEnrolLimit {}, partner karmaPoints {}",
+                content.path(Constants.REQUIRED_KARMA_POINTS).asInt(0), content.path(Constants.COURSE_ENROL_LIMIT).asInt(0),
+                partnerData.path(Constants.KARMA_POINTS).asInt(0));
         Optional<String> enrolLimitViolation = findEnrolLimitViolation(content, overAllLimit);
         return enrolLimitViolation.isPresent()
                 ? enrolLimitViolation
@@ -95,13 +103,29 @@ public class PublishLicenceRules {
      */
     private boolean courseTypeDiffersFromOnboardedCourse(ObjectNode content) {
         String requested = content.path(Constants.COURSE_TYPE).asText("");
-        return ciosRepository.findByExternalIdAndPartnerId(
-                        content.path(Constants.EXTERNAL_ID).asText(),
-                        content.path(Constants.CONTENT_PARTNER).path(Constants.ID).asText())
+        String externalId = content.path(Constants.EXTERNAL_ID).asText();
+        String partnerId = content.path(Constants.CONTENT_PARTNER).path(Constants.ID).asText();
+        log.info("PublishLicenceRules::courseTypeDiffersFromOnboardedCourse: reading the live row of externalId {} and partnerId {}",
+                externalId, partnerId);
+        return findLiveRow(externalId, partnerId)
                 .map(CiosContentEntity::getCiosData)
                 .map(data -> data.path(Constants.CONTENT).path(Constants.COURSE_TYPE).asText(""))
                 .filter(StringUtils::isNotBlank)
                 .map(existing -> !existing.equalsIgnoreCase(requested))
                 .orElse(false);
+    }
+
+    /**
+     * More than one live row for the same externalId and partnerId is a data problem, so it is logged with both ids
+     * before the exception goes on.
+     */
+    private Optional<CiosContentEntity> findLiveRow(String externalId, String partnerId) {
+        try {
+            return ciosRepository.findByExternalIdAndPartnerId(externalId, partnerId);
+        } catch (IncorrectResultSizeDataAccessException e) {
+            log.error("PublishLicenceRules::findLiveRow: the live table has more than one row for externalId {} and partnerId {}",
+                    externalId, partnerId, e);
+            throw e;
+        }
     }
 }

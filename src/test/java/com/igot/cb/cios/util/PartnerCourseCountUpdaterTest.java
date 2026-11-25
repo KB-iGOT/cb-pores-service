@@ -81,6 +81,19 @@ class PartnerCourseCountUpdaterTest {
     }
 
     @Test
+    void partnerUpdateThatSucceeds_isNotReportedAsAnError() throws Exception {
+        searchReturns("{\"totalCount\":1,\"facets\":{\"status\":[{\"value\":\"live\",\"count\":1}]}}");
+        partnerIs(Map.of("id", "p1", "data", Map.of("name", "Coursera")));
+        ApiResponse accepted = new ApiResponse();
+        accepted.setResponseCode(org.springframework.http.HttpStatus.OK);
+        when(contentPartnerServiceV2.createOrUpdate(any())).thenReturn(accepted);
+
+        updater.updateCourseCounts("CODE");
+
+        verify(contentPartnerServiceV2).createOrUpdate(any());
+    }
+
+    @Test
     void searchesOnlyThePartnersCoursesForTheirStatusCounts() throws Exception {
         searchReturns("{\"totalCount\":0,\"facets\":{\"status\":[]}}");
         partnerIs(Map.of("id", "p1", "data", Map.of()));

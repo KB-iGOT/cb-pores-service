@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 
 import java.util.Optional;
 
@@ -154,5 +155,19 @@ class PublishLicenceRulesTest {
                 partner("{\"licenseType\":\"Course\",\"overAllLimit\":10}"));
 
         assertTrue(violation.isEmpty());
+    }
+
+    @Test
+    void courseLicence_moreThanOneLiveRowForTheCourse_failsWithTheSameExceptionAfterLoggingIt() throws Exception {
+        IncorrectResultSizeDataAccessException duplicateRows = new IncorrectResultSizeDataAccessException(1, 2);
+        when(ciosRepository.findByExternalIdAndPartnerId("ext-1", "partner-1")).thenThrow(duplicateRows);
+        ObjectNode content = content("paid", 0, 0);
+        JsonNode partner = partner("{\"licenseType\":\"Course\",\"overAllLimit\":10}");
+
+        PublishLicenceRules rules = rules();
+        IncorrectResultSizeDataAccessException thrown = assertThrows(IncorrectResultSizeDataAccessException.class,
+                () -> rules.findLicenceRuleViolation(content, partner));
+
+        assertSame(duplicateRows, thrown);
     }
 }

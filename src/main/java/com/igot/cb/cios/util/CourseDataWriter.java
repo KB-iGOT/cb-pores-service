@@ -12,6 +12,7 @@ import com.igot.cb.pores.util.CbServerProperties;
 import com.igot.cb.pores.util.Constants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -47,12 +48,14 @@ public class CourseDataWriter {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         String url = cbServerProperties.getCiosContentServiceHost() + cbServerProperties.getCiosContentServiceUpdateApiUrl();
-        log.debug("CourseDataWriter::sendToCiosStaging: posting externalId {} to {}",
-                courseData.path(Constants.CONTENT).path(Constants.EXTERNAL_ID).asText(), url);
+        String externalId = courseData.path(Constants.CONTENT).path(Constants.EXTERNAL_ID).asText();
+        log.info("CourseDataWriter::sendToCiosStaging: calling cios staging {} for externalId {}", url, externalId);
         try {
             restTemplate.postForObject(url, new HttpEntity<>(courseData, headers), JsonNode.class);
+            log.info("CourseDataWriter::sendToCiosStaging: cios staging accepted externalId {}", externalId);
         } catch (RuntimeException e) {
-            log.error("CourseDataWriter::sendToCiosStaging: cios staging call to {} failed", url, e);
+            log.error("CourseDataWriter::sendToCiosStaging: cios staging call to {} failed for externalId {}",
+                    url, externalId, e);
             throw e;
         }
     }
@@ -63,12 +66,16 @@ public class CourseDataWriter {
     public void saveInLiveTableCacheAndIndex(ObjectNode courseData, Timestamp now) {
         ObjectNode content = (ObjectNode) courseData.path(Constants.CONTENT);
         CiosContentEntity entity = buildLiveTableRow(courseData, content, now);
+        log.info("CourseDataWriter::saveInLiveTableCacheAndIndex: saving the live row, contentId {}, externalId {}, partnerId {}",
+                entity.getContentId(), entity.getExternalId(), entity.getPartnerId());
         ciosRepository.save(entity);
-        log.info("CourseDataWriter::saveInLiveTableCacheAndIndex: saved content {}", entity.getContentId());
+        String externalIdAndPartnerIdKey = entity.getExternalId() + "_" + entity.getPartnerId();
         cacheService.putCache(entity.getContentId(), courseData);
-        cacheService.putCache(entity.getExternalId() + "_" + entity.getPartnerId(), courseData);
+        cacheService.putCache(externalIdAndPartnerIdKey, courseData);
         esUtilService.addDocument(Constants.CIOS_INDEX_NAME, Constants.INDEX_TYPE, entity.getContentId(),
                 objectMapper.convertValue(content, DOCUMENT_TYPE), cbServerProperties.getElasticCiosJsonPath());
+        log.info("CourseDataWriter::saveInLiveTableCacheAndIndex: contentId {} saved in the live table, cached under {} and {}, and indexed",
+                entity.getContentId(), entity.getContentId(), externalIdAndPartnerIdKey);
     }
 
     /**
@@ -78,9 +85,10 @@ public class CourseDataWriter {
     private CiosContentEntity buildLiveTableRow(ObjectNode courseData, ObjectNode content, Timestamp now) {
         String externalId = content.path(Constants.EXTERNAL_ID).asText();
         String partnerId = content.path(Constants.CONTENT_PARTNER).path(Constants.ID).asText();
-        Optional<CiosContentEntity> existing = ciosRepository.findByExternalIdAndPartnerId(externalId, partnerId);
-        log.debug("CourseDataWriter::buildLiveTableRow: externalId {} partnerId {} {}", externalId, partnerId,
-                existing.isPresent() ? "already live, keeping its contentId" : "is new in the live table");
+        Optional<CiosContentEntity> existing = findLiveRow(externalId, partnerId);
+        log.info("CourseDataWriter::buildLiveTableRow: externalId {} partnerId {}: {}", externalId, partnerId,
+                existing.map(row -> "already live as contentId " + row.getContentId() + ", keeping that contentId")
+                        .orElse("not in the live table yet, a new row is created"));
         CiosContentEntity entity = new CiosContentEntity();
         entity.setContentId(existing.map(CiosContentEntity::getContentId)
                 .orElseGet(() -> content.path(Constants.CONTENT_ID).asText()));
@@ -95,5 +103,19 @@ public class CourseDataWriter {
         content.put(Constants.LAST_UPDATED_ON, String.valueOf(now));
         content.put(Constants.STATUS, Constants.LIVE);
         return entity;
+    }
+
+    /**
+     * Looks up the live row of the course. More than one row for the same externalId and partnerId is a data problem,
+     * so it is logged with both ids before the exception goes on.
+     */
+    private Optional<CiosContentEntity> findLiveRow(String externalId, String partnerId) {
+        try {
+            return ciosRepository.findByExternalIdAndPartnerId(externalId, partnerId);
+        } catch (IncorrectResultSizeDataAccessException e) {
+            log.error("CourseDataWriter::findLiveRow: the live table has more than one row for externalId {} and partnerId {}",
+                    externalId, partnerId, e);
+            throw e;
+        }
     }
 }

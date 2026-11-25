@@ -15,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestTemplate;
@@ -24,9 +25,12 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -89,6 +93,19 @@ class CourseDataWriterTest {
     }
 
     @Test
+    void sendToCiosStaging_whenCiosFails_theSameExceptionGoesToTheCaller() {
+        when(cbServerProperties.getCiosContentServiceHost()).thenReturn("http://cios");
+        when(cbServerProperties.getCiosContentServiceUpdateApiUrl()).thenReturn("/update");
+        RuntimeException ciosDown = new RuntimeException("cios is down");
+        when(restTemplate.postForObject(eq("http://cios/update"), any(HttpEntity.class), eq(JsonNode.class)))
+                .thenThrow(ciosDown);
+
+        RuntimeException thrown = assertThrows(RuntimeException.class, () -> store.sendToCiosStaging(courseData));
+
+        assertSame(ciosDown, thrown);
+    }
+
+    @Test
     void saveInLiveTableCacheAndIndex_newCourse_isSavedCachedUnderBothKeysAndIndexed() {
         when(ciosRepository.findByExternalIdAndPartnerId("ext-1", "partner-1")).thenReturn(Optional.empty());
         when(cbServerProperties.getElasticCiosJsonPath()).thenReturn("/es.json");
@@ -132,5 +149,19 @@ class CourseDataWriterTest {
         assertEquals(EARLIER.toString(), content().path("createdOn").asText());
         verify(cacheService).putCache("ext_old", courseData);
         verify(esUtilService).addDocument(any(), any(), eq("ext_old"), any(), any());
+    }
+
+    @Test
+    void saveInLiveTableCacheAndIndex_moreThanOneLiveRowForTheCourse_failsBeforeAnythingIsWritten() {
+        IncorrectResultSizeDataAccessException duplicateRows = new IncorrectResultSizeDataAccessException(1, 2);
+        when(ciosRepository.findByExternalIdAndPartnerId("ext-1", "partner-1")).thenThrow(duplicateRows);
+
+        IncorrectResultSizeDataAccessException thrown = assertThrows(IncorrectResultSizeDataAccessException.class,
+                () -> store.saveInLiveTableCacheAndIndex(courseData, NOW));
+
+        assertSame(duplicateRows, thrown);
+        verify(ciosRepository, never()).save(any());
+        verify(cacheService, never()).putCache(any(), any());
+        verify(esUtilService, never()).addDocument(any(), any(), any(), any(), any());
     }
 }
