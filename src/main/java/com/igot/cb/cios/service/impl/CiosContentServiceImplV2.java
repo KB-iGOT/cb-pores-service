@@ -45,7 +45,7 @@ public class CiosContentServiceImplV2 implements CiosContentServiceV2 {
 
     @Override
     public ApiResponse onboardContent(OnboardContentV2Request request) {
-        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.ONBOARD_API_ID);
+        ApiResponse response = ProjectUtil.createDefaultResponse(Constants.ONBOARD_V2_API_ID);
         log.info("CiosContentServiceImplV2::onboardContent: request for partner {}, status {}",
                 request.getPartnerCode(), request.getStatus());
         try {

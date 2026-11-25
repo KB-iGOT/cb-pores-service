@@ -551,6 +551,7 @@ public class Constants {
     public static final String USER_GROUP_LICENCE_REBALANCE_FAILED = "Failed to rebalance user group licences; provider not updated";
 
     // Onboard content V2 API
+    public static final String ONBOARD_V2_API_ID = "api.cios.v2.onboard";
     public static final String LIVE_STATUS_LOWER_CASE = "live";
 
     /** Same shape as the ids the content table already holds: prefix, environment, time, shard and a sequence. */
@@ -588,7 +589,6 @@ public class Constants {
     public static final String GENERATED_UUID_SOURCE = "uuid";
     /** Key of the message in the onboard response result; the v1 onboard API uses the same one. */
     public static final String ONBOARD_RESULT_MESSAGE_KEY = "ApiResponse";
-    public static final String ONBOARD_API_ID = "api.cios.v2.onboard";
 
     private Constants() {
     }

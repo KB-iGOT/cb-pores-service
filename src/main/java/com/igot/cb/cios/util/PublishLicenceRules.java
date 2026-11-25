@@ -52,7 +52,6 @@ public class PublishLicenceRules {
         if (Constants.LICENCE_TYPE_COURSE.equalsIgnoreCase(licenceType)) {
             return findCourseLicenceViolation(content, partnerData, overAllLimit);
         }
-        log.info("PublishLicenceRules::findLicenceRuleViolation: no licence rule applies for licenceType '{}'", licenceType);
         return Optional.empty();
     }
 

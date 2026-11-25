@@ -85,7 +85,7 @@ public class PartnerCourseCountUpdater {
                 .put(Constants.TOTAL_COURSES_COUNT, counts.path(Constants.TOTAL_COUNT).asLong())
                 .put(Constants.DRAFT_COURSES_COUNT, countForStatus(statusFacets, Constants.DRAFT))
                 .put(Constants.LIVE_COURSES_COUNT, countForStatus(statusFacets, Constants.LIVE_STATUS_LOWER_CASE));
-        log.info("PartnerCourseCountUpdater::writeCountsToPartner: updating partner {} with total {}, draft {}, live {}",
+        log.debug("PartnerCourseCountUpdater::writeCountsToPartner: updating partner {} with total {}, draft {}, live {}",
                 partnerCode, partner.path(Constants.DATA).path(Constants.TOTAL_COURSES_COUNT),
                 partner.path(Constants.DATA).path(Constants.DRAFT_COURSES_COUNT),
                 partner.path(Constants.DATA).path(Constants.LIVE_COURSES_COUNT));

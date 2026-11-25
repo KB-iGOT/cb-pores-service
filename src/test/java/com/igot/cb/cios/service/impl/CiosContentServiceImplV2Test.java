@@ -105,7 +105,7 @@ class CiosContentServiceImplV2Test {
 
         assertEquals(HttpStatus.OK, response.getResponseCode());
         assertEquals(Constants.SUCCESS, response.getParams().getStatus());
-        assertEquals(Constants.ONBOARD_API_ID, response.getId());
+        assertEquals(Constants.ONBOARD_V2_API_ID, response.getId());
         assertEquals(1, response.getResult().size());
         assertEquals(String.format(Constants.COURSES_PUBLISHED_MESSAGE, 0, 1),
                 response.getResult().get(Constants.ONBOARD_RESULT_MESSAGE_KEY));
@@ -149,7 +149,7 @@ class CiosContentServiceImplV2Test {
 
         assertEquals(HttpStatus.OK, response.getResponseCode());
         published();
-        assertEquals(Constants.ONBOARD_API_ID, response.getId());
+        assertEquals(Constants.ONBOARD_V2_API_ID, response.getId());
         assertEquals(1, response.getResult().size());
         assertEquals(String.format(Constants.COURSES_PUBLISHED_MESSAGE, 1, 1),
                 response.getResult().get(Constants.ONBOARD_RESULT_MESSAGE_KEY));

@@ -69,16 +69,13 @@ public class CourseDataWriter {
         log.info("CourseDataWriter::saveInLiveTableCacheAndIndex: saving the live row, contentId {}, externalId {}, partnerId {}",
                 entity.getContentId(), entity.getExternalId(), entity.getPartnerId());
         ciosRepository.save(entity);
-        log.info("CourseDataWriter::saveInLiveTableCacheAndIndex: live row saved, contentId {}", entity.getContentId());
         String externalIdAndPartnerIdKey = entity.getExternalId() + "_" + entity.getPartnerId();
         cacheService.putCache(entity.getContentId(), courseData);
         cacheService.putCache(externalIdAndPartnerIdKey, courseData);
-        log.info("CourseDataWriter::saveInLiveTableCacheAndIndex: cached under the keys {} and {}",
-                entity.getContentId(), externalIdAndPartnerIdKey);
         esUtilService.addDocument(Constants.CIOS_INDEX_NAME, Constants.INDEX_TYPE, entity.getContentId(),
                 objectMapper.convertValue(content, DOCUMENT_TYPE), cbServerProperties.getElasticCiosJsonPath());
-        log.info("CourseDataWriter::saveInLiveTableCacheAndIndex: live index {} updated for contentId {}",
-                Constants.CIOS_INDEX_NAME, entity.getContentId());
+        log.info("CourseDataWriter::saveInLiveTableCacheAndIndex: contentId {} saved in the live table, cached under {} and {}, and indexed",
+                entity.getContentId(), entity.getContentId(), externalIdAndPartnerIdKey);
     }
 
     /**
@@ -113,7 +110,6 @@ public class CourseDataWriter {
      * so it is logged with both ids before the exception goes on.
      */
     private Optional<CiosContentEntity> findLiveRow(String externalId, String partnerId) {
-        log.info("CourseDataWriter::findLiveRow: reading the live row of externalId {} and partnerId {}", externalId, partnerId);
         try {
             return ciosRepository.findByExternalIdAndPartnerId(externalId, partnerId);
         } catch (IncorrectResultSizeDataAccessException e) {
